@@ -18,13 +18,38 @@ const profiles = new Hono<HonoEnv>();
 profiles.get("/:handle", optionalAuth, async (c) => {
   const handle = c.req.param("handle");
 
-  const user = await c.env.DB.prepare("SELECT id, handle, avatar_url FROM users WHERE handle = ?")
+  const user = await c.env.DB.prepare(
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle FROM users WHERE handle = ?",
+  )
     .bind(handle)
-    .first<{ id: string; handle: string; avatar_url: string | null }>();
+    .first<{
+      id: string;
+      handle: string;
+      avatar_url: string | null;
+      public_profile: number;
+      bio: string | null;
+      twitter_handle: string | null;
+    }>();
 
   if (!user) {
     return notFound(c, "User not found");
   }
+
+  // Check banlist — drop public-facing views for banned handles
+  const banned = await c.env.CACHE.get(`banned:handle:${handle.toLowerCase()}`);
+  if (banned !== null) {
+    return notFound(c, "User not found");
+  }
+
+  // Private-profile guard: only the user themselves may view
+  const callerId = c.var.userId ?? null;
+  if (user.public_profile !== 1 && callerId !== user.id) {
+    return notFound(c, "This profile is private");
+  }
+
+  // Determine if caller is the owner (so we can include sensitive fields)
+  const isOwner = callerId === user.id;
+  const isPublic = user.public_profile === 1;
 
   const todayUtc = new Date().toISOString().slice(0, 10);
 
@@ -70,6 +95,10 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       id: user.id,
       handle: user.handle,
       avatarUrl: user.avatar_url,
+      ...(isPublic || isOwner
+        ? { bio: user.bio, twitterHandle: user.twitter_handle }
+        : {}),
+      ...(isOwner ? { publicProfile: user.public_profile === 1 } : {}),
       totals: {
         today: {
           tokens: totals.today_tokens,
@@ -98,12 +127,19 @@ profiles.get("/:handle", optionalAuth, async (c) => {
 profiles.get("/:handle/autobiography", optionalAuth, async (c) => {
   const handle = c.req.param("handle");
 
-  const user = await c.env.DB.prepare("SELECT id, handle, avatar_url FROM users WHERE handle = ?")
+  const user = await c.env.DB.prepare(
+    "SELECT id, handle, avatar_url, public_profile FROM users WHERE handle = ?",
+  )
     .bind(handle)
-    .first<{ id: string; handle: string; avatar_url: string | null }>();
+    .first<{ id: string; handle: string; avatar_url: string | null; public_profile: number }>();
 
   if (!user) {
     return notFound(c, "User not found");
+  }
+
+  const callerId = c.var.userId ?? null;
+  if (user.public_profile !== 1 && callerId !== user.id) {
+    return notFound(c, "This profile is private");
   }
 
   const todayUtc = new Date().toISOString().slice(0, 10);

@@ -37,6 +37,7 @@ function printHelp(): void {
 \x1b[1mCommands:\x1b[0m
   login      Authenticate with Token Rats (opens browser)
   sync       Read local Claude Code + Cursor logs and upload counts
+  watch      Watch logs in real-time; upload new sessions as they appear
   whoami     Show the currently signed-in account
   logout     Clear your stored credentials
   help       Show this help message
@@ -47,6 +48,10 @@ function printHelp(): void {
 \x1b[1mFlags (sync only):\x1b[0m
   --dry-run         Parse but do not upload; print what would be sent
   --verbose         Print discovered files and per-file record counts
+
+\x1b[1mFlags (watch only):\x1b[0m
+  --interval <ms>   Debounce window in ms before uploading (default: 2000)
+  --verbose         Print file change events and upload detail
 
 \x1b[1mPrivacy:\x1b[0m
   Token Rats reads usage counts only — never prompts or completions.
@@ -69,6 +74,7 @@ interface ParsedArgs {
   apiUrl: string | undefined;
   dryRun: boolean;
   verbose: boolean;
+  interval: number | undefined;
   rest: string[];
 }
 
@@ -77,6 +83,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let apiUrl: string | undefined;
   let dryRun = false;
   let verbose = false;
+  let interval: number | undefined;
 
   let i = 0;
   while (i < argv.length) {
@@ -89,6 +96,10 @@ function parseArgs(argv: string[]): ParsedArgs {
       dryRun = true;
     } else if (arg === "--verbose" || arg === "-v") {
       verbose = true;
+    } else if (arg === "--interval" && i + 1 < argv.length) {
+      interval = Number(argv[++i]);
+    } else if (arg.startsWith("--interval=")) {
+      interval = Number(arg.slice("--interval=".length));
     } else if (arg === "--version" || arg === "-V") {
       console.log(getVersion());
       process.exit(0);
@@ -103,14 +114,14 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   const [command = null, ...rest] = positional;
-  return { command, apiUrl, dryRun, verbose, rest };
+  return { command, apiUrl, dryRun, verbose, interval, rest };
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const { command, apiUrl, dryRun, verbose } = args;
+  const { command, apiUrl, dryRun, verbose, interval } = args;
 
   if (!command || command === "help") {
     printHelp();
@@ -124,6 +135,10 @@ async function main(): Promise<void> {
 
     case "sync":
       await syncCommand({ apiUrl, dryRun, verbose });
+      break;
+
+    case "watch":
+      await watchCommand({ apiUrl, verbose, interval });
       break;
 
     case "whoami":

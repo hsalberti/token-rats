@@ -24,6 +24,84 @@ type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
 const sessions = new Hono<HonoEnv>();
 
+/** Fan out leaderboard-update and session-added events to all rooms the user belongs to. */
+async function fanoutToRooms(
+  env: Env,
+  userId: string,
+  totalTokens: number,
+  totalCostUsdCents: number,
+): Promise<void> {
+  // Look up the user's handle for the session-added payload
+  const user = await env.DB.prepare("SELECT handle FROM users WHERE id = ?")
+    .bind(userId)
+    .first<{ handle: string }>();
+
+  if (!user) return;
+
+  // Get every room the user belongs to
+  const rooms = await env.DB.prepare(
+    `SELECT r.code FROM rooms r
+       INNER JOIN room_members rm ON rm.room_id = r.id
+       WHERE rm.user_id = ?`,
+  )
+    .bind(userId)
+    .all<{ code: string }>();
+
+  if (!rooms.results || rooms.results.length === 0) return;
+
+  const fanouts: Promise<void>[] = [];
+
+  for (const { code } of rooms.results) {
+    const id = env.ROOM_LIVE.idFromName(code);
+    const stub = env.ROOM_LIVE.get(id);
+
+    // session-added event
+    const sessionAddedEvent = {
+      kind: "session-added" as const,
+      payload: {
+        roomCode: code,
+        handle: user.handle,
+        tokens: totalTokens,
+        costUsdCents: totalCostUsdCents,
+      },
+    };
+
+    // leaderboard-update event
+    const leaderboardUpdateEvent = {
+      kind: "leaderboard-update" as const,
+      payload: { roomCode: code },
+    };
+
+    fanouts.push(
+      stub
+        .fetch(
+          new Request(`https://do/publish`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(sessionAddedEvent),
+          }),
+        )
+        .then(() => undefined)
+        .catch(() => undefined),
+    );
+
+    fanouts.push(
+      stub
+        .fetch(
+          new Request(`https://do/publish`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(leaderboardUpdateEvent),
+          }),
+        )
+        .then(() => undefined)
+        .catch(() => undefined),
+    );
+  }
+
+  await Promise.all(fanouts);
+}
+
 sessions.post("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
@@ -53,6 +131,18 @@ sessions.post("/", requireAuth, async (c) => {
 
   const accepted = results.filter((r) => r.inserted).length;
   const duplicates = records.length - accepted;
+
+  // Fan out live events for any newly inserted sessions — fire-and-forget via
+  // waitUntil so ingest response latency is unaffected.
+  if (accepted > 0) {
+    const newRecords = records.filter((_, i) => results[i]?.inserted);
+    const totalTokens = newRecords.reduce((s, r) => s + r.inTokens + r.outTokens, 0);
+    const totalCostUsdCents = newRecords.reduce((s, r) => s + r.costUsdCents, 0);
+
+    c.executionCtx.waitUntil(
+      fanoutToRooms(c.env, userId, totalTokens, totalCostUsdCents),
+    );
+  }
 
   return c.json({ accepted, duplicates });
 });
