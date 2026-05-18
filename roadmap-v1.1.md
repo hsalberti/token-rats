@@ -2,6 +2,8 @@
 
 v1 (Phases 0–3) is on disk and merged. 98 tests pass. The pipeline runs end-to-end. What v1 has not done is meet a real audience: the only signal so far is a private Discord. v1.1 is therefore a **sharpening pass** — one viral feature, one strategic deprioritization, and the unsexy reliability work that lets the social loop actually fire when a stranger from X clicks `npx token-rats`.
 
+> **Sister doc — provider expansion:** see [`roadmap-providers.md`](./roadmap-providers.md) for the *parallel* sub-effort that adds Codex parsing, a three-option source picker, per-source profile tiles, and the "Other" picker tree (IDE / API / Open Source). It deltas the **base v1.0** track letters (A, D, F, P, Q) — different work from the Phase 4 P/Q below, which happen to reuse the same letters.
+
 Same legend as `roadmap.md`:
 - 🟦 **Sequential** — must finish before the next thing starts.
 - 🟩 **Parallel** — can run alongside other 🟩 tracks in the same phase. Spawn one agent per track.
@@ -110,6 +112,58 @@ Five tracks, all independent on the contracts and DB after Phase 0. Track P is t
 
 ---
 
+### 🟩 Track U — Primary-source tag next to display name
+
+**Owner:** Agent U
+**Inputs:** `sessions` table (`source`, `model`, `tokens_in`, `tokens_out`, `cost_usd`), `packages/parsers/*`, leaderboard + profile renderers, OG card routes
+**Outputs:** a single derived `primarySource` label per user, surfaced everywhere a username appears
+
+- A user's `primarySource` is the source-bucket that contributed the most **cost** over the last 30 days, requiring ≥50% share or `null` (no tag) below that. Compute on read from `daily_rollup` (or a thin SQL helper); no new table.
+- Label vocabulary (kebab-case, lower priority than handle in the layout): `claude-pro`, `claude-max`, `claude-api`, `cursor-ide`, `codex-pro`, `codex-api`, `openai-api`, `deepseek-api`, plus a generic `other` fallback. Open the file for additions as Track P's "Other" branch lands.
+- Provider/plan inference happens in the parsers, not at render time. Extend `SessionRecord` in `packages/contracts` with `sourcePlan: "pro" | "max" | "api" | "ide" | "unknown"` (nullable). Parsers fill it from the strongest local signal — OAuth token presence vs raw API key, account-tier hints in Claude Code logs, Cursor's plan flag, Codex CLI's auth mode (see `research/codexbar.md` for the matrix). When in doubt, emit `unknown` and let the label fall back to bare source (`claude`, `cursor`, `codex`).
+- New contract field `primarySource: string | null` on `LeaderboardRow`, `PublicProfile`, and `Me`. Backed by a single SQL aggregate; cache on the same KV key family as the existing leaderboard cache (invalidate on ingest, same as today).
+- Render the tag as a small monospace pill (rat-orange border, neutral fill) immediately after the handle in: leaderboard rows, room member list, `/u/[handle]`, `/onboarding` reveal header, and every OG card route under `/cards/`.
+- Hard rule: the pill is **purely informational** — it is not a filter, not clickable, and does not affect ranking. Keep it that way until v1.2.
+
+**Why now:** the share-card loop in Track P puts usernames on a stranger's timeline. A `claude-max` or `codex-pro` chip beside the handle is a one-glance credential that increases the card's "this person is the real deal" signal — free distribution work on top of the cards Track P already builds.
+
+**Definition of done:** A signed-in user with ≥50% of their last-30d cost from one source sees the matching tag next to their handle on `/app`, `/r/[code]`, `/u/[handle]`, and every OG card. A user under the threshold sees no tag (not `other` — actually nothing). Parsers emit `sourcePlan` for every new session; existing sessions backfill to `unknown` and degrade gracefully.
+
+**Depends on:** Track P's contract addition lands first only because both touch `LeaderboardRow`; otherwise independent. Should merge after P but before T so Playwright covers the pill.
+
+---
+
+### 🟩 Track V — Group metrics, contribution heatmap, and group streak
+
+**Owner:** Agent V
+**Inputs:** `daily_rollup` (per-user-per-room-per-day), existing `streaks.ts` day-walker helper, `apps/web/app/r/[code]/`, `apps/web/app/u/[handle]/`
+**Outputs:** one room-summary endpoint, one heatmap endpoint (parametric: personal or group), one group-streak endpoint, one reusable `<Heatmap />` component used on both profile and room pages
+
+**A. Team-wide group metrics**
+- New route `GET /v1/rooms/:code/summary?range=today|7d|30d|all` reading `daily_rollup`. Returns `{ totalCostUsd, totalTokens, activeMembers, dayCount, topContributorSharePct, modelMix: [{ model, costUsd, sharePct }], sourceMix: [{ source, costUsd, sharePct }] }`. Member-gated; non-members get 404.
+- Render as a stat strip above the room leaderboard on `/r/[code]`. Same range selector as the leaderboard — single source of truth for the active range.
+- One contract type `RoomSummary` in `packages/contracts`; same cache key family as leaderboard, same invalidation on ingest.
+
+**B. Contribution heatmap (personal + group)**
+- New route `GET /v1/heatmap?scope=user|room&id=<handle|code>&range=52w` → `{ cells: [{ date: "YYYY-MM-DD", costUsd, tokens, level: 0|1|2|3|4 }] }`. 52 weeks × 7 days, UTC days. `level` is binned client-agnostic on the server (quartiles of the user/room's non-zero days, plus level 0 for empty) so the legend is meaningful for both small and heavy users.
+- Personal scope reads `daily_rollup` filtered by `user_id`. Room scope sums across `daily_rollup` rows for that room. Public-profile gating reuses the existing `profiles.ts` privacy flag — private profile → 404 unless signed-in self.
+- Single reusable `<Heatmap />` component (rat-orange ramp, 4 intensity levels + empty). Render on `/u/[handle]` (above the per-room ranks) and on `/r/[code]` (below the stat strip from §A). No animation, no tooltips beyond a native `title` — keep it boring and fast.
+- Also render the heatmap on the OG card variants under `/cards/u/[handle]` and `/cards/room/[code]` — 52w grid is recognizable even at thumbnail size and reinforces the GitHub-style mental model.
+
+**C. Group streak**
+- Extend `streaks.ts`: add `GET /v1/rooms/:code/group-streak` returning `{ activeStreakDays, longestStreakDays, unanimousActiveStreakDays, unanimousLongestStreakDays }`.
+- Definitions, locked: **active streak** = consecutive UTC days where ≥1 room member has a `daily_rollup` row. **Unanimous streak** = consecutive days where *every current* room member has a row. Active streak is the headline; unanimous is the bragging-rights secondary stat. Members joining mid-streak don't retroactively break unanimous — only count days from the latest join.
+- Reuse the existing `computeStreaks` helper for both — feed it the aggregated day-set per definition.
+- Display on `/r/[code]`: a single pill at the top of the stat strip — `🔥 14d` for active streak, with the unanimous number in the hover/title. No new icons.
+
+**Why bundled:** all three features read from `daily_rollup`, all three render on the same two pages (`/u/[handle]` and `/r/[code]`), and the heatmap is one component reused across personal and group. Splitting would mean three round-trips through code review on overlapping files.
+
+**Depends on:** none of the other Phase 4 tracks. Contract additions (`RoomSummary`, `HeatmapResponse`, `GroupStreak`) are independent of Track P's `LeaderboardCompare` and Track U's row fields. Should land before Track T so Playwright can assert the heatmap and stat strip render.
+
+**Definition of done:** On `/r/[code]`, a room with ≥7 days of history shows the stat strip, the heatmap, and a non-zero active streak pill. On `/u/[handle]`, a public profile shows the same heatmap component over the user's 52-week range. All three endpoints return in <100ms cached, <500ms cold. A new OG card render for both a heavy room and a brand-new room is visually distinct (the heatmap obviously fills in or stays sparse).
+
+---
+
 ### 🟨 Phase 4 convergence (~half day)
 
 Order the merge: Q (flag flip, smallest blast radius) → S (migration first, then provider) → R (encryption) → P (new card + route + contract) → T (Playwright, last, so it covers the new surface).
@@ -135,8 +189,10 @@ Smoke acceptance — one human walks this path on a fresh machine:
 | R — Web Push encryption | no | no | no |
 | S — Email column + Resend | no | **yes** (0007 migration) | no |
 | T — Playwright smokes | no | no | no (skip-on-absent for P) |
+| U — Primary-source tag | **yes** (one field on rows + `SessionRecord`) | no | T (covers the pill) |
+| V — Group metrics + heatmap + group streak | **yes** (three new response types) | no | T (covers the new surfaces) |
 
-Merge gate: only Track P's contract addition needs to go in first. Everything else is independent and can land in any order.
+Merge gate: Track P's, U's, and V's contract additions need to go in first (in any order). Everything else is independent and can land in any order.
 
 Effort shape: roughly one week solo with agents pulling tracks Q, R, S, T in parallel while you (or a supervised agent) own Track P.
 
