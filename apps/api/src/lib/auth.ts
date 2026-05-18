@@ -97,5 +97,25 @@ export const TOKEN_TTL_CLI = MONTH_MS;
 /** 30 days in ms */
 export const TOKEN_TTL_WEB = MONTH_MS;
 
-/** Cookie name */
-export const SESSION_COOKIE = "__Host-tr_session";
+/**
+ * Cookie name.
+ *
+ * No `__Host-` prefix on purpose: that prefix forbids the Domain attribute,
+ * which locks the cookie to a single origin. We need the session cookie to be
+ * visible to both `tokenrats.com` (web) and `api.tokenrats.com` (api), so we
+ * set Domain=<apex> at write-time and accept the (very mild) loss of the
+ * extra `__Host-` guarantee.
+ */
+export const SESSION_COOKIE = "tr_session";
+
+/**
+ * Derive the cookie `Domain` attribute from `WEB_ORIGIN`.
+ * - In prod (`https://tokenrats.com`) → `"tokenrats.com"` so the cookie is
+ *   shared with the `api.` subdomain.
+ * - On localhost → `undefined` so the cookie behaves as a normal host cookie.
+ */
+export function cookieDomainFor(webOrigin: string): string | undefined {
+  const host = new URL(webOrigin).hostname;
+  if (host === "localhost" || host === "127.0.0.1") return undefined;
+  return host;
+}

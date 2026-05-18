@@ -19,6 +19,7 @@ import {
   TOKEN_TTL_CLI,
   TOKEN_TTL_WEB,
   SESSION_COOKIE,
+  cookieDomainFor,
 } from "../lib/auth.js";
 import { validationError, authRequired, notFound, gone, internalError, rateLimited } from "../lib/errors.js";
 import { rateLimit } from "../lib/rate-limit.js";
@@ -155,13 +156,17 @@ auth.get("/github/callback", async (c) => {
   // Mint session token
   const token = await signToken(userId, c.env.SESSION_SIGNING_KEY, TOKEN_TTL_WEB);
 
-  // Set cookie: __Host- prefix requires Secure + Path=/ + no Domain
+  // Domain is set to the apex (e.g. "tokenrats.com") so the cookie is shared
+  // between the web origin and the api.* subdomain. On localhost the helper
+  // returns undefined and the cookie acts as a normal host cookie.
+  const domain = cookieDomainFor(c.env.WEB_ORIGIN);
   setCookie(c, SESSION_COOKIE, token, {
     httpOnly: true,
     secure: true,
     sameSite: "Lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 30, // 30 days
+    ...(domain && { domain }),
   });
 
   return c.redirect(`${c.env.WEB_ORIGIN}/app`, 302);
