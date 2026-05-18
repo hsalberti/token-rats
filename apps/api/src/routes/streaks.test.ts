@@ -4,7 +4,7 @@
  * computeStreaks() is a pure function exported from streaks.ts, so we can
  * test it with in-memory fixtures — no D1 / Worker environment needed.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { computeStreaks } from "./streaks.js";
 
 describe("computeStreaks", () => {

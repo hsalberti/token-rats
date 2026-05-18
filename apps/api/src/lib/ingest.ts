@@ -9,8 +9,8 @@
  *   INSERT OR IGNORE → if rows == 0, it was already there.
  */
 
-import type { Env } from "../env.js";
 import type { SessionRecord } from "@token-rats/contracts";
+import type { Env } from "../env.js";
 
 /** Convert a Unix-ms timestamp to a UTC "YYYY-MM-DD" string. */
 export function toUtcDay(tsMs: number): string {

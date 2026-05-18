@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { api, ApiError } from "../../lib/api";
 import type { User } from "@token-rats/contracts";
-import { Button } from "../../components/ui/Button";
+import { useState } from "react";
 import { Avatar } from "../../components/ui/Avatar";
+import { Button } from "../../components/ui/Button";
+import { ApiError, api } from "../../lib/api";
 
 interface Props {
   user: User;

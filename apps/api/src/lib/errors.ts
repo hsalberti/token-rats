@@ -6,7 +6,7 @@
  */
 import type { Context } from "hono";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// biome-ignore lint/suspicious/noExplicitAny: intentional context widening to accept any route Variables shape
 type AnyCtx = Context<any, any, any>;
 
 function apiError(

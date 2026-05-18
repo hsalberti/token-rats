@@ -34,7 +34,11 @@ export function ActivityFeed({ activity, loading = false }: ActivityFeedProps) {
     return (
       <div className="space-y-2">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="h-14 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: static-length skeleton placeholders
+            key={i}
+            className="h-14 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900"
+          />
         ))}
       </div>
     );

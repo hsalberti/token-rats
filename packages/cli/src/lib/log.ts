@@ -17,7 +17,7 @@ export const c = {
 };
 
 function strip(s: string): string {
-  // eslint-disable-next-line no-control-regex
+  // biome-ignore lint/suspicious/noControlCharactersInRegex: intentional ANSI escape stripping
   return s.replace(/\x1b\[[0-9;]*m/g, "");
 }
 

@@ -36,7 +36,6 @@ export function RenameRoomForm({ currentName, onRename, onClose }: RenameRoomFor
   return (
     <form onSubmit={handleSubmit} className="flex items-center gap-2">
       <input
-        autoFocus
         type="text"
         value={name}
         onChange={(e) => setName(e.target.value)}

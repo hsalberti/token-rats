@@ -7,9 +7,9 @@
  */
 import { Hono } from "hono";
 import type { Env } from "../env.js";
+import { notFound } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
-import { notFound } from "../lib/errors.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -95,9 +95,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       id: user.id,
       handle: user.handle,
       avatarUrl: user.avatar_url,
-      ...(isPublic || isOwner
-        ? { bio: user.bio, twitterHandle: user.twitter_handle }
-        : {}),
+      ...(isPublic || isOwner ? { bio: user.bio, twitterHandle: user.twitter_handle } : {}),
       ...(isOwner ? { publicProfile: user.public_profile === 1 } : {}),
       totals: {
         today: {
@@ -143,7 +141,7 @@ profiles.get("/:handle/autobiography", optionalAuth, async (c) => {
   }
 
   const todayUtc = new Date().toISOString().slice(0, 10);
-  const monthStart = todayUtc.slice(0, 7) + "-01"; // first of current month
+  const monthStart = `${todayUtc.slice(0, 7)}-01`; // first of current month
 
   // --- All-time totals + month totals from daily_rollup ---
   const rollupRow = await c.env.DB.prepare(

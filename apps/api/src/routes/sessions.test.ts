@@ -4,7 +4,7 @@
  * These test the pure helper logic (day computation, rollup grouping) without
  * a real D1/KV environment.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 /* ---- inline the helpers we want to test (they're not exported from the route,
         so we duplicate the tiny functions here) ----------------------------- */

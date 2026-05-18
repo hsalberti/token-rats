@@ -82,11 +82,11 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     const ev = event as Record<string, unknown>;
 
     // Identify the session
-    const sessionId = typeof ev["session_id"] === "string" ? ev["session_id"] : null;
+    const sessionId = typeof ev.session_id === "string" ? ev.session_id : null;
     if (!sessionId) continue;
 
     const timestamp =
-      typeof ev["timestamp"] === "number" && isFinite(ev["timestamp"]) ? ev["timestamp"] : 0;
+      typeof ev.timestamp === "number" && Number.isFinite(ev.timestamp) ? ev.timestamp : 0;
 
     // Upsert accumulator
     let acc = sessions.get(sessionId);
@@ -109,25 +109,25 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     }
 
     // Only assistant messages carry usage + model info
-    if (ev["type"] !== "assistant") continue;
+    if (ev.type !== "assistant") continue;
 
-    const message = ev["message"];
+    const message = ev.message;
     if (typeof message !== "object" || message === null) continue;
     const msg = message as Record<string, unknown>;
 
     // Model: last one seen per session wins
-    if (typeof msg["model"] === "string" && msg["model"].length > 0) {
-      acc.model = msg["model"];
+    if (typeof msg.model === "string" && msg.model.length > 0) {
+      acc.model = msg.model;
     }
 
     // Token counts — all optional
-    const usage = msg["usage"];
+    const usage = msg.usage;
     if (typeof usage === "object" && usage !== null) {
       const u = usage as Record<string, unknown>;
-      const inputTokens = toNonNegInt(u["input_tokens"]);
-      const outputTokens = toNonNegInt(u["output_tokens"]);
-      const cacheCreate = toNonNegInt(u["cache_creation_input_tokens"]);
-      const cacheRead = toNonNegInt(u["cache_read_input_tokens"]);
+      const inputTokens = toNonNegInt(u.input_tokens);
+      const outputTokens = toNonNegInt(u.output_tokens);
+      const cacheCreate = toNonNegInt(u.cache_creation_input_tokens);
+      const cacheRead = toNonNegInt(u.cache_read_input_tokens);
       // cache tokens count as input per spec
       acc.inTokens += inputTokens + cacheCreate + cacheRead;
       acc.outTokens += outputTokens;
@@ -171,6 +171,6 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
 
 /** Coerce an unknown value to a non-negative integer, defaulting to 0. */
 function toNonNegInt(v: unknown): number {
-  if (typeof v !== "number" || !isFinite(v)) return 0;
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
   return Math.max(0, Math.floor(v));
 }

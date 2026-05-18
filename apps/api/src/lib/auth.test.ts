@@ -4,14 +4,14 @@
  * These run in Node via Vitest (no Worker env needed) because the helpers
  * only use Web Crypto APIs, which are available in Node 18+.
  */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  signToken,
-  verifyToken,
-  randomBase64url,
-  randomVerificationCode,
   TOKEN_TTL_CLI,
   TOKEN_TTL_WEB,
+  randomBase64url,
+  randomVerificationCode,
+  signToken,
+  verifyToken,
 } from "./auth.js";
 
 const SIGNING_KEY = "test-signing-key-at-least-32-bytes!!";

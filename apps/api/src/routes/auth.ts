@@ -9,19 +9,19 @@
 
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
+import { z } from "zod";
 import type { Env } from "../env.js";
-import type { AuthVariables } from "../middleware/auth.js";
-import { requireAuth } from "../middleware/auth.js";
 import {
-  signToken,
-  randomBase64url,
-  randomVerificationCode,
+  SESSION_COOKIE,
   TOKEN_TTL_CLI,
   TOKEN_TTL_WEB,
-  SESSION_COOKIE,
+  randomBase64url,
+  randomVerificationCode,
+  signToken,
 } from "../lib/auth.js";
-import { validationError, authRequired, notFound, gone, internalError } from "../lib/errors.js";
-import { z } from "zod";
+import { authRequired, gone, internalError, notFound, validationError } from "../lib/errors.js";
+import type { AuthVariables } from "../middleware/auth.js";
+import { requireAuth } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -90,7 +90,7 @@ auth.get("/github/callback", async (c) => {
       error?: string;
     };
     if (!tokenData.access_token) {
-      return c.text("GitHub OAuth failed: " + (tokenData.error ?? "unknown"), 400);
+      return c.text(`GitHub OAuth failed: ${tokenData.error ?? "unknown"}`, 400);
     }
     accessToken = tokenData.access_token;
   } catch {

@@ -1,7 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { api, ApiError } from "../../../lib/api";
 import type {
   ActivityRow,
   ChallengeKind,
@@ -14,14 +12,16 @@ import type {
   RoomMember,
   StreakRow,
 } from "@token-rats/contracts";
-import { useRoomLive } from "../../../lib/use-room-live";
-import { Avatar } from "../../../components/ui/Avatar";
-import { RankBadge } from "../../../components/ui/RankBadge";
-import { Button } from "../../../components/ui/Button";
-import { StreakBadge } from "../../../components/room/StreakBadge";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
 import { ChallengesPanel } from "../../../components/room/ChallengesPanel";
 import { RenameRoomForm } from "../../../components/room/RenameRoomForm";
+import { StreakBadge } from "../../../components/room/StreakBadge";
+import { Avatar } from "../../../components/ui/Avatar";
+import { Button } from "../../../components/ui/Button";
+import { RankBadge } from "../../../components/ui/RankBadge";
+import { ApiError, api } from "../../../lib/api";
+import { useRoomLive } from "../../../lib/use-room-live";
 
 interface Props {
   room: Room;
@@ -121,6 +121,7 @@ export function RoomView({
   useRoomLive(room.code as RoomCode, handleLiveEvent);
 
   // Load streaks once on mount
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one-shot mount fetch; subsequent updates come via useRoomLive
   useEffect(() => {
     if (streaksLoaded) return;
     api
@@ -133,7 +134,6 @@ export function RoomView({
         // streaks are bonus data — silently ignore
         setStreaksLoaded(true);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function switchRange(r: LeaderboardRange) {
@@ -174,10 +174,7 @@ export function RoomView({
     if (tab === "challenges" && !challengesLoaded) {
       setChallengesLoading(true);
       api
-        .getRoomChallenges(
-          room.code as Parameters<typeof api.getRoomChallenges>[0],
-          cookieHeader,
-        )
+        .getRoomChallenges(room.code as Parameters<typeof api.getRoomChallenges>[0], cookieHeader)
         .then((data) => {
           setActiveChallenges(data.active);
           setPastChallenges(data.past);
@@ -268,6 +265,7 @@ export function RoomView({
                 <h1 className="text-3xl font-black tracking-tight">{room.name}</h1>
                 {isOwner && (
                   <button
+                    type="button"
                     onClick={() => setRenamingRoom(true)}
                     title="Rename room"
                     aria-label="Rename room"
@@ -279,7 +277,9 @@ export function RoomView({
                       viewBox="0 0 20 20"
                       fill="currentColor"
                       className="h-5 w-5"
+                      aria-label="Rename room"
                     >
+                      <title>Rename room</title>
                       <path
                         fillRule="evenodd"
                         d="M7.84 1.804A1 1 0 018.82 1h2.36a1 1 0 01.98.804l.331 1.652a6.993 6.993 0 011.929 1.115l1.598-.54a1 1 0 011.186.447l1.18 2.044a1 1 0 01-.205 1.251l-1.267 1.113a7.047 7.047 0 010 2.228l1.267 1.113a1 1 0 01.206 1.25l-1.18 2.045a1 1 0 01-1.187.447l-1.598-.54a6.993 6.993 0 01-1.929 1.115l-.33 1.652a1 1 0 01-.98.804H8.82a1 1 0 01-.98-.804l-.331-1.652a6.993 6.993 0 01-1.929-1.115l-1.598.54a1 1 0 01-1.186-.447l-1.18-2.044a1 1 0 01.205-1.251l1.267-1.114a7.05 7.05 0 010-2.227L1.821 7.773a1 1 0 01-.206-1.25L2.795 4.48a1 1 0 011.187-.447l1.598.54A6.993 6.993 0 017.51 3.456l.33-1.652zM10 13a3 3 0 100-6 3 3 0 000 6z"
@@ -318,6 +318,7 @@ export function RoomView({
           {(["leaderboard", "activity", "challenges"] as Tab[]).map((tab) => (
             <button
               key={tab}
+              type="button"
               onClick={() => handleSwitchTab(tab)}
               className={[
                 "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors capitalize",
@@ -339,6 +340,7 @@ export function RoomView({
               {RANGES.map((r) => (
                 <button
                   key={r}
+                  type="button"
                   onClick={() => switchRange(r)}
                   className={[
                     "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
@@ -365,9 +367,7 @@ export function RoomView({
         )}
 
         {/* Tab: Activity */}
-        {activeTab === "activity" && (
-          <ActivityFeed activity={activity} loading={activityLoading} />
-        )}
+        {activeTab === "activity" && <ActivityFeed activity={activity} loading={activityLoading} />}
 
         {/* Tab: Challenges */}
         {activeTab === "challenges" && (

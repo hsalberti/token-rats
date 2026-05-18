@@ -9,12 +9,12 @@
  * immediately after sign-in.
  */
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { api, ApiError } from "../../lib/api";
 import type { Room, User } from "@token-rats/contracts";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { ApiError, api } from "../../lib/api";
 
 interface Props {
   user: User;
@@ -33,6 +33,7 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
   const [error, setError] = useState<string | null>(null);
 
   // Track GH (Phase 2): load rooms from GET /v1/me/rooms instead of localStorage
+  // biome-ignore lint/correctness/useExhaustiveDependencies: cookieHeader is stable per session; refetch on its change is intentional opt-out
   useEffect(() => {
     api
       .getMyRooms(cookieHeader)
@@ -45,7 +46,6 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
       .finally(() => {
         setRoomsLoading(false);
       });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreate(e: React.FormEvent) {
@@ -181,7 +181,11 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
       {roomsLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />
+            <div
+              // biome-ignore lint/suspicious/noArrayIndexKey: static-length skeleton placeholders, items never reorder
+              key={i}
+              className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900"
+            />
           ))}
         </div>
       ) : rooms.length === 0 ? (

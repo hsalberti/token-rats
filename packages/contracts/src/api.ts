@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { Leaderboard, LeaderboardRange, LeaderboardRow } from "./leaderboard.js";
-import { AutobiographyStats, Profile, PublicProfileSettings, User } from "./user.js";
-import { Room, RoomCode, RoomMember } from "./room.js";
+import { Room, type RoomCode, RoomMember } from "./room.js";
 import { SessionRecord } from "./session.js";
 import {
   ActivityRow,
@@ -10,6 +9,7 @@ import {
   ChallengeWithLeaderboard,
   StreakRow,
 } from "./streaks.js";
+import { AutobiographyStats, Profile, PublicProfileSettings, User } from "./user.js";
 export type {
   CreatePushSubscriptionRequest,
   CreatePushSubscriptionResponse,

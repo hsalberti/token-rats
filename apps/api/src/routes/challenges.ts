@@ -1,3 +1,5 @@
+import { CreateChallengeRequest } from "@token-rats/contracts";
+import type { ChallengeKind } from "@token-rats/contracts";
 /**
  * Challenge routes:
  *   POST /v1/rooms/:code/challenges  – create an active challenge (member-only)
@@ -9,12 +11,10 @@
  *   longest-streak  → computed in JS from daily_rollup days (reuses computeStreaks helper)
  */
 import { Hono } from "hono";
-import { CreateChallengeRequest } from "@token-rats/contracts";
-import type { ChallengeKind } from "@token-rats/contracts";
 import type { Env } from "../env.js";
+import { forbidden, notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validationError, notFound, forbidden } from "../lib/errors.js";
 import { computeStreaks } from "./streaks.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
@@ -176,8 +176,12 @@ challenges.get("/:code/challenges", requireAuth, async (c) => {
   // Group rollup by user_id
   const rollupByUser = new Map<string, { day: string; tokens: number; sessions: number }[]>();
   for (const row of rollupRows) {
-    if (!rollupByUser.has(row.user_id)) rollupByUser.set(row.user_id, []);
-    rollupByUser.get(row.user_id)!.push({ day: row.day, tokens: row.tokens, sessions: row.sessions });
+    let entry = rollupByUser.get(row.user_id);
+    if (!entry) {
+      entry = [];
+      rollupByUser.set(row.user_id, entry);
+    }
+    entry.push({ day: row.day, tokens: row.tokens, sessions: row.sessions });
   }
 
   /** Build a leaderboard for a single challenge. */

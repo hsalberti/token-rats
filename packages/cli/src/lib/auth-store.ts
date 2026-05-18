@@ -8,7 +8,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 function tokenDir(): string {
-  const xdgConfig = process.env["XDG_CONFIG_HOME"];
+  const xdgConfig = process.env.XDG_CONFIG_HOME;
   const base = xdgConfig ?? path.join(os.homedir(), ".config");
   return path.join(base, "token-rats");
 }

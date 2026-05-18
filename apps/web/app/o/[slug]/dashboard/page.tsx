@@ -5,14 +5,14 @@
  * by pulling /v1/orgs/:slug/dashboard.
  */
 
+import type { OrgSpendByDay, OrgSpendByModel, OrgSpendByUser } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Avatar } from "../../../../components/ui/Avatar";
+import { Card } from "../../../../components/ui/Card";
+import { ApiError, getOrgDashboard } from "../../../../lib/api";
 import { getCookieHeader } from "../../../../lib/auth";
 import { getOrgMembership } from "../../../../lib/org-auth";
-import { getOrgDashboard, ApiError } from "../../../../lib/api";
-import { Card } from "../../../../components/ui/Card";
-import { Avatar } from "../../../../components/ui/Avatar";
-import type { OrgSpendByUser, OrgSpendByModel, OrgSpendByDay } from "@token-rats/contracts";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -40,7 +40,11 @@ export default async function OrgDashboardPage({ params }: Props) {
   const membership = await getOrgMembership(slug, cookieHeader);
   if (!membership) notFound();
 
-  let dashboard: { spendByUser: OrgSpendByUser[]; spendByModel: OrgSpendByModel[]; spendByDay: OrgSpendByDay[] };
+  let dashboard: {
+    spendByUser: OrgSpendByUser[];
+    spendByModel: OrgSpendByModel[];
+    spendByDay: OrgSpendByDay[];
+  };
   try {
     const data = await getOrgDashboard(slug, cookieHeader);
     dashboard = data.dashboard;
@@ -60,10 +64,7 @@ export default async function OrgDashboardPage({ params }: Props) {
     <div className="min-h-screen bg-zinc-950">
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <a
-            href={`/o/${slug}`}
-            className="text-sm text-zinc-500 hover:text-zinc-300"
-          >
+          <a href={`/o/${slug}`} className="text-sm text-zinc-500 hover:text-zinc-300">
             ← {org.name}
           </a>
           <a href="/" className="text-lg font-black tracking-tight">
@@ -106,14 +107,10 @@ export default async function OrgDashboardPage({ params }: Props) {
             <ol className="space-y-3">
               {spendByUser.map((row, i) => (
                 <li key={row.userId} className="flex items-center gap-3">
-                  <span className="w-6 text-right text-sm font-bold text-zinc-600">
-                    {i + 1}
-                  </span>
+                  <span className="w-6 text-right text-sm font-bold text-zinc-600">{i + 1}</span>
                   <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
                   <span className="flex-1 font-semibold">@{row.handle}</span>
-                  <span className="font-mono text-sm text-zinc-400">
-                    {fmtTokens(row.tokens)}
-                  </span>
+                  <span className="font-mono text-sm text-zinc-400">{fmtTokens(row.tokens)}</span>
                   <span className="w-20 text-right font-mono text-sm font-bold text-rat-400">
                     {fmtCost(row.costUsdCents)}
                   </span>
@@ -155,10 +152,7 @@ export default async function OrgDashboardPage({ params }: Props) {
           ) : (
             <ul className="space-y-1.5">
               {spendByDay.map((row) => {
-                const pct =
-                  totalCents > 0
-                    ? Math.round((row.costUsdCents / totalCents) * 100)
-                    : 0;
+                const pct = totalCents > 0 ? Math.round((row.costUsdCents / totalCents) * 100) : 0;
                 return (
                   <li key={row.day} className="flex items-center gap-3">
                     <span className="w-24 font-mono text-xs text-zinc-500">{row.day}</span>

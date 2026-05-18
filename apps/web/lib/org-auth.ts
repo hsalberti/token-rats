@@ -9,9 +9,9 @@
  *   if (!membership) redirect("/signin");
  */
 
+import type { GetOrgResponse, OrgMemberRole } from "@token-rats/contracts";
+import { ApiError, getOrg } from "./api";
 import { getCookieHeader, getSession } from "./auth";
-import { getOrg, ApiError } from "./api";
-import type { OrgMemberRole, GetOrgResponse } from "@token-rats/contracts";
 
 export interface OrgMembership {
   org: GetOrgResponse["org"];

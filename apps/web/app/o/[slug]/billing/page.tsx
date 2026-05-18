@@ -11,9 +11,9 @@
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Card } from "../../../../components/ui/Card";
 import { getCookieHeader } from "../../../../lib/auth";
 import { getOrgMembership } from "../../../../lib/org-auth";
-import { Card } from "../../../../components/ui/Card";
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -34,9 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
  * itself is not secret (Stripe authenticates the customer session server-side).
  */
 const STRIPE_PORTAL_URL =
-  process.env.STRIPE_PORTAL_URL ??
-  process.env.NEXT_PUBLIC_STRIPE_PORTAL_URL ??
-  null;
+  process.env.STRIPE_PORTAL_URL ?? process.env.NEXT_PUBLIC_STRIPE_PORTAL_URL ?? null;
 
 export default async function OrgBillingPage({ params }: Props) {
   const { slug } = await params;
@@ -52,10 +50,7 @@ export default async function OrgBillingPage({ params }: Props) {
     <div className="min-h-screen bg-zinc-950">
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex max-w-2xl items-center justify-between px-6 py-4">
-          <a
-            href={`/o/${slug}`}
-            className="text-sm text-zinc-500 hover:text-zinc-300"
-          >
+          <a href={`/o/${slug}`} className="text-sm text-zinc-500 hover:text-zinc-300">
             ← {org.name}
           </a>
           <a href="/" className="text-lg font-black tracking-tight">
@@ -145,8 +140,8 @@ export default async function OrgBillingPage({ params }: Props) {
               Manage subscription
             </h2>
             <p className="mb-4 text-sm text-zinc-400">
-              Update payment method, download invoices, or cancel your subscription via the
-              Stripe Customer Portal.
+              Update payment method, download invoices, or cancel your subscription via the Stripe
+              Customer Portal.
             </p>
             {STRIPE_PORTAL_URL ? (
               <a

@@ -117,7 +117,9 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
 
   // ── 4. Dry-run short-circuit ───────────────────────────────────────────────
   if (opts.dryRun) {
-    info(`[dry-run] Would upload ${allSessions.length} session(s) in ${Math.ceil(allSessions.length / BATCH_SIZE)} batch(es).`);
+    info(
+      `[dry-run] Would upload ${allSessions.length} session(s) in ${Math.ceil(allSessions.length / BATCH_SIZE)} batch(es).`,
+    );
     if (opts.verbose) {
       for (const s of allSessions.slice(0, 10)) {
         dim(
@@ -137,8 +139,10 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
   let totalDuplicates = 0;
 
   for (let i = 0; i < batches.length; i++) {
+    // biome-ignore lint/style/noNonNullAssertion: i is bounded by batches.length
     const batch = batches[i]!;
     try {
+      // biome-ignore lint/style/noNonNullAssertion: client is asserted non-null at function entry
       const res = await client!.uploadSessions(batch);
       totalAccepted += res.accepted;
       totalDuplicates += res.duplicates;

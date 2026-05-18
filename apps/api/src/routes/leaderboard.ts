@@ -1,3 +1,5 @@
+import { GetLeaderboardQuery } from "@token-rats/contracts";
+import type { LeaderboardRange } from "@token-rats/contracts";
 /**
  * GET /v1/rooms/:code/leaderboard?range=today|7d|30d|all
  *
@@ -5,12 +7,10 @@
  * Cached in KV under `lb:<code>:<range>` with a 30s TTL.
  */
 import { Hono } from "hono";
-import { GetLeaderboardQuery } from "@token-rats/contracts";
-import type { LeaderboardRange } from "@token-rats/contracts";
 import type { Env } from "../env.js";
+import { forbidden, notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validationError, notFound, forbidden } from "../lib/errors.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 

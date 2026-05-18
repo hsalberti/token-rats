@@ -9,13 +9,13 @@
  * Moderators set those keys manually; this endpoint only collects reports.
  */
 
+import { ReportAbuseRequest } from "@token-rats/contracts";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
+import { notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { ReportAbuseRequest } from "@token-rats/contracts";
-import { notFound, validationError } from "../lib/errors.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { parseClaudeCode } from "./claude-code.js";
 import { parseCursor } from "./cursor.js";
 import { computeDedupeKey, fnv1aHex } from "./hash.js";

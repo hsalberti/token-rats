@@ -5,10 +5,10 @@
  * a minimal in-memory mock that tracks the SQL statements executed.
  */
 
-import { describe, it, expect, vi, type Mock } from "vitest";
-import { toUtcDay, recordSession } from "./ingest.js";
-import type { Env } from "../env.js";
 import type { SessionRecord } from "@token-rats/contracts";
+import { type Mock, describe, expect, it, vi } from "vitest";
+import type { Env } from "../env.js";
+import { recordSession, toUtcDay } from "./ingest.js";
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                     */

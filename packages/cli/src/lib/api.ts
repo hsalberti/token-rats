@@ -5,10 +5,7 @@
  */
 
 import type { SessionRecord } from "@token-rats/contracts";
-import type {
-  GetMeResponse,
-  UploadSessionsResponse,
-} from "@token-rats/contracts";
+import type { GetMeResponse, UploadSessionsResponse } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
 const DEFAULT_API_URL = "https://api.tokenrats.dev";
@@ -54,17 +51,13 @@ export class ApiClient {
   private headers(): Record<string, string> {
     const h: Record<string, string> = { "Content-Type": "application/json" };
     if (this.token) {
-      h["Authorization"] = `Bearer ${this.token}`;
+      h.Authorization = `Bearer ${this.token}`;
     }
     return h;
   }
 
   /** Perform a fetch with retry+backoff. maxRetries=3, delays: 1s, 2s, 4s. */
-  private async fetchWithRetry(
-    url: string,
-    init: RequestInit,
-    maxRetries = 3,
-  ): Promise<Response> {
+  private async fetchWithRetry(url: string, init: RequestInit, maxRetries = 3): Promise<Response> {
     let attempt = 0;
     let lastErr: unknown;
     while (attempt <= maxRetries) {
@@ -81,7 +74,7 @@ export class ApiClient {
       }
       attempt++;
       if (attempt <= maxRetries) {
-        await sleep(1000 * Math.pow(2, attempt - 1));
+        await sleep(1000 * 2 ** (attempt - 1));
       }
     }
     throw lastErr;

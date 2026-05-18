@@ -1,3 +1,4 @@
+import { CreateRoomRequest, GetActivityQuery, RenameRoomRequest } from "@token-rats/contracts";
 /**
  * Room routes:
  *   POST  /v1/rooms                  – create a room
@@ -8,11 +9,10 @@
  *   GET   /v1/rooms/:code/activity   – recent activity feed
  */
 import { Hono } from "hono";
-import { CreateRoomRequest, RenameRoomRequest, GetActivityQuery } from "@token-rats/contracts";
 import type { Env } from "../env.js";
+import { forbidden, notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validationError, notFound, forbidden } from "../lib/errors.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -202,9 +202,7 @@ rooms.post("/:code/leave", requireAuth, async (c) => {
   const userId = c.var.userId;
   const code = c.req.param("code");
 
-  const room = await c.env.DB.prepare(
-    "SELECT id, owner_id FROM rooms WHERE code = ?",
-  )
+  const room = await c.env.DB.prepare("SELECT id, owner_id FROM rooms WHERE code = ?")
     .bind(code)
     .first<{ id: string; owner_id: string }>();
 
@@ -228,9 +226,7 @@ rooms.post("/:code/leave", requireAuth, async (c) => {
     return forbidden(c, "Room owners cannot leave. Delete the room instead.");
   }
 
-  await c.env.DB.prepare(
-    "DELETE FROM room_members WHERE room_id = ? AND user_id = ?",
-  )
+  await c.env.DB.prepare("DELETE FROM room_members WHERE room_id = ? AND user_id = ?")
     .bind(room.id, userId)
     .run();
 
@@ -274,9 +270,7 @@ rooms.patch("/:code", requireAuth, async (c) => {
     return forbidden(c, "Only the room owner can rename the room");
   }
 
-  await c.env.DB.prepare("UPDATE rooms SET name = ? WHERE id = ?")
-    .bind(body.name, room.id)
-    .run();
+  await c.env.DB.prepare("UPDATE rooms SET name = ? WHERE id = ?").bind(body.name, room.id).run();
 
   return c.json({
     room: {

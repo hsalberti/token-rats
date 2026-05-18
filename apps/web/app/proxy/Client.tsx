@@ -7,8 +7,8 @@
  * The key is sent to POST /v1/proxy/keys/anthropic once and never echoed back.
  */
 
+import { deleteProxyAnthropicKey, setProxyAnthropicKey } from "@/lib/api";
 import { useState } from "react";
-import { setProxyAnthropicKey, deleteProxyAnthropicKey } from "@/lib/api";
 
 interface Props {
   /** Whether the user already has a key stored (passed from server component). */
@@ -18,7 +18,9 @@ interface Props {
 export function ProxyKeyClient({ initialStored }: Props) {
   const [stored, setStored] = useState(initialStored);
   const [apiKey, setApiKey] = useState("");
-  const [status, setStatus] = useState<"idle" | "saving" | "deleting" | "saved" | "deleted" | "error">("idle");
+  const [status, setStatus] = useState<
+    "idle" | "saving" | "deleting" | "saved" | "deleted" | "error"
+  >("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   async function handleSave(e: React.FormEvent) {

@@ -46,7 +46,12 @@ function formatCents(cents: number): string {
 function formatDay(day: string): string {
   // day is YYYY-MM-DD
   const d = new Date(`${day}T00:00:00Z`);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function buildStats(rows: DailyRollupRow[]): WeeklyStats {
@@ -143,12 +148,17 @@ function buildText(handle: string, stats: WeeklyStats): string {
   ];
 
   if (stats.bestDay) {
-    lines.push(`Best day: ${formatDay(stats.bestDay)} (${formatTokens(stats.bestDayTokens)} tokens)`, "");
+    lines.push(
+      `Best day: ${formatDay(stats.bestDay)} (${formatTokens(stats.bestDayTokens)} tokens)`,
+      "",
+    );
   }
 
   lines.push("Daily breakdown:", "");
   for (const r of stats.rows) {
-    lines.push(`  ${formatDay(r.day)}: ${formatTokens(r.tokens)} tokens / ${formatCents(r.cost_usd_cents)} / ${r.sessions} sessions`);
+    lines.push(
+      `  ${formatDay(r.day)}: ${formatTokens(r.tokens)} tokens / ${formatCents(r.cost_usd_cents)} / ${r.sessions} sessions`,
+    );
   }
 
   lines.push("", "Manage preferences: https://tokenrats.dev/settings/notifications");

@@ -3,7 +3,7 @@
  *
  * Uses an in-memory KV stub — no Worker env required.
  */
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { rateLimit } from "./rate-limit.js";
 
 /* ---------- minimal KV stub ------------------------------------------------ */

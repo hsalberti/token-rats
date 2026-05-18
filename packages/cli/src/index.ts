@@ -87,6 +87,7 @@ function parseArgs(argv: string[]): ParsedArgs {
 
   let i = 0;
   while (i < argv.length) {
+    // biome-ignore lint/style/noNonNullAssertion: i is bounded by the while condition
     const arg = argv[i]!;
     if (arg === "--api-url" && i + 1 < argv.length) {
       apiUrl = argv[++i];
@@ -151,7 +152,7 @@ async function main(): Promise<void> {
 
     default:
       console.error(`\x1b[31mUnknown command: ${command}\x1b[0m`);
-      console.error(`Run \x1b[1mtoken-rats help\x1b[0m for a list of commands.`);
+      console.error("Run \x1b[1mtoken-rats help\x1b[0m for a list of commands.");
       process.exit(1);
   }
 }

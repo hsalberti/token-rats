@@ -28,7 +28,7 @@ function findJsonlFiles(dir: string): string[] {
 export function claudeCodeProjectsDir(): string {
   const home = os.homedir();
   if (process.platform === "win32") {
-    const profile = process.env["USERPROFILE"] ?? home;
+    const profile = process.env.USERPROFILE ?? home;
     return path.join(profile, ".claude", "projects");
   }
   return path.join(home, ".claude", "projects");
@@ -49,11 +49,11 @@ export function cursorDbPath(): string {
     return path.join(home, "Library", "Application Support", rel);
   }
   if (process.platform === "win32") {
-    const appData = process.env["APPDATA"] ?? path.join(home, "AppData", "Roaming");
+    const appData = process.env.APPDATA ?? path.join(home, "AppData", "Roaming");
     return path.join(appData, rel);
   }
   // Linux (and everything else)
-  const xdgConfig = process.env["XDG_CONFIG_HOME"] ?? path.join(home, ".config");
+  const xdgConfig = process.env.XDG_CONFIG_HOME ?? path.join(home, ".config");
   return path.join(xdgConfig, rel);
 }
 

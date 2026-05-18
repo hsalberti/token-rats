@@ -3,10 +3,10 @@
  * The session cookie is `__Host-tr_session`, set by the Worker API.
  */
 
+import type { User } from "@token-rats/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getMe } from "./api";
-import type { User } from "@token-rats/contracts";
 
 export const SESSION_COOKIE = "__Host-tr_session";
 

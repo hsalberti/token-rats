@@ -11,9 +11,9 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
+import { forbidden, notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validationError, notFound, forbidden } from "../lib/errors.js";
 
 /* ---- inline Zod schemas to avoid the type-only re-export collision in api.ts ---- */
 
@@ -99,9 +99,7 @@ orgs.post("/", requireAuth, async (c) => {
   }
 
   // Check slug uniqueness
-  const slugConflict = await c.env.DB.prepare(
-    "SELECT id FROM orgs WHERE slug = ?",
-  )
+  const slugConflict = await c.env.DB.prepare("SELECT id FROM orgs WHERE slug = ?")
     .bind(body.slug)
     .first<{ id: string }>();
 
@@ -119,9 +117,10 @@ orgs.post("/", requireAuth, async (c) => {
       `INSERT INTO orgs (id, name, slug, plan, seat_count, github_org_login, created_at)
        VALUES (?, ?, ?, 'free', 0, ?, ?)`,
     ).bind(id, body.name, body.slug, body.githubOrgLogin ?? null, now),
-    c.env.DB.prepare(
-      `INSERT INTO org_members (org_id, user_id, role) VALUES (?, ?, 'owner')`,
-    ).bind(id, userId),
+    c.env.DB.prepare(`INSERT INTO org_members (org_id, user_id, role) VALUES (?, ?, 'owner')`).bind(
+      id,
+      userId,
+    ),
   ]);
 
   return c.json(
@@ -246,9 +245,7 @@ orgs.post("/:slug/accept", requireAuth, async (c) => {
   if (!org) return notFound(c, "Org not found");
 
   // Look up the accepting user's handle (for GitHub login match)
-  const user = await c.env.DB.prepare(
-    "SELECT id, handle FROM users WHERE id = ?",
-  )
+  const user = await c.env.DB.prepare("SELECT id, handle FROM users WHERE id = ?")
     .bind(userId)
     .first<{ id: string; handle: string }>();
 
@@ -274,9 +271,7 @@ orgs.post("/:slug/accept", requireAuth, async (c) => {
 
   // Mark invite accepted and add org membership (idempotent via INSERT OR IGNORE)
   await c.env.DB.batch([
-    c.env.DB.prepare(
-      "UPDATE org_invites SET accepted_at = ? WHERE id = ?",
-    ).bind(now, invite.id),
+    c.env.DB.prepare("UPDATE org_invites SET accepted_at = ? WHERE id = ?").bind(now, invite.id),
     c.env.DB.prepare(
       "INSERT OR IGNORE INTO org_members (org_id, user_id, role) VALUES (?, ?, 'member')",
     ).bind(org.id, userId),
@@ -336,10 +331,7 @@ orgs.get("/:slug/dashboard", requireAuth, async (c) => {
      GROUP BY s.model
      ORDER BY cost_usd_cents DESC`,
   )
-    .bind(
-      org.id,
-      new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).getTime(),
-    )
+    .bind(org.id, new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).getTime())
     .all<{
       model: string;
       tokens: number;

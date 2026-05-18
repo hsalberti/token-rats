@@ -173,12 +173,14 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
     // Dynamic import — chokidar is an optional dependency.
     // We use Function() to defeat the TypeScript module resolver so that the
     // package being absent at typecheck time doesn't cause a TS2307 error.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chokidar = (await (new Function("m", "return import(m)") as (m: string) => Promise<any>)("chokidar")) as {
+    // biome-ignore lint/suspicious/noExplicitAny: dynamic optional dependency, no compile-time types
+    const chokidar = (await (new Function("m", "return import(m)") as (m: string) => Promise<any>)(
+      "chokidar",
+    )) as {
       watch: (
         pattern: string,
         opts: Record<string, unknown>,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        // biome-ignore lint/suspicious/noExplicitAny: chokidar event handler signature is variadic
       ) => { on: (event: string, fn: (...args: any[]) => void) => void; close: () => void };
     };
     const watcher = chokidar.watch(`${dir}/**/*.jsonl`, {
@@ -245,7 +247,7 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
           const watcher = watch(dir, { recursive: true, signal: controller.signal });
           for await (const event of watcher) {
             const filename = event.filename;
-            if (filename && filename.endsWith(".jsonl")) {
+            if (filename?.endsWith(".jsonl")) {
               const fullPath = `${dir}/${filename}`;
               onChanged(fullPath);
             }

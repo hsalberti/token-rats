@@ -4,7 +4,7 @@
  * Uses the Web Crypto API available in the Node 20+ / Vitest environment.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { verifyStripeSignature } from "./stripe.js";
 
 /* ------------------------------------------------------------------ helpers */
@@ -58,7 +58,7 @@ describe("verifyStripeSignature", () => {
     const header = await buildSignatureHeader(TEST_BODY, TEST_SECRET, nowSec);
 
     // Tamper with the body after signing
-    const tamperedBody = TEST_BODY + " tampered";
+    const tamperedBody = `${TEST_BODY} tampered`;
     const result = await verifyStripeSignature(tamperedBody, header, TEST_SECRET);
     expect(result.ok).toBe(false);
     if (!result.ok) {

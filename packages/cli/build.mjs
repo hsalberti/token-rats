@@ -9,10 +9,10 @@
  * - Preserves the #!/usr/bin/env node shebang and sets chmod +x.
  */
 
-import { build } from "esbuild";
 import { chmodSync, mkdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const entryPoint = resolve(__dirname, "src/index.ts");
