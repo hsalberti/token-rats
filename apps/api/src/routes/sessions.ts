@@ -82,9 +82,7 @@ sessions.post("/", requireAuth, async (c) => {
   const insertResults = await c.env.DB.batch(insertStmts);
 
   // Collect newly inserted records
-  const newRecords = records.filter(
-    (_, i) => (insertResults[i]?.meta?.changes ?? 0) > 0,
-  );
+  const newRecords = records.filter((_, i) => (insertResults[i]?.meta?.changes ?? 0) > 0);
 
   const accepted = newRecords.length;
   const duplicates = records.length - accepted;
@@ -92,10 +90,7 @@ sessions.post("/", requireAuth, async (c) => {
   // If any new rows, upsert daily_rollup
   if (newRecords.length > 0) {
     // Group by (userId, day)
-    const grouped = new Map<
-      string,
-      { tokens: number; costUsdCents: number; sessions: number }
-    >();
+    const grouped = new Map<string, { tokens: number; costUsdCents: number; sessions: number }>();
 
     for (const r of newRecords) {
       const day = toUtcDay(r.startedAt);
@@ -114,19 +109,17 @@ sessions.post("/", requireAuth, async (c) => {
       }
     }
 
-    const rollupStmts = Array.from(grouped.entries()).map(
-      ([key, totals]) => {
-        const day = key.slice(userId.length + 1);
-        return c.env.DB.prepare(
-          `INSERT INTO daily_rollup (user_id, day, tokens, cost_usd_cents, sessions)
+    const rollupStmts = Array.from(grouped.entries()).map(([key, totals]) => {
+      const day = key.slice(userId.length + 1);
+      return c.env.DB.prepare(
+        `INSERT INTO daily_rollup (user_id, day, tokens, cost_usd_cents, sessions)
            VALUES (?, ?, ?, ?, ?)
            ON CONFLICT(user_id, day) DO UPDATE SET
              tokens         = tokens         + excluded.tokens,
              cost_usd_cents = cost_usd_cents + excluded.cost_usd_cents,
              sessions       = sessions       + excluded.sessions`,
-        ).bind(userId, day, totals.tokens, totals.costUsdCents, totals.sessions);
-      },
-    );
+      ).bind(userId, day, totals.tokens, totals.costUsdCents, totals.sessions);
+    });
 
     await c.env.DB.batch(rollupStmts);
   }

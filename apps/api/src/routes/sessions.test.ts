@@ -22,10 +22,7 @@ function groupByDay(
     costUsdCents: number;
   }>,
 ): Map<string, { tokens: number; costUsdCents: number; sessions: number }> {
-  const grouped = new Map<
-    string,
-    { tokens: number; costUsdCents: number; sessions: number }
-  >();
+  const grouped = new Map<string, { tokens: number; costUsdCents: number; sessions: number }>();
   for (const r of records) {
     const day = toUtcDay(r.startedAt);
     const existing = grouped.get(day);
@@ -69,7 +66,7 @@ describe("groupByDay", () => {
     expect(grouped.size).toBe(1);
     const day = grouped.get("2024-06-01");
     expect(day).toBeDefined();
-    expect(day?.tokens).toBe(430);       // (100+50) + (200+80)
+    expect(day?.tokens).toBe(430); // (100+50) + (200+80)
     expect(day?.costUsdCents).toBe(30);
     expect(day?.sessions).toBe(2);
   });

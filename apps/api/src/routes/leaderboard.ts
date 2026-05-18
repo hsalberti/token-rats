@@ -60,9 +60,7 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
   const { range } = query;
 
   // Find room
-  const room = await c.env.DB.prepare(
-    "SELECT id FROM rooms WHERE code = ?",
-  )
+  const room = await c.env.DB.prepare("SELECT id FROM rooms WHERE code = ?")
     .bind(code)
     .first<{ id: string }>();
 

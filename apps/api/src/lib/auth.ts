@@ -14,10 +14,7 @@ const ALG = { name: "HMAC", hash: "SHA-256" };
 /** Import a raw base64 or UTF-8 signing key into a CryptoKey. */
 async function importKey(raw: string): Promise<CryptoKey> {
   const keyBytes = new TextEncoder().encode(raw);
-  return crypto.subtle.importKey("raw", keyBytes, ALG, false, [
-    "sign",
-    "verify",
-  ]);
+  return crypto.subtle.importKey("raw", keyBytes, ALG, false, ["sign", "verify"]);
 }
 
 function b64urlEncode(buf: ArrayBuffer): string {
@@ -45,23 +42,14 @@ export async function signToken(
   const expiresAt = Date.now() + ttlMs;
   const payload = `${userId}.${expiresAt}`;
   const key = await importKey(signingKey);
-  const sig = await crypto.subtle.sign(
-    ALG,
-    key,
-    new TextEncoder().encode(payload),
-  );
+  const sig = await crypto.subtle.sign(ALG, key, new TextEncoder().encode(payload));
   return `${payload}.${b64urlEncode(sig)}`;
 }
 
-export type VerifyResult =
-  | { ok: true; userId: string }
-  | { ok: false; reason: string };
+export type VerifyResult = { ok: true; userId: string } | { ok: false; reason: string };
 
 /** Verify and decode a token. Returns { ok, userId } or { ok: false, reason }. */
-export async function verifyToken(
-  token: string,
-  signingKey: string,
-): Promise<VerifyResult> {
+export async function verifyToken(token: string, signingKey: string): Promise<VerifyResult> {
   const parts = token.split(".");
   if (parts.length !== 3) return { ok: false, reason: "malformed" };
 
@@ -73,12 +61,7 @@ export async function verifyToken(
   const payload = `${userId}.${expiresAtStr}`;
   const key = await importKey(signingKey);
   const sigBytes = b64urlDecode(sigB64);
-  const valid = await crypto.subtle.verify(
-    ALG,
-    key,
-    sigBytes,
-    new TextEncoder().encode(payload),
-  );
+  const valid = await crypto.subtle.verify(ALG, key, sigBytes, new TextEncoder().encode(payload));
   if (!valid) return { ok: false, reason: "bad_signature" };
   return { ok: true, userId };
 }

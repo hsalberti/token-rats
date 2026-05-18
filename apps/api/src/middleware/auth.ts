@@ -48,10 +48,7 @@ export async function extractUserId(
  * Middleware that populates c.var.userId if a token is present, but does NOT
  * reject the request (useful for auth-optional endpoints).
  */
-export async function optionalAuth(
-  c: HonoCtx,
-  next: Next,
-): Promise<Response | void> {
+export async function optionalAuth(c: HonoCtx, next: Next): Promise<Response | void> {
   const userId = await extractUserId(c);
   if (userId) c.set("userId", userId);
   return next();
@@ -60,10 +57,7 @@ export async function optionalAuth(
 /**
  * Middleware that rejects with 401 if no valid token is present.
  */
-export async function requireAuth(
-  c: HonoCtx,
-  next: Next,
-): Promise<Response | void> {
+export async function requireAuth(c: HonoCtx, next: Next): Promise<Response | void> {
   const userId = await extractUserId(c);
   if (!userId) return authRequired(c);
   c.set("userId", userId);

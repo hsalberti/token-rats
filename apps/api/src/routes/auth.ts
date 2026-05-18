@@ -20,13 +20,7 @@ import {
   TOKEN_TTL_WEB,
   SESSION_COOKIE,
 } from "../lib/auth.js";
-import {
-  validationError,
-  authRequired,
-  notFound,
-  gone,
-  internalError,
-} from "../lib/errors.js";
+import { validationError, authRequired, notFound, gone, internalError } from "../lib/errors.js";
 import { z } from "zod";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
@@ -51,10 +45,7 @@ auth.get("/github/start", async (c) => {
     state,
   });
 
-  return c.redirect(
-    `https://github.com/login/oauth/authorize?${params.toString()}`,
-    302,
-  );
+  return c.redirect(`https://github.com/login/oauth/authorize?${params.toString()}`, 302);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -82,21 +73,18 @@ auth.get("/github/callback", async (c) => {
   // Exchange code for access token
   let accessToken: string;
   try {
-    const tokenRes = await fetch(
-      "https://github.com/login/oauth/access_token",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify({
-          client_id: c.env.GITHUB_CLIENT_ID,
-          client_secret: c.env.GITHUB_CLIENT_SECRET,
-          code,
-        }),
+    const tokenRes = await fetch("https://github.com/login/oauth/access_token", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
       },
-    );
+      body: JSON.stringify({
+        client_id: c.env.GITHUB_CLIENT_ID,
+        client_secret: c.env.GITHUB_CLIENT_SECRET,
+        code,
+      }),
+    });
     const tokenData = (await tokenRes.json()) as {
       access_token?: string;
       error?: string;
@@ -146,9 +134,7 @@ auth.get("/github/callback", async (c) => {
 
   if (existing) {
     // Update avatar_url in case it changed
-    await c.env.DB.prepare(
-      "UPDATE users SET avatar_url = ? WHERE id = ?",
-    )
+    await c.env.DB.prepare("UPDATE users SET avatar_url = ? WHERE id = ?")
       .bind(ghUser.avatar_url ?? null, existing.id)
       .run();
     userId = existing.id;
@@ -226,9 +212,7 @@ auth.post("/cli/approve", requireAuth, async (c) => {
     return validationError(c, e instanceof Error ? e.message : e);
   }
 
-  const pollToken = await c.env.CACHE.get(
-    `cli:code:${body.verificationCode}`,
-  );
+  const pollToken = await c.env.CACHE.get(`cli:code:${body.verificationCode}`);
   if (!pollToken) {
     return notFound(c, "Verification code not found or expired");
   }
@@ -291,11 +275,7 @@ auth.post("/cli/poll", async (c) => {
 
   if (record.status === "approved" && record.userId) {
     // Mint a CLI token and delete KV records
-    const token = await signToken(
-      record.userId,
-      c.env.SESSION_SIGNING_KEY,
-      TOKEN_TTL_CLI,
-    );
+    const token = await signToken(record.userId, c.env.SESSION_SIGNING_KEY, TOKEN_TTL_CLI);
 
     // Clean up KV
     await c.env.CACHE.delete(`cli:poll:${body.pollToken}`);

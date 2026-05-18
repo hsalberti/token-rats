@@ -10,16 +10,14 @@ import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
 import { notFound } from "../lib/errors.js";
 
-type HonoEnv = { Bindings: Env; Variables: Partial<AuthVariables> };
+type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
 const profiles = new Hono<HonoEnv>();
 
 profiles.get("/:handle", optionalAuth, async (c) => {
   const handle = c.req.param("handle");
 
-  const user = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url FROM users WHERE handle = ?",
-  )
+  const user = await c.env.DB.prepare("SELECT id, handle, avatar_url FROM users WHERE handle = ?")
     .bind(handle)
     .first<{ id: string; handle: string; avatar_url: string | null }>();
 
@@ -42,10 +40,10 @@ profiles.get("/:handle", optionalAuth, async (c) => {
      WHERE user_id = ?`,
   )
     .bind(
-      todayUtc,   // today_tokens
-      todayUtc,   // today_cost
-      weekStart(todayUtc),  // week_tokens
-      weekStart(todayUtc),  // week_cost
+      todayUtc, // today_tokens
+      todayUtc, // today_cost
+      weekStart(todayUtc), // week_tokens
+      weekStart(todayUtc), // week_cost
       user.id,
     )
     .first<{

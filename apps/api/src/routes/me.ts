@@ -14,9 +14,7 @@ const me = new Hono<HonoEnv>();
 me.get("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
-  const row = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url FROM users WHERE id = ?",
-  )
+  const row = await c.env.DB.prepare("SELECT id, handle, avatar_url FROM users WHERE id = ?")
     .bind(userId)
     .first<{ id: string; handle: string; avatar_url: string | null }>();
 
