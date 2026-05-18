@@ -90,6 +90,29 @@ profiles.get("/:handle", optionalAuth, async (c) => {
     all_cost: 0,
   };
 
+  // Per-source all-time breakdown for the profile tile grid. Reads `sessions`
+  // (not daily_rollup, which has no source column). Keep ORDER BY tokens DESC
+  // so the UI can show the dominant source first.
+  const sourcesRows = await c.env.DB.prepare(
+    `SELECT source,
+            COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
+            COALESCE(SUM(cost_usd_cents), 0)         AS cost,
+            COUNT(*)                                  AS sessions
+       FROM sessions
+      WHERE user_id = ?
+      GROUP BY source
+      ORDER BY tokens DESC`,
+  )
+    .bind(user.id)
+    .all<{ source: string; tokens: number; cost: number; sessions: number }>();
+
+  const sources = (sourcesRows.results ?? []).map((r) => ({
+    source: r.source,
+    tokens: r.tokens,
+    costUsdCents: r.cost,
+    sessions: r.sessions,
+  }));
+
   return c.json({
     profile: {
       id: user.id,
@@ -113,6 +136,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
           costUsdCents: totals.all_cost,
         },
       },
+      sources,
     },
   });
 });

@@ -3,6 +3,7 @@ import { getCookieHeader, getSession } from "../../../lib/auth";
 import { api, ApiError } from "../../../lib/api";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
+import { SourceTiles } from "../../../components/SourcePill";
 
 interface Props {
   params: Promise<{ handle: string }>;
@@ -55,6 +56,7 @@ export default async function ProfilePage({ params }: Props) {
       week: { tokens: number; costUsdCents: number };
       allTime: { tokens: number; costUsdCents: number };
     };
+    sources?: { source: string; tokens: number; costUsdCents: number; sessions: number }[];
   } | null = null;
 
   let isPrivate = false;
@@ -173,6 +175,12 @@ export default async function ProfilePage({ params }: Props) {
             cost={profile.totals.allTime.costUsdCents}
           />
         </div>
+
+        {/* Per-source tiles (Track Q in roadmap-providers.md). Shown only
+            when the user has actually synced something. */}
+        {profile.sources && profile.sources.length > 0 && (
+          <SourceTiles sources={profile.sources} />
+        )}
 
         {/* Badges / tagline */}
         <Card>
