@@ -8,11 +8,12 @@
  */
 
 import type {
-  CreateRoomRequest,
-  CreateRoomResponse,
   CreateChallengeRequest,
   CreateChallengeResponse,
+  CreateRoomRequest,
+  CreateRoomResponse,
   GetActivityResponse,
+  GetAutobiographyResponse,
   GetChallengesResponse,
   GetLeaderboardResponse,
   GetMeResponse,
@@ -136,6 +137,16 @@ export async function getProfile(
   });
 }
 
+/** Get the Token Autobiography stats for a user. */
+export async function getAutobiography(
+  handle: string,
+  cookieHeader?: string,
+): Promise<GetAutobiographyResponse> {
+  return request<GetAutobiographyResponse>(ENDPOINTS.autobiography(handle), {
+    cookieHeader,
+  });
+}
+
 /** Approve a pending CLI device code. */
 export async function approveCli(code: string, cookieHeader?: string): Promise<void> {
   return request<void>("/v1/auth/cli/approve", {
@@ -227,8 +238,8 @@ export const api = {
   getRoom,
   getLeaderboard,
   getProfile,
+  getAutobiography,
   approveCli,
-  // Track GH (Phase 2):
   getMyRooms,
   leaveRoom,
   renameRoom,
