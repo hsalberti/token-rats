@@ -1,76 +1,64 @@
-import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
+/**
+ * Discovers Claude Code .jsonl files and the Cursor sqlite cache
+ * across macOS, Linux, and Windows.
+ */
 
-/** Recursively find all files matching a suffix under a base directory. */
-function findFiles(dir: string, suffix: string): string[] {
+import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+
+/** Recursively collect all *.jsonl files under a directory. */
+function findJsonlFiles(dir: string): string[] {
   const results: string[] = [];
-  let entries: fs.Dirent[];
-  try {
-    entries = fs.readdirSync(dir, { withFileTypes: true });
-  } catch {
-    return results;
-  }
+  if (!fs.existsSync(dir)) return results;
+
+  const entries = fs.readdirSync(dir, { withFileTypes: true });
   for (const entry of entries) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      results.push(...findFiles(full, suffix));
-    } else if (entry.isFile() && entry.name.endsWith(suffix)) {
+      results.push(...findJsonlFiles(full));
+    } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
       results.push(full);
     }
   }
   return results;
 }
 
-/** Resolve Claude Code log directory for the current platform. */
-export function claudeCodeLogDir(): string {
+/** Returns the Claude Code projects directory for the current platform. */
+export function claudeCodeProjectsDir(): string {
   const home = os.homedir();
   if (process.platform === "win32") {
-    const userprofile = process.env["USERPROFILE"] ?? home;
-    return path.join(userprofile, ".claude", "projects");
+    const profile = process.env["USERPROFILE"] ?? home;
+    return path.join(profile, ".claude", "projects");
   }
   return path.join(home, ".claude", "projects");
 }
 
-/** Discover all Claude Code .jsonl log files. */
+/** Discover all Claude Code .jsonl files. */
 export function discoverClaudeCodeFiles(): string[] {
-  const dir = claudeCodeLogDir();
-  return findFiles(dir, ".jsonl");
+  const dir = claudeCodeProjectsDir();
+  return findJsonlFiles(dir);
 }
 
-/** Resolve the Cursor sqlite path for the current platform. */
-export function cursorDbPath(): string | null {
+/** Returns the Cursor sqlite DB path for the current platform. */
+export function cursorDbPath(): string {
   const home = os.homedir();
-  switch (process.platform) {
-    case "darwin":
-      return path.join(
-        home,
-        "Library",
-        "Application Support",
-        "Cursor",
-        "User",
-        "globalStorage",
-        "state.vscdb",
-      );
-    case "linux":
-      return path.join(home, ".config", "Cursor", "User", "globalStorage", "state.vscdb");
-    case "win32": {
-      const appdata = process.env["APPDATA"] ?? path.join(home, "AppData", "Roaming");
-      return path.join(appdata, "Cursor", "User", "globalStorage", "state.vscdb");
-    }
-    default:
-      return null;
+  const rel = path.join("Cursor", "User", "globalStorage", "state.vscdb");
+
+  if (process.platform === "darwin") {
+    return path.join(home, "Library", "Application Support", rel);
   }
+  if (process.platform === "win32") {
+    const appData = process.env["APPDATA"] ?? path.join(home, "AppData", "Roaming");
+    return path.join(appData, rel);
+  }
+  // Linux (and everything else)
+  const xdgConfig = process.env["XDG_CONFIG_HOME"] ?? path.join(home, ".config");
+  return path.join(xdgConfig, rel);
 }
 
-/** Return the Cursor db path only if the file exists. */
+/** Returns the Cursor DB path if it exists, otherwise null. */
 export function discoverCursorDb(): string | null {
   const p = cursorDbPath();
-  if (!p) return null;
-  try {
-    fs.accessSync(p, fs.constants.R_OK);
-    return p;
-  } catch {
-    return null;
-  }
+  return fs.existsSync(p) ? p : null;
 }

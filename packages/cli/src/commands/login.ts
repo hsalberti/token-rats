@@ -1,96 +1,127 @@
-import { ApiClient } from "../lib/api.js";
-import { writeToken } from "../lib/auth-store.js";
-import { log } from "../lib/log.js";
+/**
+ * token-rats login
+ *
+ * Device-code-style auth flow:
+ * 1. Call POST /v1/auth/cli/exchange to get a verificationUrl + pollToken.
+ * 2. Show the URL (copy to clipboard + open browser if possible).
+ * 3. Poll POST /v1/auth/cli/poll every 2s until the user approves or it expires.
+ * 4. Save the returned token to ~/.config/token-rats/token (mode 0600).
+ */
 
-/** Try to open the URL in the default browser. Fails silently. */
+import { ApiClient } from "../lib/api.js";
+import { saveToken } from "../lib/auth-store.js";
+import { error, info, spinner, success } from "../lib/log.js";
+
+/** Attempt to open a URL in the default browser. No-op if `open` is missing. */
 async function openBrowser(url: string): Promise<void> {
   try {
-    const { default: open } = await import("open");
-    await open(url);
+    // Prefer the `open` npm package; fall back to platform-native commands.
+    const mod = await import("open").catch(() => null);
+    if (mod) {
+      await mod.default(url);
+      return;
+    }
   } catch {
-    // open is optional — ignore
+    // ignore
+  }
+
+  // Platform fallback
+  try {
+    const { execFile } = await import("node:child_process");
+    const { promisify } = await import("node:util");
+    const exec = promisify(execFile);
+    const cmd =
+      process.platform === "darwin"
+        ? "open"
+        : process.platform === "win32"
+          ? "cmd"
+          : "xdg-open";
+    const args = process.platform === "win32" ? ["/c", "start", url] : [url];
+    await exec(cmd, args).catch(() => null);
+  } catch {
+    // ignore
   }
 }
 
-/** Try to copy text to clipboard. Fails silently. */
+/** Attempt to copy text to the clipboard. Silently ignores failures. */
 async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    const { default: clipboardy } = await import("clipboardy");
-    await clipboardy.write(text);
-    return true;
+    const mod = await import("clipboardy").catch(() => null);
+    if (mod) {
+      await mod.default.write(text);
+      return true;
+    }
   } catch {
-    return false;
+    // ignore
   }
+  return false;
 }
 
-export interface LoginOptions {
-  apiUrl: string;
-}
+export async function loginCommand(opts: { apiUrl?: string }): Promise<void> {
+  const client = new ApiClient({ apiUrl: opts.apiUrl });
 
-export async function loginCommand(opts: LoginOptions): Promise<void> {
-  const client = new ApiClient(opts.apiUrl);
-
-  log.info("Initiating device-code login…");
+  info("Authenticating with Token Rats…");
 
   let exchange: { verificationUrl: string; pollToken: string; expiresIn: number };
   try {
     exchange = await client.cliExchange();
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    log.error(`Failed to start auth flow: ${msg}`);
+    error(`Failed to start authentication: ${err instanceof Error ? err.message : String(err)}`);
     process.exit(1);
   }
 
   const { verificationUrl, pollToken, expiresIn } = exchange;
 
-  // Extract the code from the URL for display
-  const urlObj = new URL(verificationUrl);
-  const code = urlObj.searchParams.get("code") ?? "";
+  // Extract the short code from the URL for display
+  const codeMatch = verificationUrl.match(/[?&]code=([A-Z0-9-]+)/);
+  const code = codeMatch?.[1] ?? "";
 
-  log.plain("");
-  log.bold("  Open this URL to sign in:");
-  log.plain(`  ${verificationUrl}`);
+  console.log("");
+  console.log(`  Open this URL to sign in:`);
+  console.log(`  \x1b[1m\x1b[36m${verificationUrl}\x1b[0m`);
   if (code) {
-    log.plain("");
-    log.plain(`  Code: \x1b[1m${code}\x1b[0m`);
+    console.log(`  Code: \x1b[1m${code}\x1b[0m`);
   }
-  log.plain("");
-  log.dim(`  (Expires in ${expiresIn}s)`);
-  log.plain("");
+  console.log(`  Expires in ${Math.floor(expiresIn / 60)} minutes.`);
+  console.log("");
 
-  // Best-effort clipboard + browser
-  if (code) {
-    const copied = await copyToClipboard(code);
-    if (copied) log.dim("  Code copied to clipboard.");
+  const copied = await copyToClipboard(verificationUrl);
+  if (copied) {
+    info("URL copied to clipboard.");
   }
+
   await openBrowser(verificationUrl);
 
-  log.info("Waiting for browser confirmation…");
+  const spin = spinner("Waiting for you to approve in the browser");
 
   const deadline = Date.now() + expiresIn * 1000;
   let token: string | null = null;
 
   while (Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 2000));
+
     try {
       token = await client.cliPoll(pollToken);
-      if (token) break;
     } catch (err) {
-      // status 410 = expired
-      const apiErr = err as { status?: number };
-      if (apiErr.status === 410) {
-        log.error("Auth code expired. Run `token-rats login` again.");
+      if (err instanceof Error && err.message.includes("410")) {
+        spin.stop();
+        error("The authentication code expired. Please run `token-rats login` again.");
         process.exit(1);
       }
       // Other errors: keep polling
+      continue;
     }
+
+    if (token !== null) break;
   }
 
+  spin.stop();
+
   if (!token) {
-    log.error("Timed out waiting for login. Run `token-rats login` again.");
+    error("Authentication timed out. Please run `token-rats login` again.");
     process.exit(1);
   }
 
-  writeToken(token);
-  log.success("Logged in! Run `token-rats whoami` to confirm.");
+  saveToken(token);
+  success("Logged in! Run `token-rats whoami` to verify.");
 }
