@@ -1,11 +1,14 @@
 /**
  * Room routes:
- *   POST /v1/rooms            – create a room
- *   POST /v1/rooms/:code/join – join a room
- *   GET  /v1/rooms/:code      – get room + members (members only)
+ *   POST  /v1/rooms                  – create a room
+ *   POST  /v1/rooms/:code/join       – join a room
+ *   GET   /v1/rooms/:code            – get room + members (members only)
+ *   POST  /v1/rooms/:code/leave      – leave a room (owner can't leave)
+ *   PATCH /v1/rooms/:code            – rename a room (owner only)
+ *   GET   /v1/rooms/:code/activity   – recent activity feed
  */
 import { Hono } from "hono";
-import { CreateRoomRequest } from "@token-rats/contracts";
+import { CreateRoomRequest, RenameRoomRequest, GetActivityQuery } from "@token-rats/contracts";
 import type { Env } from "../env.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -189,6 +192,179 @@ rooms.get("/:code", requireAuth, async (c) => {
     },
     members,
   });
+});
+
+/* -------------------------------------------------------------------------- */
+/* POST /v1/rooms/:code/leave                                                  */
+/* -------------------------------------------------------------------------- */
+
+rooms.post("/:code/leave", requireAuth, async (c) => {
+  const userId = c.var.userId;
+  const code = c.req.param("code");
+
+  const room = await c.env.DB.prepare(
+    "SELECT id, owner_id FROM rooms WHERE code = ?",
+  )
+    .bind(code)
+    .first<{ id: string; owner_id: string }>();
+
+  if (!room) {
+    return notFound(c, "Room not found");
+  }
+
+  // Check membership
+  const membership = await c.env.DB.prepare(
+    "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
+  )
+    .bind(room.id, userId)
+    .first();
+
+  if (!membership) {
+    return forbidden(c, "You are not a member of this room");
+  }
+
+  // Owner cannot leave — must delete the room (out of scope v1)
+  if (room.owner_id === userId) {
+    return forbidden(c, "Room owners cannot leave. Delete the room instead.");
+  }
+
+  await c.env.DB.prepare(
+    "DELETE FROM room_members WHERE room_id = ? AND user_id = ?",
+  )
+    .bind(room.id, userId)
+    .run();
+
+  return c.json({ ok: true });
+});
+
+/* -------------------------------------------------------------------------- */
+/* PATCH /v1/rooms/:code   (owner only — rename)                               */
+/* -------------------------------------------------------------------------- */
+
+rooms.patch("/:code", requireAuth, async (c) => {
+  const userId = c.var.userId;
+  const code = c.req.param("code");
+
+  let body: { name: string };
+  try {
+    const raw: unknown = await c.req.json();
+    body = RenameRoomRequest.parse(raw);
+  } catch (e) {
+    return validationError(c, e instanceof Error ? e.message : e);
+  }
+
+  const room = await c.env.DB.prepare(
+    "SELECT id, code, name, owner_id, org_id, created_at FROM rooms WHERE code = ?",
+  )
+    .bind(code)
+    .first<{
+      id: string;
+      code: string;
+      name: string;
+      owner_id: string;
+      org_id: string | null;
+      created_at: number;
+    }>();
+
+  if (!room) {
+    return notFound(c, "Room not found");
+  }
+
+  if (room.owner_id !== userId) {
+    return forbidden(c, "Only the room owner can rename the room");
+  }
+
+  await c.env.DB.prepare("UPDATE rooms SET name = ? WHERE id = ?")
+    .bind(body.name, room.id)
+    .run();
+
+  return c.json({
+    room: {
+      id: room.id,
+      code: room.code,
+      name: body.name,
+      ownerId: room.owner_id,
+      orgId: room.org_id,
+      createdAt: room.created_at,
+    },
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* GET /v1/rooms/:code/activity?limit=20                                       */
+/* -------------------------------------------------------------------------- */
+
+rooms.get("/:code/activity", requireAuth, async (c) => {
+  const userId = c.var.userId;
+  const code = c.req.param("code");
+
+  let query: { limit: number };
+  try {
+    const raw = Object.fromEntries(new URL(c.req.url).searchParams.entries());
+    query = GetActivityQuery.parse(raw);
+  } catch (e) {
+    return validationError(c, e instanceof Error ? e.message : e);
+  }
+
+  const room = await c.env.DB.prepare("SELECT id FROM rooms WHERE code = ?")
+    .bind(code)
+    .first<{ id: string }>();
+
+  if (!room) {
+    return notFound(c, "Room not found");
+  }
+
+  // Check membership
+  const membership = await c.env.DB.prepare(
+    "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
+  )
+    .bind(room.id, userId)
+    .first();
+
+  if (!membership) {
+    return forbidden(c, "You are not a member of this room");
+  }
+
+  const result = await c.env.DB.prepare(
+    `SELECT
+       s.id          AS session_id,
+       s.ended_at    AS at,
+       s.user_id,
+       u.handle,
+       u.avatar_url,
+       (s.in_tokens + s.out_tokens) AS tokens,
+       s.cost_usd_cents,
+       s.model
+     FROM sessions s
+     JOIN room_members rm ON rm.user_id = s.user_id AND rm.room_id = ?
+     JOIN users u ON u.id = s.user_id
+     ORDER BY s.ended_at DESC
+     LIMIT ?`,
+  )
+    .bind(room.id, query.limit)
+    .all<{
+      session_id: string;
+      at: number;
+      user_id: string;
+      handle: string;
+      avatar_url: string | null;
+      tokens: number;
+      cost_usd_cents: number;
+      model: string;
+    }>();
+
+  const activity = (result.results ?? []).map((r) => ({
+    sessionId: r.session_id,
+    at: r.at,
+    userId: r.user_id,
+    handle: r.handle,
+    avatarUrl: r.avatar_url,
+    tokens: r.tokens,
+    costUsdCents: r.cost_usd_cents,
+    model: r.model,
+  }));
+
+  return c.json({ activity });
 });
 
 export default rooms;

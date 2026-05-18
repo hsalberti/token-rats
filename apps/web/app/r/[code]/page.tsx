@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getCookieHeader } from "../../../lib/auth";
+import { getCookieHeader, getSession } from "../../../lib/auth";
 import { api, ApiError } from "../../../lib/api";
 import { RoomView } from "./RoomView";
 
@@ -25,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function RoomPage({ params }: Props) {
   const { code } = await params;
-  const cookieHeader = await getCookieHeader();
+  const [cookieHeader, session] = await Promise.all([getCookieHeader(), getSession()]);
 
   try {
     const [roomData, leaderboardData] = await Promise.all([
@@ -39,6 +39,7 @@ export default async function RoomPage({ params }: Props) {
         members={roomData.members}
         initialLeaderboard={leaderboardData.leaderboard}
         cookieHeader={cookieHeader}
+        currentUserId={session?.id}
       />
     );
   } catch (err) {

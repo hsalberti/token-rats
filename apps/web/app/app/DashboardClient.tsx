@@ -3,85 +3,48 @@
 /**
  * Dashboard client component.
  *
- * NOTE: The v1 API contract does not include a "list my rooms" endpoint.
- * As a stopgap we store room codes the user has joined/created in localStorage
- * under the key "tr_room_codes", then hydrate each room via GET /v1/rooms/:code.
- * Track G in Phase 2 should add GET /v1/me/rooms to the API and replace this.
+ * // Track GH (Phase 2): replaced localStorage stopgap with GET /v1/me/rooms.
+ * Rooms are now loaded directly from the API rather than being stored in
+ * localStorage under "tr_room_codes". This means rooms appear on any device
+ * immediately after sign-in.
  */
 
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, ApiError } from "../../lib/api";
 import type { Room, User } from "@token-rats/contracts";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 
-const ROOMS_KEY = "tr_room_codes";
-
-function loadRoomCodes(): string[] {
-  if (typeof window === "undefined") return [];
-  try {
-    return JSON.parse(localStorage.getItem(ROOMS_KEY) ?? "[]") as string[];
-  } catch {
-    return [];
-  }
-}
-
-function saveRoomCode(code: string) {
-  const codes = loadRoomCodes();
-  if (!codes.includes(code)) {
-    localStorage.setItem(ROOMS_KEY, JSON.stringify([...codes, code]));
-  }
-}
-
-function removeRoomCode(code: string) {
-  const codes = loadRoomCodes().filter((c) => c !== code);
-  localStorage.setItem(ROOMS_KEY, JSON.stringify(codes));
-}
-
 interface Props {
   user: User;
   cookieHeader: string;
 }
 
-type RoomEntry = { code: string; room: Room | null; loading: boolean; error: string | null };
-
 export function DashboardClient({ user: _user, cookieHeader }: Props) {
   const router = useRouter();
-  const [rooms, setRooms] = useState<RoomEntry[]>([]);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [roomsLoading, setRoomsLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [roomName, setRoomName] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Force re-render after hydration
-  const [hydrated, setHydrated] = useReducer(() => true, false);
-  const initialized = useRef(false);
 
+  // Track GH (Phase 2): load rooms from GET /v1/me/rooms instead of localStorage
   useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-    const codes = loadRoomCodes();
-    setRooms(codes.map((code) => ({ code, room: null, loading: true, error: null })));
-    setHydrated();
-
-    codes.forEach((code) => {
-      api
-        .getRoom(code as Parameters<typeof api.getRoom>[0], cookieHeader)
-        .then((data) => {
-          setRooms((prev) =>
-            prev.map((r) => (r.code === code ? { ...r, room: data.room, loading: false } : r)),
-          );
-        })
-        .catch(() => {
-          setRooms((prev) =>
-            prev.map((r) =>
-              r.code === code ? { ...r, loading: false, error: "Could not load room" } : r,
-            ),
-          );
-        });
-    });
+    api
+      .getMyRooms(cookieHeader)
+      .then((data) => {
+        setRooms(data.rooms);
+      })
+      .catch(() => {
+        // silently fall through to empty state
+      })
+      .finally(() => {
+        setRoomsLoading(false);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -92,7 +55,6 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
     setError(null);
     try {
       const data = await api.createRoom({ name: roomName.trim() }, cookieHeader);
-      saveRoomCode(data.room.code);
       router.push(`/r/${data.room.code}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create room");
@@ -108,7 +70,6 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
     setError(null);
     try {
       await api.joinRoom(code as Parameters<typeof api.joinRoom>[0], cookieHeader);
-      saveRoomCode(code);
       router.push(`/r/${code}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to join room");
@@ -217,7 +178,13 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
       )}
 
       {/* Room list */}
-      {hydrated && rooms.length === 0 && (
+      {roomsLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />
+          ))}
+        </div>
+      ) : rooms.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-700 px-8 py-16 text-center">
           <p className="text-4xl">🐀</p>
           <p className="mt-3 text-lg font-bold text-zinc-300">No rooms yet</p>
@@ -225,19 +192,10 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
             Create a room and invite your crew to start tracking.
           </p>
         </div>
-      )}
-
-      {rooms.length > 0 && (
+      ) : (
         <div className="grid gap-4 sm:grid-cols-2">
-          {rooms.map((entry) => (
-            <RoomCard
-              key={entry.code}
-              entry={entry}
-              onRemove={() => {
-                removeRoomCode(entry.code);
-                setRooms((prev) => prev.filter((r) => r.code !== entry.code));
-              }}
-            />
+          {rooms.map((room) => (
+            <RoomCard key={room.code} room={room} />
           ))}
         </div>
       )}
@@ -245,31 +203,16 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
   );
 }
 
-function RoomCard({ entry, onRemove }: { entry: RoomEntry; onRemove: () => void }) {
-  if (entry.loading) {
-    return <div className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />;
-  }
-  if (entry.error) {
-    return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-        <p className="text-sm font-mono text-zinc-400">{entry.code}</p>
-        <p className="mt-1 text-xs text-red-400">{entry.error}</p>
-        <button onClick={onRemove} className="mt-2 text-xs text-zinc-600 hover:text-zinc-400">
-          Remove
-        </button>
-      </div>
-    );
-  }
-  if (!entry.room) return null;
+function RoomCard({ room }: { room: Room }) {
   return (
     <a
-      href={`/r/${entry.room.code}`}
+      href={`/r/${room.code}`}
       className="group rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-rat-700 hover:bg-zinc-800"
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="font-bold group-hover:text-rat-400">{entry.room.name}</p>
-          <p className="mt-0.5 font-mono text-xs text-zinc-500">{entry.room.code}</p>
+          <p className="font-bold group-hover:text-rat-400">{room.name}</p>
+          <p className="mt-0.5 font-mono text-xs text-zinc-500">{room.code}</p>
         </div>
         <span className="rounded-lg bg-zinc-800 px-2 py-1 text-xs text-zinc-400 group-hover:bg-zinc-700">
           View →

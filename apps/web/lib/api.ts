@@ -10,12 +10,21 @@
 import type {
   CreateRoomRequest,
   CreateRoomResponse,
+  CreateChallengeRequest,
+  CreateChallengeResponse,
+  GetActivityResponse,
+  GetChallengesResponse,
   GetLeaderboardResponse,
   GetMeResponse,
+  GetMyRoomsResponse,
   GetProfileResponse,
   GetRoomResponse,
+  GetStreaksResponse,
   JoinRoomResponse,
   LeaderboardRange,
+  LeaveRoomResponse,
+  RenameRoomRequest,
+  RenameRoomResponse,
   RoomCode,
   UploadSessionsRequest,
   UploadSessionsResponse,
@@ -136,6 +145,76 @@ export async function approveCli(code: string, cookieHeader?: string): Promise<v
   });
 }
 
+// Track GH (Phase 2): new API functions for rooms polish + streaks/challenges
+
+/** Get all rooms the authenticated user is a member of. */
+export async function getMyRooms(cookieHeader?: string): Promise<GetMyRoomsResponse> {
+  return request<GetMyRoomsResponse>(ENDPOINTS.meRooms, { cookieHeader });
+}
+
+/** Leave a room by code. */
+export async function leaveRoom(
+  code: RoomCode,
+  cookieHeader?: string,
+): Promise<LeaveRoomResponse> {
+  return request<LeaveRoomResponse>(ENDPOINTS.leaveRoom(code), {
+    method: "POST",
+    cookieHeader,
+  });
+}
+
+/** Rename a room (owner only). */
+export async function renameRoom(
+  code: RoomCode,
+  body: RenameRoomRequest,
+  cookieHeader?: string,
+): Promise<RenameRoomResponse> {
+  return request<RenameRoomResponse>(ENDPOINTS.renameRoom(code), {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Get recent activity feed for a room. */
+export async function getRoomActivity(
+  code: RoomCode,
+  limit = 20,
+  cookieHeader?: string,
+): Promise<GetActivityResponse> {
+  const url = `${ENDPOINTS.roomActivity(code)}?limit=${limit}`;
+  return request<GetActivityResponse>(url, { cookieHeader });
+}
+
+/** Get per-user-per-room streaks. */
+export async function getRoomStreaks(
+  code: RoomCode,
+  cookieHeader?: string,
+): Promise<GetStreaksResponse> {
+  return request<GetStreaksResponse>(ENDPOINTS.roomStreaks(code), { cookieHeader });
+}
+
+/** Create a challenge in a room. */
+export async function createChallenge(
+  code: RoomCode,
+  body: CreateChallengeRequest,
+  cookieHeader?: string,
+): Promise<CreateChallengeResponse> {
+  return request<CreateChallengeResponse>(ENDPOINTS.roomChallenges(code), {
+    method: "POST",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Get active + past challenges for a room. */
+export async function getRoomChallenges(
+  code: RoomCode,
+  cookieHeader?: string,
+): Promise<GetChallengesResponse> {
+  return request<GetChallengesResponse>(ENDPOINTS.roomChallenges(code), { cookieHeader });
+}
+
 /**
  * Convenience object exported for import as `api.me()` etc.
  * Each method re-exports the standalone function above.
@@ -149,4 +228,12 @@ export const api = {
   getLeaderboard,
   getProfile,
   approveCli,
+  // Track GH (Phase 2):
+  getMyRooms,
+  leaveRoom,
+  renameRoom,
+  getRoomActivity,
+  getRoomStreaks,
+  createChallenge,
+  getRoomChallenges,
 };
