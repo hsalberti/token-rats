@@ -1,0 +1,39 @@
+name = "token-rats-api"
+main = "src/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "token-rats"
+database_id = "REPLACE_WITH_D1_ID"
+migrations_dir = "../../infra/migrations"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "REPLACE_WITH_KV_ID"
+
+[[r2_buckets]]
+binding = "CARDS"
+bucket_name = "token-rats-cards"
+
+[[durable_objects.bindings]]
+name = "ROOM_LIVE"
+class_name = "RoomLiveHub"
+
+[[migrations]]
+tag = "v2"
+new_classes = ["RoomLiveHub"]
+
+[triggers]
+crons = ["0 16 * * 1"]   # Mondays 16:00 UTC — weekly digest
+
+[vars]
+WEB_ORIGIN = "https://tokenrats.dev"
+
+# Secrets (set via `wrangler secret put`):
+#   GITHUB_CLIENT_ID
+#   GITHUB_CLIENT_SECRET
+#   SESSION_SIGNING_KEY
+#   VAPID_PRIVATE_KEY   (base64url-encoded raw 32-byte EC P-256 private key)
+#   VAPID_PUBLIC_KEY    (base64url-encoded uncompressed P-256 point, 65 bytes)

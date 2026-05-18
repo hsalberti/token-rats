@@ -1,0 +1,32 @@
+import type { Metadata } from "next";
+import { requireSession } from "../../lib/auth";
+import { CliApprovalClient } from "./CliApprovalClient";
+
+export const metadata: Metadata = {
+  title: "Approve CLI",
+  description: "Approve a Token Rats CLI device code.",
+};
+
+interface Props {
+  searchParams: Promise<{ code?: string }>;
+}
+
+export default async function CliPage({ searchParams }: Props) {
+  const user = await requireSession();
+  const { code } = await searchParams;
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-6">
+      <div className="w-full max-w-sm">
+        {/* Brand */}
+        <div className="mb-8 text-center">
+          <a href="/" className="text-2xl font-black">
+            Token <span className="text-rat-500">Rats</span>
+          </a>
+        </div>
+
+        <CliApprovalClient user={user} initialCode={code ?? ""} />
+      </div>
+    </div>
+  );
+}
