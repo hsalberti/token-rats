@@ -90,7 +90,7 @@ importers:
         version: 47.0.4(rollup@4.60.4)
 
   packages/cli:
-    dependencies:
+    devDependencies:
       '@token-rats/contracts':
         specifier: workspace:*
         version: link:../contracts
@@ -100,7 +100,6 @@ importers:
       '@token-rats/pricing':
         specifier: workspace:*
         version: link:../pricing
-    devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.13

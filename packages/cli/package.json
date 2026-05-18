@@ -8,16 +8,22 @@
     "token-rats": "./dist/index.js"
   },
   "files": ["dist", "README.md"],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hsalberti/token-rats.git",
+    "directory": "packages/cli"
+  },
+  "homepage": "https://tokenrats.com",
+  "keywords": ["claude", "claude-code", "cursor", "tokens", "leaderboard", "ai-usage"],
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsc --noEmit -p tsconfig.json && node build.mjs",
     "typecheck": "tsc --noEmit",
     "dev": "tsx src/index.ts",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "@token-rats/contracts": "workspace:*",
-    "@token-rats/parsers": "workspace:*",
-    "@token-rats/pricing": "workspace:*"
+    "test": "vitest run",
+    "prepublishOnly": "node build.mjs"
   },
   "optionalDependencies": {
     "better-sqlite3": "^9.4.3",
@@ -26,6 +32,9 @@
     "open": "^10.1.0"
   },
   "devDependencies": {
+    "@token-rats/contracts": "workspace:*",
+    "@token-rats/parsers": "workspace:*",
+    "@token-rats/pricing": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "22.10.2",
     "esbuild": "^0.24.2",
