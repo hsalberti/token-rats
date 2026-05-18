@@ -9,19 +9,6 @@ interface Props {
   cookieHeader: string;
 }
 
-// Persist joined rooms in localStorage (same stopgap as dashboard)
-function saveRoomCode(code: string) {
-  if (typeof window === "undefined") return;
-  try {
-    const codes = JSON.parse(localStorage.getItem("tr_room_codes") ?? "[]") as string[];
-    if (!codes.includes(code)) {
-      localStorage.setItem("tr_room_codes", JSON.stringify([...codes, code]));
-    }
-  } catch {
-    // ignore
-  }
-}
-
 export function JoinClient({ code, cookieHeader }: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -32,17 +19,10 @@ export function JoinClient({ code, cookieHeader }: Props) {
       .joinRoom(code as Parameters<typeof api.joinRoom>[0], cookieHeader)
       .then(() => {
         if (cancelled) return;
-        saveRoomCode(code);
         router.replace(`/r/${code}`);
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        if (err instanceof ApiError && err.status === 409) {
-          // Already a member — just redirect
-          saveRoomCode(code);
-          router.replace(`/r/${code}`);
-          return;
-        }
         setError(err instanceof ApiError ? err.message : "Failed to join room.");
       });
     return () => {
