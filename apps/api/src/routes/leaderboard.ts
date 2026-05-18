@@ -2,7 +2,7 @@
  * GET /v1/rooms/:code/leaderboard?range=today|7d|30d|all
  *
  * Aggregates daily_rollup for the room's members.
- * Cached in KV under `lb:<code>:<range>` with a 30s TTL.
+ * Cached in KV under `lb:<code>:<range>` with a 60s TTL (KV's minimum).
  */
 import { Hono } from "hono";
 import { GetLeaderboardQuery } from "@token-rats/contracts";
@@ -137,9 +137,9 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     },
   };
 
-  // Cache for 30s
+  // Cache for 60s — KV's minimum TTL.
   await c.env.CACHE.put(cacheKey, JSON.stringify(response), {
-    expirationTtl: 30,
+    expirationTtl: 60,
   });
 
   return c.json(response);

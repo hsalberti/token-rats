@@ -138,7 +138,7 @@ export async function GET(
             marginBottom: 40,
           }}
         >
-          @{data?.handle ?? handle}
+          {`@${data?.handle ?? handle}`}
         </div>
 
         {/* Stats row */}
@@ -236,7 +236,7 @@ export async function GET(
           }}
         >
           <div style={{ fontSize: 16, color: "#52525b" }}>
-            tokenrats.dev/u/{handle}
+            {`tokenrats.dev/u/${handle}`}
           </div>
           <div style={{ fontSize: 16, color: "#52525b" }}>
             counts only — we can&apos;t read your prompts

@@ -1,4 +1,4 @@
-import prices from "./prices.json" with { type: "json" };
+import { prices } from "./prices.js";
 
 export type ModelPrice = { inputPerMTok: number; outputPerMTok: number };
 

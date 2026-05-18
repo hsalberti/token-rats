@@ -166,7 +166,7 @@ export async function getAutobiography(
 export async function approveCli(code: string, cookieHeader?: string): Promise<void> {
   return request<void>("/v1/auth/cli/approve", {
     method: "POST",
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ verificationCode: code }),
     cookieHeader,
   });
 }

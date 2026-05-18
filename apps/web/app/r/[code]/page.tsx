@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { getCookieHeader, getSession } from "../../../lib/auth";
 import { api, ApiError } from "../../../lib/api";
 import { RoomView } from "./RoomView";
@@ -43,8 +43,11 @@ export default async function RoomPage({ params }: Props) {
       />
     );
   } catch (err) {
-    if (err instanceof ApiError && err.status === 404) {
-      notFound();
+    if (err instanceof ApiError) {
+      if (err.status === 404) notFound();
+      if (err.status === 401 || err.status === 403) {
+        redirect(`/signin?next=${encodeURIComponent(`/r/${code}`)}`);
+      }
     }
     throw err;
   }

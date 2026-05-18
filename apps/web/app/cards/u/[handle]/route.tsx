@@ -98,7 +98,7 @@ export async function GET(
             marginBottom: 10,
           }}
         >
-          @{handle}
+          {`@${handle}`}
         </div>
         <div style={{ fontSize: 20, color: "#71717a", marginBottom: 44 }}>
           Token Rat 🐀
@@ -220,7 +220,7 @@ export async function GET(
             alignItems: "center",
           }}
         >
-          <div style={{ fontSize: 16, color: "#52525b" }}>tokenrats.dev/u/{handle}</div>
+          <div style={{ fontSize: 16, color: "#52525b" }}>{`tokenrats.dev/u/${handle}`}</div>
           <div style={{ fontSize: 16, color: "#52525b" }}>
             counts only — we can&apos;t read your prompts
           </div>

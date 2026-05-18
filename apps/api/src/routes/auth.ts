@@ -20,7 +20,8 @@ import {
   TOKEN_TTL_WEB,
   SESSION_COOKIE,
 } from "../lib/auth.js";
-import { validationError, authRequired, notFound, gone, internalError } from "../lib/errors.js";
+import { validationError, authRequired, notFound, gone, internalError, rateLimited } from "../lib/errors.js";
+import { rateLimit } from "../lib/rate-limit.js";
 import { z } from "zod";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
@@ -38,9 +39,12 @@ auth.get("/github/start", async (c) => {
   // Store state in KV with 10-minute TTL
   await c.env.CACHE.put(stateKey, "1", { expirationTtl: 600 });
 
+  // Callback lives on this Worker (not the web app), so derive from request.
+  const apiOrigin = new URL(c.req.url).origin;
+
   const params = new URLSearchParams({
     client_id: c.env.GITHUB_CLIENT_ID,
-    redirect_uri: `${c.env.WEB_ORIGIN}/v1/auth/github/callback`,
+    redirect_uri: `${apiOrigin}/v1/auth/github/callback`,
     scope: "read:user",
     state,
   });
@@ -168,6 +172,12 @@ auth.get("/github/callback", async (c) => {
 /* -------------------------------------------------------------------------- */
 
 auth.post("/cli/exchange", async (c) => {
+  // Rate limit: 5 requests/min per IP — prevents flooding KV with device codes.
+  const ip =
+    c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
+  const rl = await rateLimit(c.env.CACHE, `cli-exchange:${ip}`, 5);
+  if (!rl.allowed) return rateLimited(c);
+
   const pollToken = randomBase64url(32);
   const verificationCode = randomVerificationCode();
 

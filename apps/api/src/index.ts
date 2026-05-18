@@ -22,11 +22,20 @@ import { runWeeklyDigests } from "./scheduled.js";
 
 const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
-// CORS — credentials required for cookie-based auth
+// CORS — credentials required for cookie-based auth.
+// Accepts the configured WEB_ORIGIN plus localhost on any port for local dev.
+// (Localhost can never present a valid prod cookie — different origin — so
+// allowing it everywhere is safe and removes the wrangler-3 `.dev.vars` quirk
+// where vars defined there don't override `[vars]` in wrangler.toml.)
 app.use(
   "*",
   cors({
-    origin: (origin, c) => c.env.WEB_ORIGIN,
+    origin: (origin, c) => {
+      if (origin && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+        return origin;
+      }
+      return c.env.WEB_ORIGIN;
+    },
     credentials: true,
   }),
 );
