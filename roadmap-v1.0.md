@@ -206,10 +206,12 @@ Today the source picker offers two top-level choices: **Claude Code** and **Code
 
 - **Other → IDE sources:** Cursor, Antigravity, Other (IDE).
 - **Other → API sources:** OpenAI, Anthropic, OpenRouter, Other (API).
-- "Other (IDE)" and "Other (API)" are free-form: collect a user-supplied source name + an opt-in sample fixture, which feeds the parser/proxy backlog.
-- IDE sources land as new parsers in `packages/parsers` (reusing the Track A pattern); API sources plug into the proxy from Track M with per-provider base URLs and auth shapes.
+- **Other → Open Source:** Ollama, vLLM, llama.cpp, LM Studio, Other (Open Source). For self-hosted runtimes we read local logs / OpenAI-compatible endpoints; cost defaults to $0 with an optional "estimate at provider X's rates" toggle for fair-comparison rooms.
+- "Other (IDE)", "Other (API)", and "Other (Open Source)" are free-form: collect a user-supplied source name + an opt-in sample fixture, which feeds the parser/proxy backlog.
+- IDE sources land as new parsers in `packages/parsers` (reusing the Track A pattern); API sources plug into the proxy from Track M with per-provider base URLs and auth shapes; open-source sources reuse the parser pattern over OpenAI-compatible JSON.
 - Wire the picker into both surfaces: web onboarding (Track J's "autobiography" flow) and a `token-rats sync --source <id>` flag on the CLI.
-- Each newly-added source needs a `prices.json` entry (Track F pattern) before it ships.
+- Each newly-added source needs a `prices.json` entry (Track F pattern) before it ships — open-source sources may register as `costUsd: 0` with a documented estimation override.
+- **Provider matrix reference:** `research/codexbar.md` documents how the MIT-licensed CodexBar (steipete) accesses each of ~40 providers (OAuth, browser cookies, sqlite, local logs). Use that file as the spec when implementing each new branch — do not fork their Swift code directly.
 
 **Definition of done:** Picking any second-level option from "Other" produces a working sync (real parser/proxy) or a queued backlog entry (free-form "Other"), and the user lands on the same leaderboard flow regardless of source.
 
