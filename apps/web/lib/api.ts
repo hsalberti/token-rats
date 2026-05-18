@@ -10,6 +10,7 @@
 import type {
   CreateRoomRequest,
   CreateRoomResponse,
+  GetAutobiographyResponse,
   GetLeaderboardResponse,
   GetMeResponse,
   GetProfileResponse,
@@ -136,6 +137,16 @@ export async function approveCli(code: string, cookieHeader?: string): Promise<v
   });
 }
 
+/** Get the Token Autobiography stats for a user. */
+export async function getAutobiography(
+  handle: string,
+  cookieHeader?: string,
+): Promise<GetAutobiographyResponse> {
+  return request<GetAutobiographyResponse>(ENDPOINTS.autobiography(handle), {
+    cookieHeader,
+  });
+}
+
 /**
  * Convenience object exported for import as `api.me()` etc.
  * Each method re-exports the standalone function above.
@@ -148,5 +159,6 @@ export const api = {
   getRoom,
   getLeaderboard,
   getProfile,
+  getAutobiography,
   approveCli,
 };

@@ -44,7 +44,11 @@ export async function GET(
     return `$${(cents / 100).toFixed(2)}`;
   }
 
-  const rankColors = ["#facc15", "#a1a1aa", "#b45309"];
+  // Podium medal colors: gold, silver, bronze
+  const medalColors = ["#f59e0b", "#a1a1aa", "#b45309"];
+  const medalBg = ["rgba(245,158,11,0.15)", "rgba(161,161,170,0.1)", "rgba(180,83,9,0.1)"];
+  const medalBorder = ["rgba(245,158,11,0.5)", "rgba(161,161,170,0.2)", "rgba(180,83,9,0.3)"];
+  const medalLabels = ["👑 #1", "🥈 #2", "🥉 #3"];
 
   const image = new ImageResponse(
     (
@@ -55,15 +59,30 @@ export async function GET(
           background: "#09090b",
           display: "flex",
           flexDirection: "column",
-          padding: "60px",
+          padding: "52px 60px",
           fontFamily: "system-ui, sans-serif",
+          position: "relative",
+          overflow: "hidden",
         }}
       >
+        {/* Subtle orange glow top-right */}
+        <div
+          style={{
+            position: "absolute",
+            top: -100,
+            right: -100,
+            width: 450,
+            height: 450,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(249,115,22,0.14) 0%, transparent 65%)",
+          }}
+        />
+
         {/* Brand bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 40 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
           <div
             style={{
-              fontSize: 28,
+              fontSize: 22,
               fontWeight: 900,
               color: "#f97316",
               letterSpacing: "-0.03em",
@@ -71,98 +90,112 @@ export async function GET(
           >
             Token Rats
           </div>
-          <div
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              color: "#71717a",
-              marginTop: 4,
-            }}
-          >
-            — Strava for AI token burn
-          </div>
+          <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
+          <div style={{ fontSize: 14, color: "#52525b" }}>7-day leaderboard</div>
         </div>
 
         {/* Room name */}
         <div
           style={{
-            fontSize: 54,
+            fontSize: 58,
             fontWeight: 900,
             color: "#f4f4f5",
             letterSpacing: "-0.04em",
-            lineHeight: 1.1,
-            marginBottom: 8,
+            lineHeight: 1.05,
+            marginBottom: 32,
           }}
         >
           {roomName}
         </div>
-        <div style={{ fontSize: 20, color: "#71717a", marginBottom: 48 }}>
-          7-day leaderboard
-        </div>
 
-        {/* Leaderboard rows */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, flex: 1 }}>
+        {/* Leaderboard — podium layout */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
           {top3.length === 0 ? (
-            <div style={{ color: "#71717a", fontSize: 24 }}>No data yet — sync to climb the board!</div>
+            <div
+              style={{
+                color: "#52525b",
+                fontSize: 22,
+                background: "#18181b",
+                border: "1.5px solid #27272a",
+                borderRadius: 16,
+                padding: "24px 28px",
+              }}
+            >
+              No data yet — sync to climb the board!
+            </div>
           ) : (
             top3.map((row, i) => (
               <div
                 key={row.handle}
                 style={{
                   display: "flex",
-                  alignItems: "center",
-                  gap: 20,
-                  background: i === 0 ? "#1c1917" : "#18181b",
+                  alignItems: "stretch",
+                  background: i === 0 ? "#1a1408" : "#18181b",
                   borderRadius: 16,
-                  padding: "20px 28px",
-                  border: i === 0 ? "1.5px solid #f97316" : "1.5px solid #27272a",
+                  border: `1.5px solid ${medalBorder[i] ?? "#27272a"}`,
+                  overflow: "hidden",
                 }}
               >
-                {/* Rank */}
+                {/* Medal accent bar */}
                 <div
                   style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: "50%",
-                    background: rankColors[i] ?? "#3f3f46",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: 18,
-                    fontWeight: 900,
-                    color: i === 0 ? "#713f12" : i === 1 ? "#18181b" : "#fef3c7",
+                    width: 5,
+                    background: medalColors[i] ?? "#3f3f46",
                     flexShrink: 0,
                   }}
-                >
-                  {row.rank}
-                </div>
+                />
 
-                {/* Handle */}
+                {/* Content */}
                 <div
                   style={{
-                    fontSize: 26,
-                    fontWeight: 700,
-                    color: i === 0 ? "#f97316" : "#f4f4f5",
+                    padding: i === 0 ? "22px 24px" : "16px 24px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 16,
                     flex: 1,
+                    background: i === 0 ? medalBg[i] : "transparent",
                   }}
                 >
-                  @{row.handle}
-                </div>
-
-                {/* Tokens */}
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
                   <div
                     style={{
-                      fontSize: 28,
+                      fontSize: i === 0 ? 20 : 16,
                       fontWeight: 900,
-                      color: "#f97316",
-                      fontVariantNumeric: "tabular-nums",
+                      color: medalColors[i] ?? "#a1a1aa",
+                      minWidth: 52,
                     }}
                   >
-                    {fmtTokens(row.tokens)}
+                    {medalLabels[i] ?? `#${row.rank}`}
                   </div>
-                  <div style={{ fontSize: 16, color: "#71717a" }}>
-                    {fmtCost(row.costUsdCents)}
+
+                  {/* Handle */}
+                  <div
+                    style={{
+                      fontSize: i === 0 ? 30 : 24,
+                      fontWeight: 800,
+                      color: i === 0 ? "#fbbf24" : "#f4f4f5",
+                      flex: 1,
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    @{row.handle}
+                  </div>
+
+                  {/* Token count + cost */}
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
+                    <div
+                      style={{
+                        fontSize: i === 0 ? 32 : 26,
+                        fontWeight: 900,
+                        color: i === 0 ? "#f97316" : "#f4f4f5",
+                        fontVariantNumeric: "tabular-nums",
+                        letterSpacing: "-0.02em",
+                      }}
+                    >
+                      {fmtTokens(row.tokens)}
+                    </div>
+                    <div style={{ fontSize: 14, color: "#71717a" }}>
+                      {fmtCost(row.costUsdCents)}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -173,14 +206,16 @@ export async function GET(
         {/* Footer */}
         <div
           style={{
-            marginTop: 32,
+            marginTop: 28,
             display: "flex",
             justifyContent: "space-between",
             alignItems: "center",
           }}
         >
-          <div style={{ fontSize: 18, color: "#52525b" }}>tokenrats.dev/r/{code}</div>
-          <div style={{ fontSize: 18, color: "#52525b" }}>counts only — we can&apos;t read your prompts</div>
+          <div style={{ fontSize: 16, color: "#52525b" }}>tokenrats.dev/r/{code}</div>
+          <div style={{ fontSize: 16, color: "#52525b" }}>
+            counts only — we can&apos;t read your prompts
+          </div>
         </div>
       </div>
     ),

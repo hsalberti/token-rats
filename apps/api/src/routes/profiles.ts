@@ -1,5 +1,6 @@
 /**
  * GET /v1/u/:handle — public profile (auth optional).
+ * GET /v1/u/:handle/autobiography — richer stats for the onboarding flow.
  *
  * Returns user info + today/week/allTime token + cost totals
  * aggregated from daily_rollup.
@@ -83,6 +84,122 @@ profiles.get("/:handle", optionalAuth, async (c) => {
           costUsdCents: totals.all_cost,
         },
       },
+    },
+  });
+});
+
+/**
+ * GET /v1/u/:handle/autobiography
+ *
+ * Returns rich aggregated stats derived from `sessions` and `daily_rollup`
+ * to power the onboarding "Token Autobiography" moment.
+ * No new tables needed — everything is computed from existing data.
+ */
+profiles.get("/:handle/autobiography", optionalAuth, async (c) => {
+  const handle = c.req.param("handle");
+
+  const user = await c.env.DB.prepare("SELECT id, handle, avatar_url FROM users WHERE handle = ?")
+    .bind(handle)
+    .first<{ id: string; handle: string; avatar_url: string | null }>();
+
+  if (!user) {
+    return notFound(c, "User not found");
+  }
+
+  const todayUtc = new Date().toISOString().slice(0, 10);
+  const monthStart = todayUtc.slice(0, 7) + "-01"; // first of current month
+
+  // --- All-time totals + month totals from daily_rollup ---
+  const rollupRow = await c.env.DB.prepare(
+    `SELECT
+       COALESCE(SUM(tokens), 0)                                              AS all_tokens,
+       COALESCE(SUM(cost_usd_cents), 0)                                      AS all_cost,
+       COALESCE(SUM(CASE WHEN day >= ? THEN tokens         ELSE 0 END), 0)   AS month_tokens,
+       COALESCE(SUM(CASE WHEN day >= ? THEN cost_usd_cents ELSE 0 END), 0)   AS month_cost,
+       COALESCE(SUM(sessions), 0)                                            AS all_sessions,
+       COUNT(DISTINCT day)                                                   AS active_days,
+       MIN(day)                                                              AS first_day
+     FROM daily_rollup
+     WHERE user_id = ?`,
+  )
+    .bind(monthStart, monthStart, user.id)
+    .first<{
+      all_tokens: number;
+      all_cost: number;
+      month_tokens: number;
+      month_cost: number;
+      all_sessions: number;
+      active_days: number;
+      first_day: string | null;
+    }>();
+
+  // --- Biggest single session (sum in_tokens + out_tokens) from sessions ---
+  const biggestRow = await c.env.DB.prepare(
+    `SELECT COALESCE(MAX(in_tokens + out_tokens), 0) AS biggest
+     FROM sessions
+     WHERE user_id = ?`,
+  )
+    .bind(user.id)
+    .first<{ biggest: number }>();
+
+  // --- Dominant model (most total tokens across all sessions) ---
+  const dominantRow = await c.env.DB.prepare(
+    `SELECT model, SUM(in_tokens + out_tokens) AS tok
+     FROM sessions
+     WHERE user_id = ?
+     GROUP BY model
+     ORDER BY tok DESC
+     LIMIT 1`,
+  )
+    .bind(user.id)
+    .first<{ model: string; tok: number }>();
+
+  // --- Most active day-of-week (0=Sun … 6=Sat) from daily_rollup ---
+  // SQLite strftime('%w', day) returns 0=Sunday … 6=Saturday
+  const dowRow = await c.env.DB.prepare(
+    `SELECT CAST(strftime('%w', day) AS INTEGER) AS dow, SUM(tokens) AS tok
+     FROM daily_rollup
+     WHERE user_id = ?
+     GROUP BY dow
+     ORDER BY tok DESC
+     LIMIT 1`,
+  )
+    .bind(user.id)
+    .first<{ dow: number; tok: number }>();
+
+  const allTokens = rollupRow?.all_tokens ?? 0;
+  const allCost = rollupRow?.all_cost ?? 0;
+  const monthTokens = rollupRow?.month_tokens ?? 0;
+  const monthCost = rollupRow?.month_cost ?? 0;
+  const allSessions = rollupRow?.all_sessions ?? 0;
+  const activeDays = rollupRow?.active_days ?? 0;
+  const firstDay = rollupRow?.first_day ?? null;
+
+  const biggestSessionTokens = biggestRow?.biggest ?? 0;
+  const dominantModel = dominantRow?.model ?? "unknown";
+  const mostActiveDayOfWeek = dowRow?.dow ?? 0;
+
+  // sessions per day = total sessions / days that had ≥1 session
+  const sessionsPerDay = activeDays > 0 ? allSessions / activeDays : 0;
+
+  // coffees this month: $5/cup, cost is in cents
+  const monthlyCoffees = monthCost / (5 * 100);
+
+  return c.json({
+    autobiography: {
+      handle: user.handle,
+      avatarUrl: user.avatar_url,
+      totalTokens: allTokens,
+      totalCostUsdCents: allCost,
+      monthTokens,
+      monthCostUsdCents: monthCost,
+      biggestSessionTokens,
+      dominantModel,
+      mostActiveDayOfWeek,
+      sessionsPerDay: Math.round(sessionsPerDay * 10) / 10,
+      totalSessions: allSessions,
+      firstSyncDate: firstDay,
+      monthlyCoffees: Math.round(monthlyCoffees * 10) / 10,
     },
   });
 });
