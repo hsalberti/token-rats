@@ -1,0 +1,24 @@
+{
+  "name": "@token-rats/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@token-rats/contracts": "workspace:*",
+    "@token-rats/pricing": "workspace:*",
+    "hono": "4.6.13",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "4.20241218.0",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8",
+    "wrangler": "3.95.0"
+  }
+}

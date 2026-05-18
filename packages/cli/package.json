@@ -1,0 +1,28 @@
+{
+  "name": "token-rats",
+  "version": "0.0.1",
+  "description": "Sync your Claude Code + Cursor token usage to your Token Rats leaderboard.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "token-rats": "./dist/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit",
+    "dev": "tsx src/index.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@token-rats/contracts": "workspace:*",
+    "@token-rats/parsers": "workspace:*",
+    "@token-rats/pricing": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "tsx": "4.19.2",
+    "typescript": "5.7.2",
+    "vitest": "2.1.8"
+  }
+}
