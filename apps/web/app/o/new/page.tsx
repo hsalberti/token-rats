@@ -29,7 +29,8 @@ export default function NewOrgPage() {
         slug: slug.trim(),
         ...(githubOrgLogin.trim() ? { githubOrgLogin: githubOrgLogin.trim() } : {}),
       });
-      router.push(`/o/${slug.trim()}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (router.push as (href: string) => void)(`/o/${slug.trim()}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create org");
     } finally {
