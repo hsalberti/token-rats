@@ -1,6 +1,6 @@
 /**
- * Discovers Claude Code .jsonl files and the Cursor sqlite cache
- * across macOS, Linux, and Windows.
+ * Discovers Claude Code .jsonl files, Codex rollout .jsonl files, and the
+ * Cursor sqlite cache across macOS, Linux, and Windows.
  */
 
 import * as fs from "node:fs";
@@ -38,6 +38,66 @@ export function claudeCodeProjectsDir(): string {
 export function discoverClaudeCodeFiles(): string[] {
   const dir = claudeCodeProjectsDir();
   return findJsonlFiles(dir);
+}
+
+/**
+ * Returns the candidate Codex `sessions/` directories for the current
+ * platform. Codex writes rollout JSONL files under `<codex-home>/sessions/`,
+ * organized as `YYYY/MM/DD/rollout-<iso-stamp>-<session-id>.jsonl`.
+ *
+ * `<codex-home>` defaults to `~/.codex` but the Snap and Flatpak distros
+ * sandbox it elsewhere, so we probe several known locations.
+ */
+export function codexSessionsDirs(): string[] {
+  const home = os.homedir();
+  const candidates: string[] = [];
+
+  if (process.platform === "win32") {
+    const profile = process.env["USERPROFILE"] ?? home;
+    candidates.push(path.join(profile, ".codex", "sessions"));
+    const appData = process.env["APPDATA"] ?? path.join(profile, "AppData", "Roaming");
+    candidates.push(path.join(appData, "Codex", "sessions"));
+  } else {
+    candidates.push(path.join(home, ".codex", "sessions"));
+    // Snap (Linux): sessions live under a versioned `current` symlink as well
+    // as the active version directory. Walk the snap root and pick up any
+    // `sessions/` we find.
+    const snapRoot = path.join(home, "snap", "codex");
+    if (fs.existsSync(snapRoot)) {
+      for (const entry of fs.readdirSync(snapRoot, { withFileTypes: true })) {
+        if (entry.isDirectory()) {
+          candidates.push(path.join(snapRoot, entry.name, "sessions"));
+        }
+      }
+    }
+    // macOS: same as Linux default; no separate Application Support path.
+  }
+
+  // De-dupe (Snap's `current` symlink can resolve to a numbered version dir
+  // that we'd otherwise scan twice). Keep only existing dirs.
+  const seen = new Set<string>();
+  const dirs: string[] = [];
+  for (const c of candidates) {
+    try {
+      const real = fs.existsSync(c) ? fs.realpathSync(c) : null;
+      if (real && !seen.has(real)) {
+        seen.add(real);
+        dirs.push(c);
+      }
+    } catch {
+      // ignore unreadable candidates
+    }
+  }
+  return dirs;
+}
+
+/** Discover all Codex rollout .jsonl files across known Codex home dirs. */
+export function discoverCodexFiles(): string[] {
+  const out: string[] = [];
+  for (const dir of codexSessionsDirs()) {
+    out.push(...findJsonlFiles(dir));
+  }
+  return out;
 }
 
 /** Returns the Cursor sqlite DB path for the current platform. */

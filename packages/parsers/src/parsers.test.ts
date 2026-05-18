@@ -3,6 +3,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { parseClaudeCode } from "./claude-code.js";
+import { parseCodex } from "./codex.js";
 import { parseCursor } from "./cursor.js";
 import { computeDedupeKey, fnv1aHex } from "./hash.js";
 
@@ -212,6 +213,90 @@ describe("parseCursor", () => {
 
   it("returns empty array for JSON non-array (object)", () => {
     expect(parseCursor('{"id": "x"}')).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Codex parser tests
+// ---------------------------------------------------------------------------
+
+describe("parseCodex", () => {
+  const input = readFixture("codex-sample.jsonl");
+  const records = parseCodex(input);
+
+  it("parses exactly two distinct sessions", () => {
+    expect(records).toHaveLength(2);
+  });
+
+  it("ids are prefixed with codex:", () => {
+    const ids = records.map((r) => r.id).sort();
+    expect(ids).toEqual([
+      "codex:019db29c-18c6-78a1-9d09-788e5b17fa5d",
+      "codex:019db2eb-b85f-7563-a7e8-dec676161620",
+    ]);
+  });
+
+  it("source is codex for all records", () => {
+    expect(records.every((r) => r.source === "codex")).toBe(true);
+  });
+
+  describe("session 019db29c (gpt-5.3-codex)", () => {
+    const rec = records.find((r) => r.id === "codex:019db29c-18c6-78a1-9d09-788e5b17fa5d")!;
+
+    it("inTokens = input_tokens − cached_input_tokens (last cumulative)", () => {
+      // Final total_token_usage: input=40000, cached=35000 → 5000 uncached.
+      expect(rec.inTokens).toBe(5000);
+    });
+
+    it("outTokens = output_tokens + reasoning_output_tokens (last cumulative)", () => {
+      // Final: output=500, reasoning=200 → 700.
+      expect(rec.outTokens).toBe(700);
+    });
+
+    it("model is from turn_context", () => {
+      expect(rec.model).toBe("gpt-5.3-codex");
+    });
+
+    it("startedAt is session_meta.payload.timestamp", () => {
+      expect(rec.startedAt).toBe(Date.parse("2026-04-22T00:34:27.656Z"));
+    });
+
+    it("endedAt is latest event timestamp", () => {
+      expect(rec.endedAt).toBe(Date.parse("2026-04-22T00:50:01.000Z"));
+    });
+
+    it("dedupeKey is a non-empty hex string", () => {
+      expect(rec.dedupeKey).toMatch(/^[0-9a-f]+$/);
+    });
+  });
+
+  describe("session 019db2eb (gpt-5-mini)", () => {
+    const rec = records.find((r) => r.id === "codex:019db2eb-b85f-7563-a7e8-dec676161620")!;
+
+    it("uses cumulative totals from the final token_count", () => {
+      // Final: input=2500, cached=500 → 2000 uncached; output=400+50=450.
+      expect(rec.inTokens).toBe(2000);
+      expect(rec.outTokens).toBe(450);
+    });
+
+    it("model is gpt-5-mini", () => {
+      expect(rec.model).toBe("gpt-5-mini");
+    });
+  });
+
+  it("returns empty array for empty input", () => {
+    expect(parseCodex("")).toHaveLength(0);
+  });
+
+  it("skips malformed lines without crashing", () => {
+    expect(parseCodex("garbage\nmore garbage\n").length).toBe(0);
+  });
+
+  it("parses identically when input is a Uint8Array", () => {
+    const bytes = new TextEncoder().encode(input);
+    const fromBytes = parseCodex(bytes);
+    expect(fromBytes).toHaveLength(records.length);
+    expect(fromBytes.map((r) => r.id).sort()).toEqual(records.map((r) => r.id).sort());
   });
 });
 

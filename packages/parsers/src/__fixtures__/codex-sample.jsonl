@@ -1,0 +1,12 @@
+{"timestamp":"2026-04-22T00:42:10.314Z","type":"session_meta","payload":{"id":"019db29c-18c6-78a1-9d09-788e5b17fa5d","timestamp":"2026-04-22T00:34:27.656Z","source":"cli","model_provider":"openai","cli_version":"0.114.0"}}
+{"timestamp":"2026-04-22T00:42:10.315Z","type":"turn_context","payload":{"turn_id":"t1","model":"gpt-5.3-codex"}}
+{"timestamp":"2026-04-22T00:42:15.706Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":13103,"cached_input_tokens":6528,"output_tokens":249,"reasoning_output_tokens":141,"total_tokens":13352},"last_token_usage":{"input_tokens":13103,"cached_input_tokens":6528,"output_tokens":249,"reasoning_output_tokens":141,"total_tokens":13352},"model_context_window":258400}}}
+{"timestamp":"2026-04-22T00:42:18.540Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":26619,"cached_input_tokens":19712,"output_tokens":360,"reasoning_output_tokens":159,"total_tokens":26979},"last_token_usage":{"input_tokens":13516,"cached_input_tokens":13184,"output_tokens":111,"reasoning_output_tokens":18,"total_tokens":13627},"model_context_window":258400}}}
+not valid json — should be skipped
+{"timestamp":"2026-04-22T00:42:20.000Z","type":"event_msg","payload":{"type":"token_count","info":null,"rate_limits":{"plan_type":"free"}}}
+{"timestamp":"2026-04-22T00:50:00.000Z","type":"event_msg","payload":{"type":"agent_message","text":"ignored"}}
+{"timestamp":"2026-04-22T00:50:01.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":40000,"cached_input_tokens":35000,"output_tokens":500,"reasoning_output_tokens":200,"total_tokens":40500}}}}
+{"timestamp":"2026-04-22T00:55:00.000Z","type":"session_meta","payload":{"id":"019db2eb-b85f-7563-a7e8-dec676161620","timestamp":"2026-04-22T00:55:00.000Z","source":"cli","model_provider":"openai"}}
+{"timestamp":"2026-04-22T00:55:01.000Z","type":"turn_context","payload":{"model":"gpt-5-mini"}}
+{"timestamp":"2026-04-22T00:55:30.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":1000,"cached_input_tokens":0,"output_tokens":200,"reasoning_output_tokens":0,"total_tokens":1200}}}}
+{"timestamp":"2026-04-22T00:56:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":2500,"cached_input_tokens":500,"output_tokens":400,"reasoning_output_tokens":50,"total_tokens":2950}}}}

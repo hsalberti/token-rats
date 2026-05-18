@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const Source = z.enum(["claude-code", "cursor"]);
+export const Source = z.enum(["claude-code", "cursor", "codex"]);
 export type Source = z.infer<typeof Source>;
 
 /**
