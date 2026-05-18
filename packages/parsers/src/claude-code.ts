@@ -33,7 +33,11 @@
  * - `startedAt` = earliest timestamp in the session.
  * - `endedAt`   = latest  timestamp in the session.
  * - `model`     = model on the LAST assistant message in the session.
- * - `inTokens`  = Σ(input_tokens + cache_creation_input_tokens + cache_read_input_tokens)
+ * - `inTokens`  = Σ(input_tokens)   — uncached input only, matching Claude
+ *                                     Code's `/stats` and `/usage` displays.
+ *                                     Cache creation/read tokens are excluded
+ *                                     because they would inflate totals by 10–100×
+ *                                     (every tool call re-reads the whole cache).
  * - `outTokens` = Σ(output_tokens)
  *
  * ## Privacy
@@ -138,10 +142,7 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
       const u = usage as Record<string, unknown>;
       const inputTokens = toNonNegInt(u["input_tokens"]);
       const outputTokens = toNonNegInt(u["output_tokens"]);
-      const cacheCreate = toNonNegInt(u["cache_creation_input_tokens"]);
-      const cacheRead = toNonNegInt(u["cache_read_input_tokens"]);
-      // cache tokens count as input per spec
-      acc.inTokens += inputTokens + cacheCreate + cacheRead;
+      acc.inTokens += inputTokens;
       acc.outTokens += outputTokens;
     }
   }

@@ -8,7 +8,8 @@
 
 import * as fs from "node:fs";
 import type { SessionRecord } from "@token-rats/contracts";
-import { parseClaudeCode, parseCursor } from "@token-rats/parsers";
+import { computeDedupeKey, parseClaudeCode, parseCursor } from "@token-rats/parsers";
+import { priceOf } from "@token-rats/pricing";
 import { ApiClient, ApiError } from "../lib/api.js";
 import { loadToken } from "../lib/auth-store.js";
 import { readCursorDb } from "../lib/cursor-extract.js";
@@ -30,6 +31,41 @@ function chunk<T>(arr: T[], size: number): T[][] {
     chunks.push(arr.slice(i, i + size));
   }
   return chunks;
+}
+
+/**
+ * Fold any SessionRecords that share the same `id` into one — summing tokens,
+ * taking the earliest startedAt / latest endedAt, and the model from whichever
+ * record ended last. Cost and dedupeKey are recomputed from the merged totals.
+ */
+function mergeBySessionId(records: SessionRecord[]): SessionRecord[] {
+  const byId = new Map<string, SessionRecord>();
+  for (const r of records) {
+    const existing = byId.get(r.id);
+    if (!existing) {
+      byId.set(r.id, { ...r });
+      continue;
+    }
+    existing.inTokens += r.inTokens;
+    existing.outTokens += r.outTokens;
+    if (r.startedAt < existing.startedAt) existing.startedAt = r.startedAt;
+    if (r.endedAt > existing.endedAt) {
+      existing.endedAt = r.endedAt;
+      existing.model = r.model;
+    }
+  }
+  for (const rec of byId.values()) {
+    const { costUsdCents } = priceOf(rec.model, rec.inTokens, rec.outTokens);
+    rec.costUsdCents = costUsdCents;
+    rec.dedupeKey = computeDedupeKey(
+      rec.source,
+      rec.model,
+      rec.startedAt,
+      rec.inTokens,
+      rec.outTokens,
+    );
+  }
+  return Array.from(byId.values());
 }
 
 export async function syncCommand(opts: SyncOptions): Promise<void> {
@@ -93,10 +129,24 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
     if (opts.verbose) info("Cursor DB not found — skipping Cursor source");
   }
 
+  // ── 2.5. Merge Claude Code records that share the same sessionId ──────────
+  // Claude Code splits one session across `<id>.jsonl` plus any number of
+  // `<id>/subagents/*.jsonl` (one per Task subagent run). They all carry the
+  // SAME `sessionId`, so our parser emits multiple SessionRecords with the
+  // SAME `id`. The server's `INSERT OR IGNORE` on the `id` PK would keep
+  // only the first and silently drop the rest — losing every subagent token.
+  // Fold them here before dedupe/upload.
+  const mergedClaude = mergeBySessionId(claudeSessions);
+  if (opts.verbose && mergedClaude.length !== claudeSessions.length) {
+    dim(
+      `  Merged ${claudeSessions.length} Claude Code records into ${mergedClaude.length} sessions (subagent files folded into parents)`,
+    );
+  }
+
   // ── 3. Dedupe locally by dedupeKey ─────────────────────────────────────────
   const seen = new Set<string>();
   const allSessions: SessionRecord[] = [];
-  for (const s of [...claudeSessions, ...cursorSessions]) {
+  for (const s of [...mergedClaude, ...cursorSessions]) {
     if (!seen.has(s.dedupeKey)) {
       seen.add(s.dedupeKey);
       allSessions.push(s);

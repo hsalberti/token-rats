@@ -41,11 +41,11 @@ describe("parseClaudeCode", () => {
   describe("session-aaa-111", () => {
     const rec = records.find((r) => r.id === "claude-code:session-aaa-111")!;
 
-    it("sums regular input + cache_creation + cache_read as inTokens", () => {
-      // turn 1: input=100, cacheCreate=0, cacheRead=0   → 100
-      // turn 2: input=200, cacheCreate=500, cacheRead=250 → 950
-      // total = 1050
-      expect(rec.inTokens).toBe(1050);
+    it("sums uncached input_tokens only (matches Claude Code /stats)", () => {
+      // turn 1: input=100 → 100
+      // turn 2: input=200 → 200
+      // cache_creation/cache_read are deliberately excluded
+      expect(rec.inTokens).toBe(300);
     });
 
     it("sums output tokens across turns", () => {
@@ -83,11 +83,11 @@ describe("parseClaudeCode", () => {
     });
 
     it("sums tokens across multiple assistant turns including unknown-model turn", () => {
-      // turn 1: input=80, cacheRead=100 → 180; out=20
+      // turn 1: input=80 → 80; out=20  (cacheRead=100 ignored)
       // turn 2 (unknown-model): input=50 → 50; out=10
       // turn 3: input=40 → 40; out=15
-      // total in=270, out=45
-      expect(rec.inTokens).toBe(270);
+      // total in=170, out=45
+      expect(rec.inTokens).toBe(170);
       expect(rec.outTokens).toBe(45);
     });
 

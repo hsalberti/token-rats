@@ -11,3 +11,4 @@ export type Parser = (input: string | ArrayBuffer | Uint8Array) => SessionRecord
 
 export { parseClaudeCode } from "./claude-code.js";
 export { parseCursor } from "./cursor.js";
+export { computeDedupeKey, fnv1aHex } from "./hash.js";
