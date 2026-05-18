@@ -151,6 +151,19 @@ Now we make it spread. These five tracks can run in parallel because they touch 
 - Web Push API: "You got passed on the weekly board" / "Your room's challenge ends in 6 hours."
 - Weekly Monday email digest (Resend or Postmark) — one per room.
 
+### 🟩 Track Q — Rich profile dashboard
+
+The Phase 1 profile is intentionally minimal (this week / this month / all-time). This track turns `/u/[handle]` into the page people actually want to share — a dense, mobile-first read of their token life.
+
+- **Usage heatmap** — a Claude-app-style calendar grid (last 90d, optionally 12mo), one cell per day, intensity ≡ spend (toggle: spend / tokens / requests). Tap a cell → drill into that day's sessions.
+- **Group rankings** — for every room the user is in, render a row like `#3/14 at KombIA`, `#1/8 at Indie Hackers`. Sort by closeness to the top. Tap → room leaderboard.
+- **Per-source tiles** — one tile per provider the user syncs (Claude Code, Codex, Cursor, Antigravity, OpenAI, Anthropic, OpenRouter, …) showing today / 7d / 30d spend, today's request count, top model, and a 30d sparkline. Visually mirrors the menubar-app pattern users already recognize (CodexBar, Claude's usage view).
+- **Trend chart** — stacked spend / tokens / requests over 30d with top-model + top-spend-model callouts underneath, same affordance as the reference designs.
+- All charts read from `daily_rollup` only — no per-session fan-out from the profile page.
+- Public/private toggle wired through Phase 3 Track N opt-in (this is the surface that benefits most from public profiles).
+
+**Definition of done:** A logged-in user opens `/u/<me>` on their phone and sees: the heatmap, every room with their rank, and a per-provider tile for each source they sync — fully loaded in under 500ms on a warm cache.
+
 ### 🟨 Phase 2 convergence
 
 A user installing today should: sync → see autobiography → share it → drag in 2 friends → join challenges → get pinged when they fall behind. Measure the funnel; cut anything that doesn't move it.
@@ -208,7 +221,7 @@ Today the source picker offers two top-level choices: **Claude Code** and **Code
 |---|---|---|
 | 0 | 1 (sequential) | Do this yourself, fast. Don't delegate. |
 | 1 | **6** | Spawn 6 agents in parallel. They will not collide if Phase 0 is locked. |
-| 2 | **5** | Spawn 5 agents. Track J (onboarding) is the most important — supervise it personally. |
+| 2 | **6** | Spawn 6 agents. Track J (onboarding) is the most important — supervise it personally. Track Q (rich profile) is the second-most-shareable surface after Track I. |
 | 3 | **5** | Spawn 5 agents. Track M (proxy) needs the most trust/copy review by you. Track P depends on Track M for any API-side source. |
 
 **Operational rule:** Anything that requires a `packages/contracts` change has to be merged sequentially. Everything else can fan out.
