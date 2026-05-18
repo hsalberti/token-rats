@@ -31,13 +31,15 @@ export type {
   OrgSpendByUser,
   OrgSpendByModel,
   OrgSpendByDay,
-  CreateOrgRequest,
   CreateOrgResponse,
   GetOrgResponse,
-  CreateOrgInviteRequest,
   CreateOrgInviteResponse,
   AcceptOrgInviteResponse,
   GetOrgDashboardResponse,
+} from "./org.js";
+export {
+  CreateOrgRequest,
+  CreateOrgInviteRequest,
 } from "./org.js";
 
 /* ------------------------------- GET /v1/me ------------------------------ */

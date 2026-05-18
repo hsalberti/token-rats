@@ -170,18 +170,24 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
   let cleanup: (() => void) | null = null;
 
   try {
-    // Dynamic import — chokidar is an optional dependency
+    // Dynamic import — chokidar is an optional dependency.
+    // We use Function() to defeat the TypeScript module resolver so that the
+    // package being absent at typecheck time doesn't cause a TS2307 error.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chokidar = (await import("chokidar")) as any;
+    const chokidar = (await (new Function("m", "return import(m)") as (m: string) => Promise<any>)("chokidar")) as {
+      watch: (
+        pattern: string,
+        opts: Record<string, unknown>,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) => { on: (event: string, fn: (...args: any[]) => void) => void; close: () => void };
+    };
     const watcher = chokidar.watch(`${dir}/**/*.jsonl`, {
       ignoreInitial: true,
       persistent: true,
       awaitWriteFinish: { stabilityThreshold: 500, pollInterval: 100 },
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    watcher.on("add", (p: any) => onChanged(String(p)));
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    watcher.on("change", (p: any) => onChanged(String(p)));
+    watcher.on("add", (p: string) => onChanged(p));
+    watcher.on("change", (p: string) => onChanged(p));
     cleanup = () => {
       watcher.close();
     };

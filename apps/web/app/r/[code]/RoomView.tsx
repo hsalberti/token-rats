@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError } from "../../../lib/api";
 import type {
   ActivityRow,
@@ -8,10 +8,13 @@ import type {
   ChallengeWithLeaderboard,
   Leaderboard,
   LeaderboardRange,
+  LiveEvent,
   Room,
+  RoomCode,
   RoomMember,
   StreakRow,
 } from "@token-rats/contracts";
+import { useRoomLive } from "../../../lib/use-room-live";
 import { Avatar } from "../../../components/ui/Avatar";
 import { RankBadge } from "../../../components/ui/RankBadge";
 import { Button } from "../../../components/ui/Button";
@@ -82,7 +85,40 @@ export function RoomView({
   const [challengesLoading, setChallengesLoading] = useState(false);
   const [challengesLoaded, setChallengesLoaded] = useState(false);
 
+  // Live toast state — "new burn from @handle"
+  const [liveToast, setLiveToast] = useState<string | null>(null);
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const isOwner = currentUserId === room.ownerId;
+
+  // Keep a stable ref to the current range so the SSE handler can read it
+  // without creating a new closure / re-subscribing.
+  const rangeRef = useRef<LeaderboardRange>(range);
+  useEffect(() => {
+    rangeRef.current = range;
+  }, [range]);
+
+  // SSE — live leaderboard + session-added toasts
+  const handleLiveEvent = useCallback(
+    (event: LiveEvent) => {
+      if (event.kind === "leaderboard-update") {
+        // Refetch the leaderboard in the currently-selected range
+        api
+          .getLeaderboard(room.code as RoomCode, rangeRef.current, cookieHeader)
+          .then((data) => setLeaderboard(data.leaderboard))
+          .catch(() => undefined);
+      } else if (event.kind === "session-added") {
+        const msg = `new burn from @${event.payload.handle}`;
+        setLiveToast(msg);
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = setTimeout(() => setLiveToast(null), 4000);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [room.code, cookieHeader],
+  );
+
+  useRoomLive(room.code as RoomCode, handleLiveEvent);
 
   // Load streaks once on mount
   useEffect(() => {
@@ -209,6 +245,13 @@ export function RoomView({
           <div className="w-16" />
         </div>
       </header>
+
+      {/* Live toast */}
+      {liveToast && (
+        <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-xl border border-rat-500/40 bg-zinc-900 px-5 py-3 text-sm font-semibold text-rat-400 shadow-lg transition-all">
+          {liveToast}
+        </div>
+      )}
 
       <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
         {/* Room title + actions */}

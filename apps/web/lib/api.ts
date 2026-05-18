@@ -21,16 +21,29 @@ import type {
   GetProfileResponse,
   GetRoomResponse,
   GetStreaksResponse,
+  GetTrendingResponse,
   JoinRoomResponse,
   LeaderboardRange,
   LeaveRoomResponse,
   NotificationPrefsResponse,
+  PatchMeRequest,
+  PatchMeResponse,
+  ReportAbuseRequest,
+  ReportAbuseResponse,
   RenameRoomRequest,
   RenameRoomResponse,
   RoomCode,
   UploadSessionsRequest,
   UploadSessionsResponse,
   UpsertNotificationPrefsRequest,
+  // Phase 3 Track O — Org plan
+  CreateOrgRequest,
+  CreateOrgResponse,
+  GetOrgResponse,
+  CreateOrgInviteRequest,
+  CreateOrgInviteResponse,
+  AcceptOrgInviteResponse,
+  GetOrgDashboardResponse,
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
@@ -265,6 +278,92 @@ export async function postPushTest(cookieHeader?: string): Promise<{ sent: boole
   });
 }
 
+// Phase 3 Track N: public profiles + global discovery
+
+/** Update the signed-in user's public profile settings. */
+export async function patchMe(
+  body: PatchMeRequest,
+  cookieHeader?: string,
+): Promise<PatchMeResponse> {
+  return request<PatchMeResponse>(ENDPOINTS.patchMe, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Get the global trending leaderboard. */
+export async function getTrending(
+  range: LeaderboardRange = "today",
+  cookieHeader?: string,
+): Promise<GetTrendingResponse> {
+  const url = `${ENDPOINTS.trending}?range=${range}`;
+  return request<GetTrendingResponse>(url, { cookieHeader });
+}
+
+/** Submit an abuse report against a public handle. */
+export async function reportAbuse(
+  body: ReportAbuseRequest,
+  cookieHeader?: string,
+): Promise<ReportAbuseResponse> {
+  return request<ReportAbuseResponse>(ENDPOINTS.reportAbuse, {
+    method: "POST",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+// Phase 3 Track O: org plan
+
+/** Create a new org. */
+export async function createOrg(
+  body: CreateOrgRequest,
+  cookieHeader?: string,
+): Promise<CreateOrgResponse> {
+  return request<CreateOrgResponse>(ENDPOINTS.orgs, {
+    method: "POST",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Get org details + member list. */
+export async function getOrg(slug: string, cookieHeader?: string): Promise<GetOrgResponse> {
+  return request<GetOrgResponse>(ENDPOINTS.org(slug), { cookieHeader });
+}
+
+/** Create an org invite (admin/owner only). */
+export async function createOrgInvite(
+  slug: string,
+  body: CreateOrgInviteRequest,
+  cookieHeader?: string,
+): Promise<CreateOrgInviteResponse> {
+  return request<CreateOrgInviteResponse>(ENDPOINTS.orgInvites(slug), {
+    method: "POST",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Accept a pending org invite (uses the signed-in user's GitHub login). */
+export async function acceptOrgInvite(
+  slug: string,
+  cookieHeader?: string,
+): Promise<AcceptOrgInviteResponse> {
+  return request<AcceptOrgInviteResponse>(ENDPOINTS.orgAccept(slug), {
+    method: "POST",
+    cookieHeader,
+  });
+}
+
+/** Get org spend dashboard (member-only). */
+export async function getOrgDashboard(
+  slug: string,
+  cookieHeader?: string,
+): Promise<GetOrgDashboardResponse> {
+  return request<GetOrgDashboardResponse>(ENDPOINTS.orgDashboard(slug), { cookieHeader });
+}
+
 /**
  * Convenience object exported for import as `api.me()` etc.
  * Each method re-exports the standalone function above.
@@ -290,4 +389,14 @@ export const api = {
   upsertNotificationPrefs,
   deletePushSubscriptions,
   postPushTest,
+  // Phase 3 Track N
+  patchMe,
+  getTrending,
+  reportAbuse,
+  // Phase 3 Track O
+  createOrg,
+  getOrg,
+  createOrgInvite,
+  acceptOrgInvite,
+  getOrgDashboard,
 };

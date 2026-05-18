@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { getCookieHeader } from "../../../lib/auth";
+import { getCookieHeader, getSession } from "../../../lib/auth";
 import { api, ApiError } from "../../../lib/api";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
@@ -38,17 +37,71 @@ function fmtCost(cents: number) {
 export default async function ProfilePage({ params }: Props) {
   const { handle } = await params;
   const cookieHeader = await getCookieHeader();
+  const currentUser = await getSession();
 
-  let profile;
+  let profile: {
+    id: string;
+    handle: string;
+    avatarUrl: string | null;
+    bio?: string | null;
+    twitterHandle?: string | null;
+    publicProfile?: boolean;
+    totals: {
+      today: { tokens: number; costUsdCents: number };
+      week: { tokens: number; costUsdCents: number };
+      allTime: { tokens: number; costUsdCents: number };
+    };
+  } | null = null;
+
+  let isPrivate = false;
+
   try {
     const data = await api.getProfile(handle, cookieHeader);
     profile = data.profile;
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
-      notFound();
+      isPrivate = true;
+    } else {
+      throw err;
     }
-    throw err;
   }
+
+  // Private profile page
+  if (isPrivate) {
+    return (
+      <div className="min-h-screen bg-zinc-950">
+        <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
+          <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
+            <a href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
+              &larr; Home
+            </a>
+            <a href="/" className="text-lg font-black tracking-tight">
+              Token <span className="text-rat-500">Rats</span>
+            </a>
+            <div className="w-16" />
+          </div>
+        </header>
+
+        <main className="mx-auto max-w-3xl px-6 py-24 flex flex-col items-center text-center space-y-4">
+          <span className="text-5xl">🔒</span>
+          <h1 className="text-2xl font-black tracking-tight">This profile is private</h1>
+          <p className="text-zinc-400 max-w-sm">
+            @{handle} hasn&apos;t made their profile public yet. Only they can see their stats.
+          </p>
+          {!currentUser && (
+            <a
+              href="/signin"
+              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-rat-500 px-5 py-2.5 text-sm font-semibold text-white hover:bg-rat-600 transition-colors"
+            >
+              Sign in to view your own profile
+            </a>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  if (!profile) return null;
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -56,7 +109,7 @@ export default async function ProfilePage({ params }: Props) {
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
           <a href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
-            ← Home
+            &larr; Home
           </a>
           <a href="/" className="text-lg font-black tracking-tight">
             Token <span className="text-rat-500">Rats</span>
@@ -69,9 +122,31 @@ export default async function ProfilePage({ params }: Props) {
         {/* Profile header */}
         <div className="flex items-center gap-5">
           <Avatar src={profile.avatarUrl} handle={profile.handle} size="xl" />
-          <div>
+          <div className="flex-1 min-w-0">
             <h1 className="text-3xl font-black tracking-tight">@{profile.handle}</h1>
-            <p className="mt-1 text-zinc-400">Token Rat</p>
+            {profile.bio ? (
+              <p className="mt-1 text-zinc-300 text-sm leading-relaxed">{profile.bio}</p>
+            ) : (
+              <p className="mt-1 text-zinc-400">Token Rat</p>
+            )}
+            {profile.twitterHandle && (
+              <a
+                href={`https://twitter.com/${profile.twitterHandle}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-rat-400 hover:text-rat-300 transition-colors"
+              >
+                <svg
+                  className="h-4 w-4"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  aria-hidden="true"
+                >
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+                @{profile.twitterHandle}
+              </a>
+            )}
           </div>
         </div>
 
@@ -109,6 +184,18 @@ export default async function ProfilePage({ params }: Props) {
             </div>
           </div>
         </Card>
+
+        {/* Edit profile CTA for the profile owner */}
+        {currentUser?.handle === profile.handle && (
+          <div className="text-center">
+            <a
+              href="/settings/profile"
+              className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2"
+            >
+              Edit profile settings
+            </a>
+          </div>
+        )}
       </main>
     </div>
   );
