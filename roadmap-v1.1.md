@@ -233,6 +233,15 @@ These came up in interview but are not v1.1. Decide based on what the first publ
 - **Reviving the org plan publicly** — gated on consumer loop validation. Don't unflag until D7 retention is real. Track X's waitlist captures interest in the meantime.
 - **iOS push** — known-broken in Safari. Out of scope. Document the limitation; don't chase it.
 
+### Security hardening known gaps (from pre-prod review)
+
+These came out of the pre-prod security audit (see `SECURITY-PRELAUNCH.md`). None block v1.1 launch, but each is a real exposure once the user base is non-trivial. **Web-push aes128gcm is the same work as Track R above — don't double-list.**
+
+- **CLI device-code phishing resistance.** Anyone signed in who clicks `/cli?code=XXXX-XXXX` mints a 30-day Bearer with full proxy access. Add an out-of-band confirmation (two random words shown in both terminal and browser), or scope the CLI token so it can't hit the proxy by default. Pick up before any public CLI install instructions land outside trusted channels.
+- **Org invite expiry + GitHub handle drift.** GitHub login names are mutable; the `users.handle` column is set once at signup. Refresh handle on each OAuth callback (with collision handling); expire `org_invites` after 14 days; require `target_user_id` on the invite when the invited handle already exists. Required before the org plan comes back from Track Q's hide.
+- **Rate-limit public endpoints.** `/v1/trending`, `/v1/u/:handle`, and `/v1/u/:handle/autobiography` have no per-IP rate limit. Track 7e29781 on `review/performance` adds 60s KV caching which dampens cost, but doesn't bound a scraper. Add per-IP throttling once trending sees real traffic.
+- **Rate-limiter atomicity.** The current KV-backed limiter (`apps/api/src/lib/rate-limit.ts`) has a read-modify-write race; under burst, effective rate is ~2× the configured limit. Migrate to the Cloudflare Workers Rate Limiting binding (atomic, sliding-window) or a Durable Object counter. Pick up before adding new security-critical limits.
+
 ---
 
 ## Risks specific to v1.1
