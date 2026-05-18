@@ -97,18 +97,10 @@ export function RoomView({ room, members: _members, initialLeaderboard, cookieHe
             <p className="mt-1 font-mono text-sm text-zinc-500">{room.code}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleShare}
-            >
+            <Button variant="secondary" size="sm" onClick={handleShare}>
               {copied === "share" ? "Copied!" : "Share"}
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={handleInvite}
-            >
+            <Button variant="secondary" size="sm" onClick={handleInvite}>
               {copied === "invite" ? "Copied!" : "Invite"}
             </Button>
           </div>
@@ -133,9 +125,7 @@ export function RoomView({ room, members: _members, initialLeaderboard, cookieHe
               onClick={() => switchRange(r)}
               className={[
                 "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
-                r === range
-                  ? "bg-rat-500 text-white shadow"
-                  : "text-zinc-400 hover:text-zinc-200",
+                r === range ? "bg-rat-500 text-white shadow" : "text-zinc-400 hover:text-zinc-200",
               ].join(" ")}
             >
               {RANGE_LABELS[r]}
@@ -144,7 +134,9 @@ export function RoomView({ room, members: _members, initialLeaderboard, cookieHe
         </div>
 
         {/* Leaderboard */}
-        <div className={`transition-opacity duration-150 ${loading ? "opacity-40" : "opacity-100"}`}>
+        <div
+          className={`transition-opacity duration-150 ${loading ? "opacity-40" : "opacity-100"}`}
+        >
           {leaderboard.rows.length === 0 ? (
             <EmptyLeaderboard />
           ) : (
@@ -156,7 +148,11 @@ export function RoomView({ room, members: _members, initialLeaderboard, cookieHe
   );
 }
 
-function StatCard({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+function StatCard({
+  label,
+  value,
+  className = "",
+}: { label: string; value: string; className?: string }) {
   return (
     <div className={`rounded-xl border border-zinc-800 bg-zinc-900 p-4 ${className}`}>
       <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
@@ -202,9 +198,7 @@ function LeaderboardTable({ rows }: { rows: Leaderboard["rows"] }) {
           <RankBadge rank={row.rank} />
           <div className="flex items-center gap-3">
             <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
-            <span className="font-semibold group-hover:text-rat-400">
-              @{row.handle}
-            </span>
+            <span className="font-semibold group-hover:text-rat-400">@{row.handle}</span>
           </div>
           {/* Mobile: stacked right side; Desktop: separate columns */}
           <div className="ml-auto flex flex-col items-end gap-0.5 sm:contents">

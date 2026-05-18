@@ -53,14 +53,7 @@ export function cursorDbPath(): string | null {
         "state.vscdb",
       );
     case "linux":
-      return path.join(
-        home,
-        ".config",
-        "Cursor",
-        "User",
-        "globalStorage",
-        "state.vscdb",
-      );
+      return path.join(home, ".config", "Cursor", "User", "globalStorage", "state.vscdb");
     case "win32": {
       const appdata = process.env["APPDATA"] ?? path.join(home, "AppData", "Roaming");
       return path.join(appdata, "Cursor", "User", "globalStorage", "state.vscdb");

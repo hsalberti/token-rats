@@ -22,8 +22,7 @@ import type {
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "https://api.tokenrats.dev";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.tokenrats.dev";
 
 /** Auth start URL — navigate the browser to this to kick off GitHub OAuth. */
 export const AUTH_GITHUB_START = `${API_URL}${ENDPOINTS.authGithubStart}`;
@@ -49,11 +48,7 @@ async function request<T>(
     headers.set("Cookie", cookieHeader);
   }
   headers.set("Accept", "application/json");
-  if (
-    fetchOptions.body &&
-    typeof fetchOptions.body === "string" &&
-    !headers.has("Content-Type")
-  ) {
+  if (fetchOptions.body && typeof fetchOptions.body === "string" && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -100,10 +95,7 @@ export async function createRoom(
 }
 
 /** Join a room by code. */
-export async function joinRoom(
-  code: RoomCode,
-  cookieHeader?: string,
-): Promise<JoinRoomResponse> {
+export async function joinRoom(code: RoomCode, cookieHeader?: string): Promise<JoinRoomResponse> {
   return request<JoinRoomResponse>(ENDPOINTS.joinRoom(code), {
     method: "POST",
     cookieHeader,
@@ -111,10 +103,7 @@ export async function joinRoom(
 }
 
 /** Get room details and member list. */
-export async function getRoom(
-  code: RoomCode,
-  cookieHeader?: string,
-): Promise<GetRoomResponse> {
+export async function getRoom(code: RoomCode, cookieHeader?: string): Promise<GetRoomResponse> {
   return request<GetRoomResponse>(ENDPOINTS.room(code), { cookieHeader });
 }
 
@@ -139,10 +128,7 @@ export async function getProfile(
 }
 
 /** Approve a pending CLI device code. */
-export async function approveCli(
-  code: string,
-  cookieHeader?: string,
-): Promise<void> {
+export async function approveCli(code: string, cookieHeader?: string): Promise<void> {
   return request<void>("/v1/auth/cli/approve", {
     method: "POST",
     body: JSON.stringify({ code }),

@@ -227,12 +227,48 @@ describe("dedupeKey determinism", () => {
   });
 
   it("dedupeKey changes when any field changes", () => {
-    const base = computeDedupeKey("claude-code", "claude-3-5-sonnet-20241022", 1700000000, 1050, 350);
-    const diffSource = computeDedupeKey("cursor", "claude-3-5-sonnet-20241022", 1700000000, 1050, 350);
-    const diffModel = computeDedupeKey("claude-code", "claude-3-haiku-20240307", 1700000000, 1050, 350);
-    const diffTime = computeDedupeKey("claude-code", "claude-3-5-sonnet-20241022", 1700000001, 1050, 350);
-    const diffIn = computeDedupeKey("claude-code", "claude-3-5-sonnet-20241022", 1700000000, 1051, 350);
-    const diffOut = computeDedupeKey("claude-code", "claude-3-5-sonnet-20241022", 1700000000, 1050, 351);
+    const base = computeDedupeKey(
+      "claude-code",
+      "claude-3-5-sonnet-20241022",
+      1700000000,
+      1050,
+      350,
+    );
+    const diffSource = computeDedupeKey(
+      "cursor",
+      "claude-3-5-sonnet-20241022",
+      1700000000,
+      1050,
+      350,
+    );
+    const diffModel = computeDedupeKey(
+      "claude-code",
+      "claude-3-haiku-20240307",
+      1700000000,
+      1050,
+      350,
+    );
+    const diffTime = computeDedupeKey(
+      "claude-code",
+      "claude-3-5-sonnet-20241022",
+      1700000001,
+      1050,
+      350,
+    );
+    const diffIn = computeDedupeKey(
+      "claude-code",
+      "claude-3-5-sonnet-20241022",
+      1700000000,
+      1051,
+      350,
+    );
+    const diffOut = computeDedupeKey(
+      "claude-code",
+      "claude-3-5-sonnet-20241022",
+      1700000000,
+      1050,
+      351,
+    );
 
     expect(diffSource).not.toBe(base);
     expect(diffModel).not.toBe(base);

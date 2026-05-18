@@ -21,8 +21,8 @@ export default function SignInPage() {
           <div className="p-8">
             <h2 className="mb-2 text-xl font-bold">Welcome back</h2>
             <p className="mb-6 text-sm text-zinc-400">
-              Sign in to see your leaderboards, manage rooms, and track your
-              token burn with friends.
+              Sign in to see your leaderboards, manage rooms, and track your token burn with
+              friends.
             </p>
 
             <a
@@ -36,8 +36,7 @@ export default function SignInPage() {
 
           <div className="border-t border-zinc-800 px-8 py-4">
             <p className="text-center text-xs text-zinc-600">
-              We only read your public GitHub profile. We literally can&apos;t
-              read your prompts.
+              We only read your public GitHub profile. We literally can&apos;t read your prompts.
             </p>
           </div>
         </div>

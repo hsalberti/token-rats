@@ -67,25 +67,22 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
     setHydrated();
 
     codes.forEach((code) => {
-      api.getRoom(code as Parameters<typeof api.getRoom>[0], cookieHeader)
+      api
+        .getRoom(code as Parameters<typeof api.getRoom>[0], cookieHeader)
         .then((data) => {
           setRooms((prev) =>
-            prev.map((r) =>
-              r.code === code ? { ...r, room: data.room, loading: false } : r,
-            ),
+            prev.map((r) => (r.code === code ? { ...r, room: data.room, loading: false } : r)),
           );
         })
         .catch(() => {
           setRooms((prev) =>
             prev.map((r) =>
-              r.code === code
-                ? { ...r, loading: false, error: "Could not load room" }
-                : r,
+              r.code === code ? { ...r, loading: false, error: "Could not load room" } : r,
             ),
           );
         });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleCreate(e: React.FormEvent) {
@@ -94,10 +91,7 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const data = await api.createRoom(
-        { name: roomName.trim() },
-        cookieHeader,
-      );
+      const data = await api.createRoom({ name: roomName.trim() }, cookieHeader);
       saveRoomCode(data.room.code);
       router.push(`/r/${data.room.code}`);
     } catch (err) {
@@ -126,20 +120,29 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
     <div className="space-y-8">
       {/* Welcome */}
       <div>
-        <h1 className="text-3xl font-black tracking-tight">
-          Your rooms
-        </h1>
-        <p className="mt-1 text-zinc-400">
-          Create a room, invite friends, climb the board.
-        </p>
+        <h1 className="text-3xl font-black tracking-tight">Your rooms</h1>
+        <p className="mt-1 text-zinc-400">Create a room, invite friends, climb the board.</p>
       </div>
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-3">
-        <Button onClick={() => { setCreateOpen(true); setJoinOpen(false); setError(null); }}>
+        <Button
+          onClick={() => {
+            setCreateOpen(true);
+            setJoinOpen(false);
+            setError(null);
+          }}
+        >
           + Create room
         </Button>
-        <Button variant="secondary" onClick={() => { setJoinOpen(true); setCreateOpen(false); setError(null); }}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setJoinOpen(true);
+            setCreateOpen(false);
+            setError(null);
+          }}
+        >
           Join by code
         </Button>
       </div>
@@ -150,7 +153,10 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
           <h2 className="mb-4 text-lg font-bold">Create a room</h2>
           <form onSubmit={handleCreate} className="flex flex-col gap-4">
             <div>
-              <label htmlFor="room-name" className="mb-1.5 block text-sm font-semibold text-zinc-300">
+              <label
+                htmlFor="room-name"
+                className="mb-1.5 block text-sm font-semibold text-zinc-300"
+              >
                 Room name
               </label>
               <input
@@ -182,7 +188,10 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
           <h2 className="mb-4 text-lg font-bold">Join a room</h2>
           <form onSubmit={handleJoin} className="flex flex-col gap-4">
             <div>
-              <label htmlFor="join-code" className="mb-1.5 block text-sm font-semibold text-zinc-300">
+              <label
+                htmlFor="join-code"
+                className="mb-1.5 block text-sm font-semibold text-zinc-300"
+              >
                 Room code
               </label>
               <input
@@ -238,19 +247,14 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
 
 function RoomCard({ entry, onRemove }: { entry: RoomEntry; onRemove: () => void }) {
   if (entry.loading) {
-    return (
-      <div className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />
-    );
+    return <div className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />;
   }
   if (entry.error) {
     return (
       <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
         <p className="text-sm font-mono text-zinc-400">{entry.code}</p>
         <p className="mt-1 text-xs text-red-400">{entry.error}</p>
-        <button
-          onClick={onRemove}
-          className="mt-2 text-xs text-zinc-600 hover:text-zinc-400"
-        >
+        <button onClick={onRemove} className="mt-2 text-xs text-zinc-600 hover:text-zinc-400">
           Remove
         </button>
       </div>

@@ -21,10 +21,7 @@ function isRetryable(status: number): boolean {
   return status === 408 || status === 429 || status >= 500;
 }
 
-async function fetchJson<T>(
-  url: string,
-  options: RequestInit & { token?: string },
-): Promise<T> {
+async function fetchJson<T>(url: string, options: RequestInit & { token?: string }): Promise<T> {
   const { token, ...fetchOptions } = options;
   const headers: Record<string, string> = {
     "Content-Type": "application/json",

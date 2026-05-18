@@ -10,12 +10,7 @@ const paddingClasses = {
   lg: "p-6 sm:p-8",
 };
 
-export function Card({
-  padding = "md",
-  className = "",
-  children,
-  ...props
-}: CardProps) {
+export function Card({ padding = "md", className = "", children, ...props }: CardProps) {
   return (
     <div
       {...props}

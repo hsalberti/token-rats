@@ -63,13 +63,9 @@ function parseBlob(blob: string): CursorRow[] {
           id: String(r["requestId"] ?? r["id"] ?? ""),
           model: String(r["modelType"] ?? r["model"] ?? "unknown"),
           promptTokens: Number(r["numPromptTokens"] ?? r["promptTokens"] ?? 0),
-          completionTokens: Number(
-            r["numCompletionTokens"] ?? r["completionTokens"] ?? 0,
-          ),
+          completionTokens: Number(r["numCompletionTokens"] ?? r["completionTokens"] ?? 0),
           startedAt: Number(r["unixMs"] ?? r["startedAt"] ?? Date.now()),
-          endedAt: Number(
-            r["endUnixMs"] ?? r["endedAt"] ?? r["unixMs"] ?? Date.now(),
-          ),
+          endedAt: Number(r["endUnixMs"] ?? r["endedAt"] ?? r["unixMs"] ?? Date.now()),
         };
         if (row.id) results.push(row);
       }
@@ -84,10 +80,7 @@ function parseBlob(blob: string): CursorRow[] {
  * Extract CursorRows from the vscdb sqlite file at `dbPath`.
  * Returns an empty array if better-sqlite3 is unavailable.
  */
-export async function extractCursorRows(
-  dbPath: string,
-  verbose: boolean,
-): Promise<CursorRow[]> {
+export async function extractCursorRows(dbPath: string, verbose: boolean): Promise<CursorRow[]> {
   const Database = await loadBetterSqlite3();
   if (!Database) {
     log.warn(

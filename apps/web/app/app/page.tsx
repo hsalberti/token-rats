@@ -21,9 +21,7 @@ export default async function AppPage() {
           </a>
           <div className="flex items-center gap-3">
             <Avatar src={user.avatarUrl} handle={user.handle} size="sm" />
-            <span className="hidden text-sm font-semibold sm:block">
-              @{user.handle}
-            </span>
+            <span className="hidden text-sm font-semibold sm:block">@{user.handle}</span>
           </div>
         </div>
       </header>

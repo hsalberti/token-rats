@@ -89,7 +89,7 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
     if (!id) continue;
 
     const rawModel = typeof row["model"] === "string" ? row["model"] : "";
-    const model = (rawModel.length > 0 ? (CURSOR_MODEL_MAP[rawModel] ?? rawModel) : "unknown");
+    const model = rawModel.length > 0 ? (CURSOR_MODEL_MAP[rawModel] ?? rawModel) : "unknown";
 
     const inTokens = toNonNegInt(row["promptTokens"]);
     const outTokens = toNonNegInt(row["completionTokens"]);

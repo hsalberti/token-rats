@@ -21,10 +21,7 @@ export function Avatar({ src, handle, size = "md" }: AvatarProps) {
       <img
         src={src}
         alt={handle}
-        className={[
-          sizeClasses[size],
-          "rounded-full object-cover ring-2 ring-zinc-800",
-        ].join(" ")}
+        className={[sizeClasses[size], "rounded-full object-cover ring-2 ring-zinc-800"].join(" ")}
       />
     );
   }

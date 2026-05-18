@@ -86,9 +86,7 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     if (!sessionId) continue;
 
     const timestamp =
-      typeof ev["timestamp"] === "number" && isFinite(ev["timestamp"])
-        ? ev["timestamp"]
-        : 0;
+      typeof ev["timestamp"] === "number" && isFinite(ev["timestamp"]) ? ev["timestamp"] : 0;
 
     // Upsert accumulator
     let acc = sessions.get(sessionId);

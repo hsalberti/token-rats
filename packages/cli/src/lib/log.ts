@@ -9,10 +9,7 @@ const CYAN = "\x1b[36m";
 const RED = "\x1b[31m";
 
 const isCI = process.env["CI"] === "true";
-const noColor =
-  process.env["NO_COLOR"] !== undefined ||
-  process.env["TERM"] === "dumb" ||
-  isCI;
+const noColor = process.env["NO_COLOR"] !== undefined || process.env["TERM"] === "dumb" || isCI;
 
 function color(code: string, text: string): string {
   if (noColor) return text;
@@ -38,7 +35,11 @@ export const log = {
 export function spinner(label: string): { stop: (final?: string) => void } {
   if (noColor || !process.stdout.isTTY) {
     console.log(`${label}…`);
-    return { stop: (final?: string) => { if (final) console.log(final); } };
+    return {
+      stop: (final?: string) => {
+        if (final) console.log(final);
+      },
+    };
   }
   const frames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
   let i = 0;
