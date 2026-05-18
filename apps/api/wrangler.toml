@@ -27,7 +27,7 @@ class_name = "RoomLiveHub"
 
 [[migrations]]
 tag = "v2"
-new_classes = ["RoomLiveHub"]
+new_sqlite_classes = ["RoomLiveHub"]
 
 [triggers]
 crons = ["0 16 * * 1"]   # Mondays 16:00 UTC — weekly digest
