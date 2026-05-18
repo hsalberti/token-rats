@@ -219,6 +219,9 @@ export const ENDPOINTS = {
   orgAccept: (slug: string) => `/v1/orgs/${slug}/accept`,
   orgDashboard: (slug: string) => `/v1/orgs/${slug}/dashboard`,
   stripeWebhook: "/webhooks/stripe",
+  // Phase 3 Track M
+  proxyAnthropicMessages: "/v1/proxy/anthropic/v1/messages",
+  proxyAnthropicKey: "/v1/proxy/keys/anthropic",
 } as const;
 
 // Re-export streak/challenge types for convenience

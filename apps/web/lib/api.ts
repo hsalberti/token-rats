@@ -399,4 +399,39 @@ export const api = {
   createOrgInvite,
   acceptOrgInvite,
   getOrgDashboard,
+  // Phase 3 Track M
+  getProxyAnthropicKeyStatus,
+  setProxyAnthropicKey,
+  deleteProxyAnthropicKey,
 };
+
+// Phase 3 Track M: proxy key management
+
+/** Check whether the current user has a stored Anthropic API key. */
+export async function getProxyAnthropicKeyStatus(
+  cookieHeader?: string,
+): Promise<{ stored: boolean }> {
+  return request<{ stored: boolean }>(ENDPOINTS.proxyAnthropicKey, { cookieHeader });
+}
+
+/** Store (or replace) the current user's Anthropic API key, encrypted server-side. */
+export async function setProxyAnthropicKey(
+  apiKey: string,
+  cookieHeader?: string,
+): Promise<{ stored: boolean }> {
+  return request<{ stored: boolean }>(ENDPOINTS.proxyAnthropicKey, {
+    method: "POST",
+    body: JSON.stringify({ apiKey }),
+    cookieHeader,
+  });
+}
+
+/** Delete the current user's stored Anthropic API key. */
+export async function deleteProxyAnthropicKey(
+  cookieHeader?: string,
+): Promise<{ stored: boolean }> {
+  return request<{ stored: boolean }>(ENDPOINTS.proxyAnthropicKey, {
+    method: "DELETE",
+    cookieHeader,
+  });
+}
