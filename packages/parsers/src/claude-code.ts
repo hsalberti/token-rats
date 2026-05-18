@@ -81,12 +81,24 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
 
     const ev = event as Record<string, unknown>;
 
-    // Identify the session
-    const sessionId = typeof ev["session_id"] === "string" ? ev["session_id"] : null;
+    // Identify the session — real Claude Code uses camelCase `sessionId`;
+    // older test fixtures use `session_id`. Accept both.
+    const sidCamel = ev["sessionId"];
+    const sidSnake = ev["session_id"];
+    const sessionId =
+      typeof sidCamel === "string" ? sidCamel : typeof sidSnake === "string" ? sidSnake : null;
     if (!sessionId) continue;
 
-    const timestamp =
-      typeof ev["timestamp"] === "number" && isFinite(ev["timestamp"]) ? ev["timestamp"] : 0;
+    // Timestamp: real logs are ISO-8601 strings, fixtures are ms-epoch numbers.
+    const rawTs = ev["timestamp"];
+    let timestamp = 0;
+    if (typeof rawTs === "number" && isFinite(rawTs)) {
+      timestamp = rawTs;
+    } else if (typeof rawTs === "string") {
+      const parsed = Date.parse(rawTs);
+      if (!Number.isNaN(parsed)) timestamp = parsed;
+    }
+
 
     // Upsert accumulator
     let acc = sessions.get(sessionId);
