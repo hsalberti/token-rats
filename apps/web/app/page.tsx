@@ -1,7 +1,9 @@
+import { redirect } from "next/navigation";
 import { InstallBlock } from "../components/InstallBlock";
 import { Avatar } from "../components/ui/Avatar";
 import { RankBadge } from "../components/ui/RankBadge";
 import { AUTH_GITHUB_START } from "../lib/api";
+import { getSession } from "../lib/auth";
 
 export const runtime = "edge";
 
@@ -27,7 +29,10 @@ function fmtCost(cents: number) {
   })}`;
 }
 
-export default function HomePage() {
+export default async function HomePage() {
+  const user = await getSession();
+  if (user) redirect("/app");
+
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
       {/* Nav */}

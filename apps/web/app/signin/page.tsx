@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { AUTH_GITHUB_START } from "../../lib/api";
+import { getSession } from "../../lib/auth";
 
 export const runtime = "edge";
 
@@ -8,7 +10,10 @@ export const metadata: Metadata = {
   description: "Sign in to Token Rats with GitHub.",
 };
 
-export default function SignInPage() {
+export default async function SignInPage() {
+  const user = await getSession();
+  if (user) redirect("/app");
+
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-6">
       <div className="w-full max-w-sm">
