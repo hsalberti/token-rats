@@ -230,6 +230,13 @@ export function RoomView({
   // Build streak lookup by userId for leaderboard augmentation
   const streakByUser = new Map(streaks.map((s) => [s.userId, s]));
 
+  // Show a "you're in, now run the CLI" hint if the current viewer is a member
+  // but has no sessions for the selected range yet.
+  const viewerRow = currentUserId
+    ? leaderboard.rows.find((r) => r.userId === currentUserId)
+    : undefined;
+  const viewerNeedsSync = viewerRow !== undefined && viewerRow.sessions === 0;
+
   return (
     <div className="min-h-screen bg-zinc-950">
       {/* Header */}
@@ -348,13 +355,19 @@ export function RoomView({
               ))}
             </div>
 
+            {viewerNeedsSync && <SyncHint />}
+
             <div
               className={`transition-opacity duration-150 ${leaderboardLoading ? "opacity-40" : "opacity-100"}`}
             >
               {leaderboard.rows.length === 0 ? (
                 <EmptyLeaderboard />
               ) : (
-                <LeaderboardTable rows={leaderboard.rows} streakByUser={streakByUser} />
+                <LeaderboardTable
+                  rows={leaderboard.rows}
+                  streakByUser={streakByUser}
+                  currentUserId={currentUserId}
+                />
               )}
             </div>
           </>
@@ -396,6 +409,18 @@ function StatCard({
   );
 }
 
+function SyncHint() {
+  return (
+    <div className="rounded-xl border border-rat-500/40 bg-rat-500/5 px-4 py-3 text-sm text-zinc-300">
+      <span className="font-bold text-rat-400">You&apos;re in!</span> Run{" "}
+      <code className="rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-rat-400">
+        npx token-rats sync
+      </code>{" "}
+      from your terminal to start showing up on the leaderboard.
+    </div>
+  );
+}
+
 function EmptyLeaderboard() {
   return (
     <div className="rounded-xl border border-dashed border-zinc-700 px-8 py-16 text-center">
@@ -415,9 +440,11 @@ function EmptyLeaderboard() {
 function LeaderboardTable({
   rows,
   streakByUser,
+  currentUserId,
 }: {
   rows: Leaderboard["rows"];
   streakByUser: Map<string, StreakRow>;
+  currentUserId?: string;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
@@ -433,11 +460,15 @@ function LeaderboardTable({
 
       {rows.map((row) => {
         const streak = streakByUser.get(row.userId);
+        const isCurrentUser = row.userId === currentUserId;
         return (
           <a
             key={row.userId}
             href={`/u/${row.handle}`}
-            className="group flex items-center gap-3 border-b border-zinc-800 px-4 py-4 last:border-0 transition-colors hover:bg-zinc-800/50 sm:grid sm:grid-cols-[48px_1fr_100px_140px_120px_80px]"
+            className={[
+              "group flex items-center gap-3 border-b border-zinc-800 px-4 py-4 last:border-0 transition-colors sm:grid sm:grid-cols-[48px_1fr_100px_140px_120px_80px]",
+              isCurrentUser ? "bg-rat-500/5 hover:bg-rat-500/10" : "hover:bg-zinc-800/50",
+            ].join(" ")}
           >
             <RankBadge rank={row.rank} />
             <div className="flex min-w-0 items-center gap-2">
@@ -445,6 +476,11 @@ function LeaderboardTable({
               <span className="truncate font-semibold group-hover:text-rat-400">
                 @{row.handle}
               </span>
+              {isCurrentUser && (
+                <span className="rounded-md bg-rat-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rat-400">
+                  you
+                </span>
+              )}
               {row.topSources && row.topSources.length > 0 && (
                 <SourceBadges sources={row.topSources} />
               )}

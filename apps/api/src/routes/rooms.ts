@@ -103,11 +103,21 @@ rooms.post("/:code/join", requireAuth, async (c) => {
   const now = Date.now();
 
   // INSERT OR IGNORE to handle already-joined gracefully
-  await c.env.DB.prepare(
+  const insert = await c.env.DB.prepare(
     "INSERT OR IGNORE INTO room_members (room_id, user_id, joined_at) VALUES (?, ?, ?)",
   )
     .bind(room.id, userId, now)
     .run();
+
+  // Bust the leaderboard cache so the new member appears immediately instead of
+  // waiting up to 60s for the KV TTL.
+  if (insert.meta.changes > 0) {
+    await Promise.all(
+      (["today", "7d", "30d", "all"] as const).map((r) =>
+        c.env.CACHE.delete(`lb:${room.code}:${r}`),
+      ),
+    );
+  }
 
   return c.json({
     room: {

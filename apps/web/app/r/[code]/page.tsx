@@ -43,7 +43,7 @@ export default async function RoomPage({ params }: Props) {
   }
 
   try {
-    let [roomData, leaderboardData] = await loadRoom();
+    const [roomData, leaderboardData] = await loadRoom();
     return (
       <RoomView
         room={roomData.room}
