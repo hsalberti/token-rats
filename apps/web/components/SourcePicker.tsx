@@ -18,6 +18,7 @@
 
 import { useState } from "react";
 import { CopyButton } from "./CopyButton";
+import { OtherSourcePicker } from "./OtherSourcePicker";
 
 type SourceId = "claude-code" | "codex" | "other";
 
@@ -93,16 +94,7 @@ export function SourcePicker() {
 
 function SelectedDetail({ id }: { id: SourceId }) {
   if (id === "other") {
-    return (
-      <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 px-5 py-4">
-        <p className="text-sm font-semibold text-zinc-300">More sources coming soon</p>
-        <p className="mt-1 text-xs text-zinc-500">
-          IDE (Cursor, Antigravity), raw API (OpenAI, Anthropic, OpenRouter), and self-hosted
-          Open Source (Ollama, vLLM, llama.cpp, LM Studio) are tracked in Track P. Sync your
-          Claude Code or Codex sessions for now to land on the board.
-        </p>
-      </div>
-    );
+    return <OtherSourcePicker />;
   }
 
   const cmd = "npx token-rats login && npx token-rats sync";
