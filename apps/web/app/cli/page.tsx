@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { requireSession } from "../../lib/auth";
 import { CliApprovalClient } from "./CliApprovalClient";
 
+export const runtime = "edge";
+
 export const metadata: Metadata = {
   title: "Approve CLI",
   description: "Approve a Token Rats CLI device code.",

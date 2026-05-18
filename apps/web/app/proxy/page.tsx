@@ -9,6 +9,8 @@ import { getSession, getCookieHeader } from "@/lib/auth";
 import { getProxyAnthropicKeyStatus } from "@/lib/api";
 import { ProxyKeyClient } from "./Client";
 
+export const runtime = "edge";
+
 export const metadata = {
   title: "API Proxy — Token Rats",
   description:

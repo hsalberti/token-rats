@@ -6,6 +6,8 @@ import { requireSession, getCookieHeader } from "@/lib/auth";
 import { getNotificationPrefs } from "@/lib/api";
 import { NotificationsClient } from "./Client";
 
+export const runtime = "edge";
+
 export const metadata = {
   title: "Notification Settings",
 };

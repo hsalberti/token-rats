@@ -12,6 +12,8 @@ import { getOrgMembership } from "../../../lib/org-auth";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

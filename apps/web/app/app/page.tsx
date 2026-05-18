@@ -3,6 +3,8 @@ import { requireSession, getCookieHeader } from "../../lib/auth";
 import { Avatar } from "../../components/ui/Avatar";
 import { DashboardClient } from "./DashboardClient";
 
+export const runtime = "edge";
+
 export const metadata: Metadata = {
   title: "Dashboard",
 };

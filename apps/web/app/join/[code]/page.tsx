@@ -3,6 +3,8 @@ import { getSession, getCookieHeader } from "../../../lib/auth";
 import { JoinClient } from "./JoinClient";
 import { AUTH_GITHUB_START } from "../../../lib/api";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ code: string }>;
 }

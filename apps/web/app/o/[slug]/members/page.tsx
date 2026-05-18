@@ -1,5 +1,3 @@
-"use client";
-
 /**
  * /o/[slug]/members — Manage org members + send invites (admin/owner only).
  *
@@ -12,6 +10,8 @@ import type { Metadata } from "next";
 import { getCookieHeader } from "../../../../lib/auth";
 import { requireOrgAdmin } from "../../../../lib/org-auth";
 import { MembersClient } from "./MembersClient";
+
+export const runtime = "edge";
 
 interface Props {
   params: Promise<{ slug: string }>;

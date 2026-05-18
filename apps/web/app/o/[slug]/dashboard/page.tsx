@@ -14,6 +14,8 @@ import { Card } from "../../../../components/ui/Card";
 import { Avatar } from "../../../../components/ui/Avatar";
 import type { OrgSpendByUser, OrgSpendByModel, OrgSpendByDay } from "@token-rats/contracts";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

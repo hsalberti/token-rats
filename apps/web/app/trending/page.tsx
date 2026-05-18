@@ -6,6 +6,8 @@ import type { Metadata } from "next";
 import { getTrending } from "@/lib/api";
 import { TrendingClient } from "./Client";
 
+export const runtime = "edge";
+
 interface Props {
   searchParams: Promise<{ range?: string }>;
 }

@@ -5,6 +5,8 @@ import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
 import { SourceTiles } from "../../../components/SourcePill";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ handle: string }>;
 }

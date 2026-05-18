@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { AUTH_GITHUB_START } from "../../lib/api";
 
+export const runtime = "edge";
+
 export const metadata: Metadata = {
   title: "Sign In",
   description: "Sign in to Token Rats with GitHub.",

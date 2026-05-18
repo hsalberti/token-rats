@@ -18,6 +18,8 @@ import { requireSession, getCookieHeader } from "../../lib/auth";
 import { api, ApiError } from "../../lib/api";
 import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
 
+export const runtime = "edge";
+
 export const metadata: Metadata = {
   title: "Your Token Autobiography",
   description: "Discover your AI token burn story — biggest sessions, favourite model, and more.",

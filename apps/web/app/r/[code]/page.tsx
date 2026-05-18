@@ -4,6 +4,8 @@ import { getCookieHeader, getSession } from "../../../lib/auth";
 import { api, ApiError } from "../../../lib/api";
 import { RoomView } from "./RoomView";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ code: string }>;
 }

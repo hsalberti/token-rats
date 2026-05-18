@@ -15,6 +15,8 @@ import { getCookieHeader } from "../../../../lib/auth";
 import { getOrgMembership } from "../../../../lib/org-auth";
 import { Card } from "../../../../components/ui/Card";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ slug: string }>;
 }

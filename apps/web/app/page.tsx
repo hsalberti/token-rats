@@ -3,6 +3,8 @@ import { Avatar } from "../components/ui/Avatar";
 import { RankBadge } from "../components/ui/RankBadge";
 import { AUTH_GITHUB_START } from "../lib/api";
 
+export const runtime = "edge";
+
 const MOCK_LEADERBOARD = [
   { rank: 1, handle: "theo", avatarUrl: null, tokens: 48_320_000, costUsdCents: 24160 },
   { rank: 2, handle: "rauchg", avatarUrl: null, tokens: 31_100_000, costUsdCents: 15550 },

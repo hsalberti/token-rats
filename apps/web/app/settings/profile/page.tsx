@@ -9,6 +9,8 @@ import { requireSession, getCookieHeader } from "@/lib/auth";
 import { getMe } from "@/lib/api";
 import { ProfileSettingsClient } from "./Client";
 
+export const runtime = "edge";
+
 export const metadata = {
   title: "Profile Settings",
 };
