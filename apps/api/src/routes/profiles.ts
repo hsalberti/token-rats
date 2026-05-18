@@ -1,0 +1,254 @@
+/**
+ * GET /v1/u/:handle — public profile (auth optional).
+ * GET /v1/u/:handle/autobiography — richer stats for the onboarding flow.
+ *
+ * Returns user info + today/week/allTime token + cost totals
+ * aggregated from daily_rollup.
+ */
+import { Hono } from "hono";
+import type { Env } from "../env.js";
+import type { AuthVariables } from "../middleware/auth.js";
+import { optionalAuth } from "../middleware/auth.js";
+import { notFound } from "../lib/errors.js";
+
+type HonoEnv = { Bindings: Env; Variables: AuthVariables };
+
+const profiles = new Hono<HonoEnv>();
+
+profiles.get("/:handle", optionalAuth, async (c) => {
+  const handle = c.req.param("handle");
+
+  const user = await c.env.DB.prepare(
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle FROM users WHERE handle = ?",
+  )
+    .bind(handle)
+    .first<{
+      id: string;
+      handle: string;
+      avatar_url: string | null;
+      public_profile: number;
+      bio: string | null;
+      twitter_handle: string | null;
+    }>();
+
+  if (!user) {
+    return notFound(c, "User not found");
+  }
+
+  // Check banlist — drop public-facing views for banned handles
+  const banned = await c.env.CACHE.get(`banned:handle:${handle.toLowerCase()}`);
+  if (banned !== null) {
+    return notFound(c, "User not found");
+  }
+
+  // Private-profile guard: only the user themselves may view
+  const callerId = c.var.userId ?? null;
+  if (user.public_profile !== 1 && callerId !== user.id) {
+    return notFound(c, "This profile is private");
+  }
+
+  // Determine if caller is the owner (so we can include sensitive fields)
+  const isOwner = callerId === user.id;
+  const isPublic = user.public_profile === 1;
+
+  const todayUtc = new Date().toISOString().slice(0, 10);
+
+  // Compute today, last 7 days (week), and all-time in one query using CASE
+  const row = await c.env.DB.prepare(
+    `SELECT
+       COALESCE(SUM(CASE WHEN day = ?  THEN tokens         ELSE 0 END), 0) AS today_tokens,
+       COALESCE(SUM(CASE WHEN day = ?  THEN cost_usd_cents ELSE 0 END), 0) AS today_cost,
+       COALESCE(SUM(CASE WHEN day >= ? THEN tokens         ELSE 0 END), 0) AS week_tokens,
+       COALESCE(SUM(CASE WHEN day >= ? THEN cost_usd_cents ELSE 0 END), 0) AS week_cost,
+       COALESCE(SUM(tokens),         0) AS all_tokens,
+       COALESCE(SUM(cost_usd_cents), 0) AS all_cost
+     FROM daily_rollup
+     WHERE user_id = ?`,
+  )
+    .bind(
+      todayUtc, // today_tokens
+      todayUtc, // today_cost
+      weekStart(todayUtc), // week_tokens
+      weekStart(todayUtc), // week_cost
+      user.id,
+    )
+    .first<{
+      today_tokens: number;
+      today_cost: number;
+      week_tokens: number;
+      week_cost: number;
+      all_tokens: number;
+      all_cost: number;
+    }>();
+
+  const totals = row ?? {
+    today_tokens: 0,
+    today_cost: 0,
+    week_tokens: 0,
+    week_cost: 0,
+    all_tokens: 0,
+    all_cost: 0,
+  };
+
+  return c.json({
+    profile: {
+      id: user.id,
+      handle: user.handle,
+      avatarUrl: user.avatar_url,
+      ...(isPublic || isOwner
+        ? { bio: user.bio, twitterHandle: user.twitter_handle }
+        : {}),
+      ...(isOwner ? { publicProfile: user.public_profile === 1 } : {}),
+      totals: {
+        today: {
+          tokens: totals.today_tokens,
+          costUsdCents: totals.today_cost,
+        },
+        week: {
+          tokens: totals.week_tokens,
+          costUsdCents: totals.week_cost,
+        },
+        allTime: {
+          tokens: totals.all_tokens,
+          costUsdCents: totals.all_cost,
+        },
+      },
+    },
+  });
+});
+
+/**
+ * GET /v1/u/:handle/autobiography
+ *
+ * Returns rich aggregated stats derived from `sessions` and `daily_rollup`
+ * to power the onboarding "Token Autobiography" moment.
+ * No new tables needed — everything is computed from existing data.
+ */
+profiles.get("/:handle/autobiography", optionalAuth, async (c) => {
+  const handle = c.req.param("handle");
+
+  const user = await c.env.DB.prepare(
+    "SELECT id, handle, avatar_url, public_profile FROM users WHERE handle = ?",
+  )
+    .bind(handle)
+    .first<{ id: string; handle: string; avatar_url: string | null; public_profile: number }>();
+
+  if (!user) {
+    return notFound(c, "User not found");
+  }
+
+  const callerId = c.var.userId ?? null;
+  if (user.public_profile !== 1 && callerId !== user.id) {
+    return notFound(c, "This profile is private");
+  }
+
+  const todayUtc = new Date().toISOString().slice(0, 10);
+  const monthStart = todayUtc.slice(0, 7) + "-01"; // first of current month
+
+  // --- All-time totals + month totals from daily_rollup ---
+  const rollupRow = await c.env.DB.prepare(
+    `SELECT
+       COALESCE(SUM(tokens), 0)                                              AS all_tokens,
+       COALESCE(SUM(cost_usd_cents), 0)                                      AS all_cost,
+       COALESCE(SUM(CASE WHEN day >= ? THEN tokens         ELSE 0 END), 0)   AS month_tokens,
+       COALESCE(SUM(CASE WHEN day >= ? THEN cost_usd_cents ELSE 0 END), 0)   AS month_cost,
+       COALESCE(SUM(sessions), 0)                                            AS all_sessions,
+       COUNT(DISTINCT day)                                                   AS active_days,
+       MIN(day)                                                              AS first_day
+     FROM daily_rollup
+     WHERE user_id = ?`,
+  )
+    .bind(monthStart, monthStart, user.id)
+    .first<{
+      all_tokens: number;
+      all_cost: number;
+      month_tokens: number;
+      month_cost: number;
+      all_sessions: number;
+      active_days: number;
+      first_day: string | null;
+    }>();
+
+  // --- Biggest single session (sum in_tokens + out_tokens) from sessions ---
+  const biggestRow = await c.env.DB.prepare(
+    `SELECT COALESCE(MAX(in_tokens + out_tokens), 0) AS biggest
+     FROM sessions
+     WHERE user_id = ?`,
+  )
+    .bind(user.id)
+    .first<{ biggest: number }>();
+
+  // --- Dominant model (most total tokens across all sessions) ---
+  const dominantRow = await c.env.DB.prepare(
+    `SELECT model, SUM(in_tokens + out_tokens) AS tok
+     FROM sessions
+     WHERE user_id = ?
+     GROUP BY model
+     ORDER BY tok DESC
+     LIMIT 1`,
+  )
+    .bind(user.id)
+    .first<{ model: string; tok: number }>();
+
+  // --- Most active day-of-week (0=Sun … 6=Sat) from daily_rollup ---
+  // SQLite strftime('%w', day) returns 0=Sunday … 6=Saturday
+  const dowRow = await c.env.DB.prepare(
+    `SELECT CAST(strftime('%w', day) AS INTEGER) AS dow, SUM(tokens) AS tok
+     FROM daily_rollup
+     WHERE user_id = ?
+     GROUP BY dow
+     ORDER BY tok DESC
+     LIMIT 1`,
+  )
+    .bind(user.id)
+    .first<{ dow: number; tok: number }>();
+
+  const allTokens = rollupRow?.all_tokens ?? 0;
+  const allCost = rollupRow?.all_cost ?? 0;
+  const monthTokens = rollupRow?.month_tokens ?? 0;
+  const monthCost = rollupRow?.month_cost ?? 0;
+  const allSessions = rollupRow?.all_sessions ?? 0;
+  const activeDays = rollupRow?.active_days ?? 0;
+  const firstDay = rollupRow?.first_day ?? null;
+
+  const biggestSessionTokens = biggestRow?.biggest ?? 0;
+  const dominantModel = dominantRow?.model ?? "unknown";
+  const mostActiveDayOfWeek = dowRow?.dow ?? 0;
+
+  // sessions per day = total sessions / days that had ≥1 session
+  const sessionsPerDay = activeDays > 0 ? allSessions / activeDays : 0;
+
+  // coffees this month: $5/cup, cost is in cents
+  const monthlyCoffees = monthCost / (5 * 100);
+
+  return c.json({
+    autobiography: {
+      handle: user.handle,
+      avatarUrl: user.avatar_url,
+      totalTokens: allTokens,
+      totalCostUsdCents: allCost,
+      monthTokens,
+      monthCostUsdCents: monthCost,
+      biggestSessionTokens,
+      dominantModel,
+      mostActiveDayOfWeek,
+      sessionsPerDay: Math.round(sessionsPerDay * 10) / 10,
+      totalSessions: allSessions,
+      firstSyncDate: firstDay,
+      monthlyCoffees: Math.round(monthlyCoffees * 10) / 10,
+    },
+  });
+});
+
+/** Return the Monday of the ISO week containing `yyyy_mm_dd`. */
+function weekStart(yyyy_mm_dd: string): string {
+  const d = new Date(`${yyyy_mm_dd}T00:00:00Z`);
+  // getUTCDay(): 0=Sun, 1=Mon, ..., 6=Sat
+  const day = d.getUTCDay();
+  // days since Monday (handle Sunday wrapping)
+  const offset = day === 0 ? 6 : day - 1;
+  d.setUTCDate(d.getUTCDate() - offset);
+  return d.toISOString().slice(0, 10);
+}
+
+export default profiles;
