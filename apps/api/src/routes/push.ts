@@ -91,7 +91,7 @@ push.post("/test", requireAuth, async (c) => {
   const subs = result.results ?? [];
 
   if (subs.length === 0) {
-    return c.json({ sent: false });
+    return c.json({ sent: false, reason: "no-subscriptions" });
   }
 
   const payload = {
@@ -102,19 +102,26 @@ push.post("/test", requireAuth, async (c) => {
 
   const vapidSubject = `mailto:noreply@${new URL(c.env.WEB_ORIGIN).hostname}`;
 
-  let sent = false;
+  // sendWebPush currently returns { ok: false, reason: "encryption-not-implemented" }
+  // until aes128gcm payload encryption is wired in. We surface that to the
+  // caller instead of claiming success, so the settings UI can show "push
+  // not yet available" rather than a misleading green check.
+  let firstReason: string | undefined;
   for (const sub of subs) {
-    const ok = await sendWebPush(
+    const result = await sendWebPush(
       sub,
       payload,
       c.env.VAPID_PRIVATE_KEY,
       c.env.VAPID_PUBLIC_KEY,
       vapidSubject,
     );
-    if (ok) sent = true;
+    if (result.ok) {
+      return c.json({ sent: true });
+    }
+    firstReason ??= result.reason;
   }
 
-  return c.json({ sent });
+  return c.json({ sent: false, reason: firstReason ?? "delivery-failed" });
 });
 
 export default push;
