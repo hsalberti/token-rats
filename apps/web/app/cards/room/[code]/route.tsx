@@ -31,7 +31,9 @@ export async function GET(
     if (err instanceof ApiError && err.status === 404) {
       return new Response("Not found", { status: 404 });
     }
-    // On other errors fall through with defaults
+    // 401/403 (member-only room) and 5xx — return 500 so crawlers retry
+    // instead of caching an empty podium that says "No data yet".
+    return new Response("Card unavailable", { status: 500 });
   }
 
   function fmtTokens(n: number) {

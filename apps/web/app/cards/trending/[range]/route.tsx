@@ -49,7 +49,7 @@ export async function GET(
     const data = await getTrending(range);
     rows = data.rows.slice(0, 10);
   } catch {
-    // Render with empty state
+    return new Response("Card unavailable", { status: 500 });
   }
 
   const rangeLabel = RANGE_LABELS[range];

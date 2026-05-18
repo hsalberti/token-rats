@@ -17,18 +17,14 @@ export default async function ProfileSettingsPage() {
   const currentUser = await requireSession();
   const cookieHeader = await getCookieHeader();
 
-  let publicProfile = false;
-  let bio: string | null = null;
-  let twitterHandle: string | null = null;
-
-  try {
-    const data = await getMe(cookieHeader);
-    publicProfile = data.user.publicProfile ?? false;
-    bio = data.user.bio ?? null;
-    twitterHandle = data.user.twitterHandle ?? null;
-  } catch {
-    // Use defaults if fetch fails; the client form will still work
-  }
+  // Don't catch — if /me fails we'd render the form with default values
+  // (publicProfile: false, empty bio) and the user could silently overwrite
+  // their real settings by submitting. Let Next's error boundary handle it
+  // so the user sees an error page instead of broken pre-fill.
+  const data = await getMe(cookieHeader);
+  const publicProfile = data.user.publicProfile ?? false;
+  const bio = data.user.bio ?? null;
+  const twitterHandle = data.user.twitterHandle ?? null;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">

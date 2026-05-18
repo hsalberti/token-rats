@@ -14,13 +14,10 @@ export default async function NotificationsSettingsPage() {
   await requireSession();
   const cookieHeader = await getCookieHeader();
 
-  let prefs = { weeklyDigest: true, roomChallenges: true, passed: true };
-  try {
-    const data = await getNotificationPrefs(cookieHeader);
-    prefs = data.prefs;
-  } catch {
-    // Use defaults if the fetch fails
-  }
+  // Don't catch — defaults would render the user's current opt-outs as
+  // opted in, and submitting would silently flip them. Let the error
+  // boundary handle the failure.
+  const { prefs } = await getNotificationPrefs(cookieHeader);
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">

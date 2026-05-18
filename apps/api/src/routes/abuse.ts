@@ -46,24 +46,14 @@ abuse.post("/report", requireAuth, async (c) => {
   const id = crypto.randomUUID();
   const now = Date.now();
 
-  // Write to reports table (best-effort — table added in migration 0005)
-  try {
-    await c.env.DB.prepare(
-      "INSERT INTO reports (id, reporter_id, target_handle, reason, created_at) VALUES (?, ?, ?, ?, ?)",
-    )
-      .bind(id, callerId, targetHandle, reason, now)
-      .run();
-  } catch (dbErr) {
-    // TODO: if the reports table doesn't exist yet, fall back to console log
-    console.error("[abuse/report] DB write failed:", dbErr);
-    console.warn("[abuse/report] REPORT", {
-      id,
-      reporterId: callerId,
-      targetHandle,
-      reason,
-      createdAt: now,
-    });
-  }
+  // Let the DB error propagate — if the reports table is missing the
+  // operator needs to know (apply migration 0005), not have the report
+  // silently dropped into a console.warn that nobody is tailing.
+  await c.env.DB.prepare(
+    "INSERT INTO reports (id, reporter_id, target_handle, reason, created_at) VALUES (?, ?, ?, ?, ?)",
+  )
+    .bind(id, callerId, targetHandle, reason, now)
+    .run();
 
   return c.json({ ok: true });
 });

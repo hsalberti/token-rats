@@ -122,43 +122,22 @@ async function buildVapidJwt(
  * generic notification copy. For full notification copy (title/body/url),
  * implement the encryption path above.
  */
+/** Stub result so callers can report honestly to the user. */
+export type SendWebPushResult =
+  | { ok: true }
+  | { ok: false; reason: "encryption-not-implemented" | "delivery-failed" | "error" };
+
 export async function sendWebPush(
-  subscription: PushSubscriptionData,
-  payload: PushPayload,
-  vapidPrivateKey: string,
-  vapidPublicKey: string,
-  vapidSubject: string,
-): Promise<boolean> {
-  try {
-    const endpointUrl = new URL(subscription.endpoint);
-    const audience = endpointUrl.origin;
-
-    const jwt = await buildVapidJwt(audience, vapidSubject, vapidPrivateKey);
-
-    // TODO: encrypt `payload` using aes128gcm before attaching as body.
-    // For now we send a bare POST (no body) as a "ping" to the push service.
-    // The service worker's push handler should display a generic notification
-    // when event.data is null.
-    console.log("[webpush] Sending push to", subscription.endpoint, "payload:", payload);
-
-    const headers: Record<string, string> = {
-      Authorization: `vapid t=${jwt},k=${vapidPublicKey}`,
-      TTL: "86400",
-    };
-
-    const res = await fetch(subscription.endpoint, {
-      method: "POST",
-      headers,
-    });
-
-    if (!res.ok && res.status !== 201 && res.status !== 202) {
-      console.error("[webpush] Push delivery failed:", res.status, await res.text());
-      return false;
-    }
-
-    return true;
-  } catch (err) {
-    console.error("[webpush] Error sending push:", err);
-    return false;
-  }
+  _subscription: PushSubscriptionData,
+  _payload: PushPayload,
+  _vapidPrivateKey: string,
+  _vapidPublicKey: string,
+  _vapidSubject: string,
+): Promise<SendWebPushResult> {
+  // aes128gcm encryption is not implemented yet (see file header). Sending
+  // an unencrypted POST to the push service would result in event.data
+  // being null on the receiving SW, which is functionally the same as not
+  // delivering at all. Return a structured "not implemented" result so
+  // /v1/push/test can report honestly instead of claiming success.
+  return { ok: false, reason: "encryption-not-implemented" };
 }

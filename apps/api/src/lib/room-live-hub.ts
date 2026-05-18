@@ -75,16 +75,11 @@ export class RoomLiveHub {
   // ── /publish ─────────────────────────────────────────────────────────────────
 
   private async handlePublish(request: Request): Promise<Response> {
-    let event: LiveEvent;
-    try {
-      const raw: unknown = await request.json();
-      event = LiveEventSchema.parse(raw);
-    } catch (e) {
-      return new Response(JSON.stringify({ error: String(e) }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
+    // The DO is only ever called by trusted internal code (fanoutToRooms)
+    // with a known payload shape. A parse failure here is a programmer bug,
+    // so let it throw — surfaces in logs instead of silently 400'ing.
+    const raw: unknown = await request.json();
+    const event = LiveEventSchema.parse(raw);
 
     this.fanout(event);
     return new Response(JSON.stringify({ fanned: this.subscribers.size }), {

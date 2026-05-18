@@ -26,6 +26,9 @@ export async function GET(
     if (err instanceof ApiError && err.status === 404) {
       return new Response("Not found", { status: 404 });
     }
+    // Any other failure (auth required, 5xx, network) — return 500 so
+    // social-share crawlers retry instead of caching a blank card.
+    return new Response("Card unavailable", { status: 500 });
   }
 
   function fmtTokens(n: number) {

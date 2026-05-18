@@ -40,7 +40,13 @@ export async function extractUserId(
   if (!token) return null;
 
   const result = await verifyToken(token, c.env.SESSION_SIGNING_KEY);
-  if (!result.ok) return null;
+  if (!result.ok) {
+    // Surface why so logs can distinguish an expired session (user
+    // experience: needs re-sign-in) from a tampered/malformed cookie
+    // (user experience: probably a bug or someone fuzzing).
+    console.warn("[auth] token rejected", { reason: result.reason });
+    return null;
+  }
   return result.userId;
 }
 
