@@ -164,28 +164,6 @@ Five tracks, all independent on the contracts and DB after Phase 0. Track P is t
 
 ---
 
-### 🟩 Track W — Finish the `tokenrats.com` migration (sunset `.dev`)
-
-**Owner:** Agent W
-**Inputs:** `chore/migrate-to-tokenrats-com` branch (already swaps every user-facing string, flips `WEB_ORIGIN`, adds the legacy `api.tokenrats.dev` worker route, and loosens CORS to allow both origins)
-**Outputs:** the `.dev` hostname can be turned off without breaking any path that real users hit
-
-The code on `main` already serves both `tokenrats.com` (primary) and `tokenrats.dev` (legacy alias). This track closes the loop on the parts that touch external systems, then removes the legacy plumbing.
-
-- **301 redirect at the edge.** Cloudflare Bulk Redirect (or a tiny Worker) sends every `https://tokenrats.dev/*` → `https://tokenrats.com/$1` and every `https://api.tokenrats.dev/*` → `https://api.tokenrats.com/$1`. Keep the redirect in place for ≥3 months. Anyone with an old OG card, bookmark, or pre-cutover CLI install lands on the new domain without seeing a broken page.
-- **GitHub OAuth app.** Update Homepage URL → `https://tokenrats.com`, Authorization callback → `https://api.tokenrats.com/v1/auth/github/callback`. Same client ID, no secret rotation. Verified by signing out and back in end-to-end.
-- **Resend sender swap.** Blocked on Track S landing. When Resend is wired, add `tokenrats.com` as a verified sender domain, paste the SPF/DKIM/DMARC records into Cloudflare DNS, and flip the `from` address to `noreply@tokenrats.com`. The code already references `.com` — this is purely DNS + provider config.
-- **Stripe webhook URL.** Blocked on the paid plan coming back from behind Track Q's flag. When that happens, update the Stripe dashboard webhook endpoint to `https://api.tokenrats.com/webhooks/stripe`. The signing secret stays; if Stripe issues a new one, `wrangler secret put STRIPE_WEBHOOK_SECRET`.
-- **CLI re-release.** Publish a new `token-rats` CLI version with the new default `https://api.tokenrats.com`. Old installs continue working via the `.dev` worker route + 301 redirect — that's the safety net, not the steady state.
-- **Web Push origin migration.** VAPID subscriptions are bound to the origin that created them, so `.dev` subscribers will not receive pushes on `.com`. Strategy: don't migrate, just prompt re-subscription. The `/settings/notifications` flow already prompts on first visit; users who switch to `.com` re-subscribe organically. Document the limitation in the same place the iOS Safari limitation lives.
-- **Sunset checklist.** Once redirects have been stable for ≥3 months *and* the CLI default has shipped: remove the `api.tokenrats.dev` route from `apps/api/wrangler.toml`, delete the `LEGACY_WEB_ORIGINS` entry in `apps/api/src/index.ts`, and let the `.dev` domain expire on next renewal.
-
-**Definition of done:** From a brand-new machine, none of these paths break: signing in via GitHub, running the latest CLI with no `--api-url`, opening a previously-shared OG card whose URL used `.dev`, and (once Track S lands) receiving a weekly digest email from `noreply@tokenrats.com`. The sunset checklist is queued in the v1.2 inbox with the earliest acceptable execution date.
-
-**Depends on:** Track S (sender swap) and on the paid-plan revival behind Track Q (Stripe webhook). Everything else can ship today.
-
----
-
 ### 🟩 Track X — Coverage waitlists (orgs + untracked providers/tokens)
 
 **Owner:** Agent X
@@ -211,7 +189,7 @@ The v1.1 wedge is consumer-only and free-tier — but two real groups of users w
 
 ### 🟨 Phase 4 convergence (~half day)
 
-Order the merge: Q (flag flip, smallest blast radius) → S (migration first, then provider) → R (encryption) → P (new card + route + contract) → T (Playwright, last, so it covers the new surface). W can land any time after Q + S; X any time after Q.
+Order the merge: Q (flag flip, smallest blast radius) → S (migration first, then provider) → R (encryption) → P (new card + route + contract) → T (Playwright, last, so it covers the new surface). X can land any time after Q.
 
 Smoke acceptance — one human walks this path on a fresh machine:
 1. Sign in. See an empty `/app` with no `/o` link visible.
@@ -236,7 +214,6 @@ Smoke acceptance — one human walks this path on a fresh machine:
 | T — Playwright smokes | no | no | no (skip-on-absent for P) |
 | U — Primary-source tag | **yes** (one field on rows + `SessionRecord`) | no | T (covers the pill) |
 | V — Group metrics + heatmap + group streak | **yes** (three new response types) | no | T (covers the new surfaces) |
-| W — Finish `.com` migration / sunset `.dev` | no | no | no (depends on S for sender swap, on Q-revival for Stripe URL) |
 | X — Coverage waitlists | no | **yes** (0008 migration) | no (depends on Q for `/o` redirect target, providers Track P for picker leaves) |
 
 Merge gate: Track P's, U's, and V's contract additions need to go in first (in any order). Everything else is independent and can land in any order.
@@ -267,7 +244,6 @@ These came up in interview but are not v1.1. Decide based on what the first publ
 | Resend free tier or rate limit hits during a viral moment | Digest is weekly Monday, capped per user, and idempotent — re-running the cron can't double-send. No real-time email anywhere. |
 | Playwright suite becomes flaky and gets ignored | Suite is small on purpose (6–7 tests). If a test goes flaky, fix it the same day or delete it; don't add a retry. |
 | Hiding `/o` breaks an existing test that asserts visibility | Tests should import the feature flag, not assume visibility. Audit during Track Q. |
-| `.dev` traffic drops to zero before redirects are in place, looking like a launch dip in analytics | Track W's edge redirect goes up *before* any `.dev` DNS change; verify with a curl loop against both hostnames in the smoke walk. |
 | Waitlist abuse (mass submissions) inflates "position" and pollutes the table | Reuse the existing abuse helper for per-IP + per-email throttling. `(topic, email)` is idempotent, so retries can't multiply rows. |
 
 ---

@@ -119,16 +119,16 @@ These are real-world gaps that won't show up in any test. They MUST be addressed
 - Verify the Durable Object migration (`v2` adds `RoomLiveHub`) runs cleanly on first deploy.
 
 ### GitHub OAuth app
-- Create a GitHub OAuth app with callback URL `https://api.tokenrats.dev/v1/auth/github/callback`.
+- Create a GitHub OAuth app with callback URL `https://api.tokenrats.com/v1/auth/github/callback`.
 - Set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` as Worker secrets.
 
 ### Schema migrations
 - Run `wrangler d1 migrations apply token-rats --remote` to apply 0001 → 0006 in order. **One known gap**: there's no `users.email` column yet — add it before email delivery ships.
 
 ### Hosting
-- Cloudflare Pages for `apps/web/` with `NEXT_PUBLIC_API_URL=https://api.tokenrats.dev` and `NEXT_PUBLIC_VAPID_PUBLIC_KEY=<...>`.
-- Set up the `tokenrats.dev` and `api.tokenrats.dev` custom domains.
-- Confirm `__Host-tr_session` cookie scoping works across the two subdomains (CORS allows `tokenrats.dev`, cookie uses `__Host-` prefix → Path=/; Secure; same-origin only). **This is the most likely deploy-day bug** — test it end-to-end against staging before pointing DNS.
+- Cloudflare Pages for `apps/web/` with `NEXT_PUBLIC_API_URL=https://api.tokenrats.com` and `NEXT_PUBLIC_VAPID_PUBLIC_KEY=<...>`.
+- Set up the `tokenrats.com` and `api.tokenrats.com` custom domains.
+- Confirm `__Host-tr_session` cookie scoping works across the two subdomains (CORS allows `tokenrats.com`, cookie uses `__Host-` prefix → Path=/; Secure; same-origin only). **This is the most likely deploy-day bug** — test it end-to-end against staging before pointing DNS.
 
 ### Privacy + security checks
 - [ ] CLI is published to npm under the `token-rats` name (claim it now even if you don't publish).

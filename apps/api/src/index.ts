@@ -23,22 +23,15 @@ import { runWeeklyDigests } from "./scheduled.js";
 const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 // CORS — credentials required for cookie-based auth.
-// Accepts the configured WEB_ORIGIN, the legacy tokenrats.dev origin (kept
-// reachable during the .com migration — see roadmap-v1.1 Track W), and
-// localhost on any port for local dev. Localhost can never present a valid
-// prod cookie — different origin — so allowing it everywhere is safe and
-// removes the wrangler-3 `.dev.vars` quirk where vars defined there don't
-// override `[vars]` in wrangler.toml.
-const LEGACY_WEB_ORIGINS = new Set(["https://tokenrats.dev"]);
-
+// Accepts the configured WEB_ORIGIN plus localhost on any port for local dev.
+// (Localhost can never present a valid prod cookie — different origin — so
+// allowing it everywhere is safe and removes the wrangler-3 `.dev.vars` quirk
+// where vars defined there don't override `[vars]` in wrangler.toml.)
 app.use(
   "*",
   cors({
     origin: (origin, c) => {
       if (origin && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
-        return origin;
-      }
-      if (origin && LEGACY_WEB_ORIGINS.has(origin)) {
         return origin;
       }
       return c.env.WEB_ORIGIN;

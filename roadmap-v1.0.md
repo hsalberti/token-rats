@@ -22,7 +22,7 @@ The goal of Phase 0 is to **freeze the interfaces** so Phase 1 can fan out acros
 7. Set up GitHub OAuth app + Cloudflare account + `wrangler.toml` bindings.
 8. CI: typecheck + lint + test + build on push.
 
-**Definition of done:** A push to `main` deploys a "Hello, Rats" page to `tokenrats.dev` and a `/healthz` Worker route. Contracts and migrations are merged. No track in Phase 1 needs to modify Phase 0 outputs.
+**Definition of done:** A push to `main` deploys a "Hello, Rats" page to `tokenrats.com` and a `/healthz` Worker route. Contracts and migrations are merged. No track in Phase 1 needs to modify Phase 0 outputs.
 
 ---
 
@@ -97,7 +97,7 @@ After Phase 0, six tracks can run **concurrently**. Each can be assigned to its 
 - Each room/profile/leaderboard page emits proper `og:image` meta so X/Discord previews are clean.
 - Cache rendered cards in R2 keyed by `(scope, day)`.
 
-**Definition of done:** Pasting a `tokenrats.dev/r/<code>` link into X shows a designed leaderboard card.
+**Definition of done:** Pasting a `tokenrats.com/r/<code>` link into X shows a designed leaderboard card.
 
 ### 🟩 Track F — Pricing catalog + scraper
 
@@ -169,7 +169,7 @@ Phase 3 only starts if Phase 1+2 hit the v1 success metrics in `mission.md`.
 
 ### 🟩 Track M — API proxy mode
 
-- For raw-API users: point `ANTHROPIC_BASE_URL` at `proxy.tokenrats.dev/<userkey>`.
+- For raw-API users: point `ANTHROPIC_BASE_URL` at `proxy.tokenrats.com/<userkey>`.
 - Worker forwards to Anthropic, logs counts, never persists prompt content.
 - Requires careful trust copy ("we forward your traffic and log counts only — open source, audit it").
 
