@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { InstallBlock } from "../components/InstallBlock";
 import { Avatar } from "../components/ui/Avatar";
 import { RankBadge } from "../components/ui/RankBadge";
@@ -177,9 +176,14 @@ export default function HomePage() {
             >
               GitHub
             </a>
-            <Link href="/mission" className="hover:text-zinc-300">
+            <a
+              href="https://github.com/hsalberti/token-rats/blob/main/mission.md"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-zinc-300"
+            >
               Mission
-            </Link>
+            </a>
             <span>Counts only — we can&apos;t read your prompts.</span>
           </div>
         </div>
