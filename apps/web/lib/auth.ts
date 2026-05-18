@@ -1,6 +1,7 @@
 /**
  * Auth helpers for server components.
- * The session cookie is `__Host-tr_session`, set by the Worker API.
+ * The session cookie is `tr_session`, set by the Worker API with
+ * Domain=<apex> so it's shared between the web origin and the api.* subdomain.
  */
 
 import { cookies } from "next/headers";
@@ -8,7 +9,7 @@ import { redirect } from "next/navigation";
 import { getMe } from "./api";
 import type { User } from "@token-rats/contracts";
 
-export const SESSION_COOKIE = "__Host-tr_session";
+export const SESSION_COOKIE = "tr_session";
 
 /**
  * Returns the current user or null.
