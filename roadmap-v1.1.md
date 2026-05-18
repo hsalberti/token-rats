@@ -135,8 +135,10 @@ Five tracks, all independent on the contracts and DB after Phase 0. Track P is t
 
 ### 🟩 Track V — Group metrics, contribution heatmap, and group streak
 
+**Status:** the *personal* heatmap on `/u/[handle]` shipped early (see commit on branch `worktree-tags-heatmap`) — `GET /v1/u/:handle/heatmap` (364-day window) plus `<ProfileHeatmap />`. Remaining scope below is the **group** side: room scope on the heatmap endpoint, the room summary stat strip, and group-streak. Reuse the new `<ProfileHeatmap />` SVG component as the basis for the room/org rendering rather than starting fresh.
+
 **Owner:** Agent V
-**Inputs:** `daily_rollup` (per-user-per-room-per-day), existing `streaks.ts` day-walker helper, `apps/web/app/r/[code]/`, `apps/web/app/u/[handle]/`
+**Inputs:** `daily_rollup` (per-user-per-room-per-day), existing `streaks.ts` day-walker helper, `apps/web/app/r/[code]/`, `apps/web/app/u/[handle]/`, the new `<ProfileHeatmap />` component shipped early
 **Outputs:** one room-summary endpoint, one heatmap endpoint (parametric: personal or group), one group-streak endpoint, one reusable `<Heatmap />` component used on both profile and room pages
 
 **A. Team-wide group metrics**

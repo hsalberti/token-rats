@@ -15,6 +15,7 @@ import type {
   GetActivityResponse,
   GetAutobiographyResponse,
   GetChallengesResponse,
+  GetHeatmapResponse,
   GetLeaderboardResponse,
   GetMeResponse,
   GetMyRoomsResponse,
@@ -158,6 +159,16 @@ export async function getAutobiography(
   cookieHeader?: string,
 ): Promise<GetAutobiographyResponse> {
   return request<GetAutobiographyResponse>(ENDPOINTS.autobiography(handle), {
+    cookieHeader,
+  });
+}
+
+/** Get the 364-day calendar heatmap for a user's public profile. */
+export async function getHeatmap(
+  handle: string,
+  cookieHeader?: string,
+): Promise<GetHeatmapResponse> {
+  return request<GetHeatmapResponse>(ENDPOINTS.profileHeatmap(handle), {
     cookieHeader,
   });
 }
@@ -377,6 +388,7 @@ export const api = {
   getLeaderboard,
   getProfile,
   getAutobiography,
+  getHeatmap,
   approveCli,
   getMyRooms,
   leaveRoom,

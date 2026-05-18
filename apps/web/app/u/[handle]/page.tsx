@@ -4,6 +4,8 @@ import { api, ApiError } from "../../../lib/api";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
 import { SourceTiles } from "../../../components/SourcePill";
+import { ProfileHeatmap } from "../../../components/ProfileHeatmap";
+import type { Heatmap } from "@token-rats/contracts";
 
 export const runtime = "edge";
 
@@ -62,6 +64,7 @@ export default async function ProfilePage({ params }: Props) {
   } | null = null;
 
   let isPrivate = false;
+  let heatmap: Heatmap | null = null;
 
   try {
     const data = await api.getProfile(handle, cookieHeader);
@@ -71,6 +74,16 @@ export default async function ProfilePage({ params }: Props) {
       isPrivate = true;
     } else {
       throw err;
+    }
+  }
+
+  // Heatmap is best-effort: a render error here shouldn't break the profile.
+  if (!isPrivate) {
+    try {
+      const data = await api.getHeatmap(handle, cookieHeader);
+      heatmap = data.heatmap;
+    } catch {
+      heatmap = null;
     }
   }
 
@@ -183,6 +196,11 @@ export default async function ProfilePage({ params }: Props) {
         {profile.sources && profile.sources.length > 0 && (
           <SourceTiles sources={profile.sources} />
         )}
+
+        {/* GitHub-style activity heatmap — last 364 days of daily_rollup.
+            Best-effort; if the API call errored, `heatmap` is null and we
+            skip the block silently. */}
+        {heatmap && heatmap.days.length > 0 && <ProfileHeatmap heatmap={heatmap} />}
 
         {/* Badges / tagline */}
         <Card>

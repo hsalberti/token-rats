@@ -275,4 +275,65 @@ function weekStart(yyyy_mm_dd: string): string {
   return d.toISOString().slice(0, 10);
 }
 
+/* -------------------------------------------------------------------------- */
+/* GET /v1/u/:handle/heatmap                                                  */
+/* -------------------------------------------------------------------------- */
+/* Returns the last 364 days of `(day, tokens, sessions)` for the calendar    */
+/* heatmap on the public profile. Same visibility gates as the main profile.  */
+/* Missing days are omitted; the client fills zeros. ~1KB payload max.        */
+/* -------------------------------------------------------------------------- */
+
+profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
+  const handle = c.req.param("handle");
+
+  const user = await c.env.DB.prepare(
+    "SELECT id, public_profile FROM users WHERE handle = ?",
+  )
+    .bind(handle)
+    .first<{ id: string; public_profile: number }>();
+
+  if (!user) return notFound(c, "User not found");
+
+  const banned = await c.env.CACHE.get(`banned:handle:${handle.toLowerCase()}`);
+  if (banned !== null) return notFound(c, "User not found");
+
+  const callerId = c.var.userId ?? null;
+  if (user.public_profile !== 1 && callerId !== user.id) {
+    return notFound(c, "This profile is private");
+  }
+
+  // 53 weeks × 7 days = 371; use 364 (52 × 7) so the column count is exactly
+  // a year and the start aligns to a Monday after the client's bucket math.
+  const today = new Date();
+  const from = new Date(today);
+  from.setUTCDate(from.getUTCDate() - 363);
+  const fromDay = from.toISOString().slice(0, 10);
+
+  const result = await c.env.DB.prepare(
+    `SELECT day,
+            SUM(tokens)   AS tokens,
+            SUM(sessions) AS sessions
+       FROM daily_rollup
+      WHERE user_id = ? AND day >= ?
+      GROUP BY day
+      ORDER BY day`,
+  )
+    .bind(user.id, fromDay)
+    .all<{ day: string; tokens: number; sessions: number }>();
+
+  const days = (result.results ?? []).map((r) => ({
+    day: r.day,
+    tokens: r.tokens,
+    sessions: r.sessions,
+  }));
+
+  return c.json({
+    heatmap: {
+      from: fromDay,
+      to: today.toISOString().slice(0, 10),
+      days,
+    },
+  });
+});
+
 export default profiles;

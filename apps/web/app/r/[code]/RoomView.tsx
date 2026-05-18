@@ -18,6 +18,7 @@ import { useRoomLive } from "../../../lib/use-room-live";
 import { Avatar } from "../../../components/ui/Avatar";
 import { RankBadge } from "../../../components/ui/RankBadge";
 import { Button } from "../../../components/ui/Button";
+import { SourceBadges } from "../../../components/SourceBadge";
 import { StreakBadge } from "../../../components/room/StreakBadge";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
 import { ChallengesPanel } from "../../../components/room/ChallengesPanel";
@@ -448,9 +449,14 @@ function LeaderboardTable({
             className="group flex items-center gap-3 border-b border-zinc-800 px-4 py-4 last:border-0 transition-colors hover:bg-zinc-800/50 sm:grid sm:grid-cols-[48px_1fr_100px_140px_120px_80px]"
           >
             <RankBadge rank={row.rank} />
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-2">
               <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
-              <span className="font-semibold group-hover:text-rat-400">@{row.handle}</span>
+              <span className="truncate font-semibold group-hover:text-rat-400">
+                @{row.handle}
+              </span>
+              {row.topSources && row.topSources.length > 0 && (
+                <SourceBadges sources={row.topSources} />
+              )}
             </div>
             {/* Streak badge */}
             <div className="hidden sm:flex sm:justify-end">

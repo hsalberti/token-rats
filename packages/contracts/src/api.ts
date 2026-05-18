@@ -95,6 +95,24 @@ export type GetProfileResponse = z.infer<typeof GetProfileResponse>;
 export const GetAutobiographyResponse = z.object({ autobiography: AutobiographyStats });
 export type GetAutobiographyResponse = z.infer<typeof GetAutobiographyResponse>;
 
+/* ---------------------- GET /v1/u/:handle/heatmap ----------------------- */
+export const HeatmapDay = z.object({
+  day: z.string(), // YYYY-MM-DD UTC
+  tokens: z.number().int().nonnegative(),
+  sessions: z.number().int().nonnegative(),
+});
+export type HeatmapDay = z.infer<typeof HeatmapDay>;
+
+export const Heatmap = z.object({
+  from: z.string(), // YYYY-MM-DD UTC, inclusive
+  to: z.string(), // YYYY-MM-DD UTC, inclusive
+  days: z.array(HeatmapDay),
+});
+export type Heatmap = z.infer<typeof Heatmap>;
+
+export const GetHeatmapResponse = z.object({ heatmap: Heatmap });
+export type GetHeatmapResponse = z.infer<typeof GetHeatmapResponse>;
+
 /* -------------------- Phase 2 Track G+H new endpoints -------------------- */
 
 /* GET /v1/me/rooms */
@@ -191,6 +209,7 @@ export const ENDPOINTS = {
   leaderboard: (code: RoomCode) => `/v1/rooms/${code}/leaderboard`,
   profile: (handle: string) => `/v1/u/${handle}`,
   autobiography: (handle: string) => `/v1/u/${handle}/autobiography`,
+  profileHeatmap: (handle: string) => `/v1/u/${handle}/heatmap`,
   authGithubStart: "/v1/auth/github/start",
   authGithubCallback: "/v1/auth/github/callback",
   authCliExchange: "/v1/auth/cli/exchange",
