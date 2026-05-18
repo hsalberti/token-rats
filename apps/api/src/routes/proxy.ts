@@ -96,8 +96,11 @@ async function resolveAnthropicKey(env: Env, userId: string): Promise<string | n
   if (row) {
     try {
       return await decryptKey(row.ciphertext, row.iv, env.SESSION_SIGNING_KEY);
-    } catch {
-      // Decryption failure — fall through to worker-level key
+    } catch (err) {
+      // Decryption failure — likely a rotated SESSION_SIGNING_KEY breaking
+      // the stored key. Log so the operator notices; the caller falls back
+      // to the shared key, which silently bills the wrong account.
+      console.error("[proxy] decrypt user key failed", { userId, err });
     }
   }
 
@@ -254,8 +257,11 @@ proxy.post("/anthropic/v1/messages", async (c) => {
           dedupeKey,
         });
       }
-    }).catch(() => {
-      // Non-fatal — if recording fails we still return the upstream response
+    }).catch((err) => {
+      // Non-fatal for the user (we already returned upstream's bytes), but
+      // a silent drop means proxy burn never reaches the leaderboard. Log so
+      // it shows up in tail.
+      console.error("[proxy] streaming recordSession failed", { userId, err });
     });
 
     // Use waitUntil so the record call doesn't block the response
@@ -307,7 +313,9 @@ proxy.post("/anthropic/v1/messages", async (c) => {
           startedAt: now,
           endedAt: now,
           dedupeKey: `proxy:${userId}:${sessionId}`,
-        }).catch(() => {}),
+        }).catch((err) => {
+          console.error("[proxy] non-stream recordSession failed", { userId, err });
+        }),
       );
     }
 
