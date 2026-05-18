@@ -24,11 +24,13 @@ import type {
   JoinRoomResponse,
   LeaderboardRange,
   LeaveRoomResponse,
+  NotificationPrefsResponse,
   RenameRoomRequest,
   RenameRoomResponse,
   RoomCode,
   UploadSessionsRequest,
   UploadSessionsResponse,
+  UpsertNotificationPrefsRequest,
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
@@ -226,6 +228,43 @@ export async function getRoomChallenges(
   return request<GetChallengesResponse>(ENDPOINTS.roomChallenges(code), { cookieHeader });
 }
 
+// Track K (Phase 2): notification preferences + push subscriptions
+
+/** Get the current user's notification preferences. */
+export async function getNotificationPrefs(
+  cookieHeader?: string,
+): Promise<NotificationPrefsResponse> {
+  return request<NotificationPrefsResponse>(ENDPOINTS.notificationPrefs, { cookieHeader });
+}
+
+/** Upsert the current user's notification preferences (partial update). */
+export async function upsertNotificationPrefs(
+  body: UpsertNotificationPrefsRequest,
+  cookieHeader?: string,
+): Promise<NotificationPrefsResponse> {
+  return request<NotificationPrefsResponse>(ENDPOINTS.notificationPrefs, {
+    method: "POST",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Delete all push subscriptions for the current user (logout / disable push). */
+export async function deletePushSubscriptions(cookieHeader?: string): Promise<{ deleted: number }> {
+  return request<{ deleted: number }>(ENDPOINTS.pushSubscriptions, {
+    method: "DELETE",
+    cookieHeader,
+  });
+}
+
+/** Send a test push notification to the current user. */
+export async function postPushTest(cookieHeader?: string): Promise<{ sent: boolean }> {
+  return request<{ sent: boolean }>(ENDPOINTS.pushTest, {
+    method: "POST",
+    cookieHeader,
+  });
+}
+
 /**
  * Convenience object exported for import as `api.me()` etc.
  * Each method re-exports the standalone function above.
@@ -247,4 +286,8 @@ export const api = {
   getRoomStreaks,
   createChallenge,
   getRoomChallenges,
+  getNotificationPrefs,
+  upsertNotificationPrefs,
+  deletePushSubscriptions,
+  postPushTest,
 };

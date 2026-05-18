@@ -10,6 +10,16 @@ import {
   ChallengeWithLeaderboard,
   StreakRow,
 } from "./streaks.js";
+export type {
+  CreatePushSubscriptionRequest,
+  CreatePushSubscriptionResponse,
+  DeletePushSubscriptionResponse,
+  PushTestResponse,
+  NotificationPrefs,
+  UpsertNotificationPrefsRequest,
+  NotificationPrefsResponse,
+  PushPayload,
+} from "./notifications.js";
 
 /* ------------------------------- GET /v1/me ------------------------------ */
 export const GetMeResponse = z.object({ user: User });
@@ -141,6 +151,10 @@ export const ENDPOINTS = {
   roomActivity: (code: RoomCode) => `/v1/rooms/${code}/activity`,
   roomStreaks: (code: RoomCode) => `/v1/rooms/${code}/streaks`,
   roomChallenges: (code: RoomCode) => `/v1/rooms/${code}/challenges`,
+  // Phase 2 Track K
+  pushSubscriptions: "/v1/push/subscriptions",
+  pushTest: "/v1/push/test",
+  notificationPrefs: "/v1/notifications/preferences",
 } as const;
 
 // Re-export streak/challenge types for convenience

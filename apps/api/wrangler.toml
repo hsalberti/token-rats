@@ -17,6 +17,9 @@ id = "REPLACE_WITH_KV_ID"
 binding = "CARDS"
 bucket_name = "token-rats-cards"
 
+[triggers]
+crons = ["0 16 * * 1"]   # Mondays 16:00 UTC — weekly digest
+
 [vars]
 WEB_ORIGIN = "https://tokenrats.dev"
 
@@ -24,3 +27,5 @@ WEB_ORIGIN = "https://tokenrats.dev"
 #   GITHUB_CLIENT_ID
 #   GITHUB_CLIENT_SECRET
 #   SESSION_SIGNING_KEY
+#   VAPID_PRIVATE_KEY   (base64url-encoded raw 32-byte EC P-256 private key)
+#   VAPID_PUBLIC_KEY    (base64url-encoded uncompressed P-256 point, 65 bytes)
