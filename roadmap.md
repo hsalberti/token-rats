@@ -187,6 +187,19 @@ Phase 3 only starts if Phase 1+2 hit the v1 success metrics in `mission.md`.
 - GitHub-org-based auto-invite.
 - Stripe billing, ~$5/user/mo or flat tier.
 
+### 🟩 Track P — Provider picker: "Other" expansion
+
+Today the source picker offers two top-level choices: **Claude Code** and **Codex**. This track adds a third option — **Other** — that opens a second-level menu so we can grow source coverage without cluttering the primary flow.
+
+- **Other → IDE sources:** Cursor, Antigravity, Other (IDE).
+- **Other → API sources:** OpenAI, Anthropic, OpenRouter, Other (API).
+- "Other (IDE)" and "Other (API)" are free-form: collect a user-supplied source name + an opt-in sample fixture, which feeds the parser/proxy backlog.
+- IDE sources land as new parsers in `packages/parsers` (reusing the Track A pattern); API sources plug into the proxy from Track M with per-provider base URLs and auth shapes.
+- Wire the picker into both surfaces: web onboarding (Track J's "autobiography" flow) and a `token-rats sync --source <id>` flag on the CLI.
+- Each newly-added source needs a `prices.json` entry (Track F pattern) before it ships.
+
+**Definition of done:** Picking any second-level option from "Other" produces a working sync (real parser/proxy) or a queued backlog entry (free-form "Other"), and the user lands on the same leaderboard flow regardless of source.
+
 ---
 
 ## Parallelization summary
@@ -196,7 +209,7 @@ Phase 3 only starts if Phase 1+2 hit the v1 success metrics in `mission.md`.
 | 0 | 1 (sequential) | Do this yourself, fast. Don't delegate. |
 | 1 | **6** | Spawn 6 agents in parallel. They will not collide if Phase 0 is locked. |
 | 2 | **5** | Spawn 5 agents. Track J (onboarding) is the most important — supervise it personally. |
-| 3 | **4** | Spawn 4 agents. Track M (proxy) needs the most trust/copy review by you. |
+| 3 | **5** | Spawn 5 agents. Track M (proxy) needs the most trust/copy review by you. Track P depends on Track M for any API-side source. |
 
 **Operational rule:** Anything that requires a `packages/contracts` change has to be merged sequentially. Everything else can fan out.
 
