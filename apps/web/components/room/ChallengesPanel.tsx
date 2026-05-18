@@ -28,6 +28,7 @@ const KINDS: ChallengeKind[] = ["most-tokens", "most-sessions", "longest-streak"
 
 function fmtScore(kind: ChallengeKind, score: number): string {
   if (kind === "most-tokens") {
+    if (score >= 1_000_000_000) return `${(score / 1_000_000_000).toFixed(2)}B tok`;
     if (score >= 1_000_000) return `${(score / 1_000_000).toFixed(1)}M tok`;
     if (score >= 1_000) return `${(score / 1_000).toFixed(0)}K tok`;
     return `${score} tok`;
