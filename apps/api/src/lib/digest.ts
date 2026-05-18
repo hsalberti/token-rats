@@ -7,6 +7,8 @@
  * This is a pure(-ish) function — no external calls, just DB reads.
  */
 
+import { WEEK_MS } from "./time.js";
+
 export interface DigestResult {
   subject: string;
   html: string;
@@ -179,7 +181,7 @@ export async function buildWeeklyDigest(
   // Compute the 7-day window (UTC days)
   const now = new Date();
   const endDay = now.toISOString().slice(0, 10);
-  const startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const startDate = new Date(now.getTime() - WEEK_MS);
   const startDay = startDate.toISOString().slice(0, 10);
 
   const result = await db

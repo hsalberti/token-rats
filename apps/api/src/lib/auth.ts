@@ -90,10 +90,12 @@ export function randomVerificationCode(): string {
   return code;
 }
 
+import { MONTH_MS } from "./time.js";
+
 /** 30 days in ms */
-export const TOKEN_TTL_CLI = 30 * 24 * 60 * 60 * 1000;
+export const TOKEN_TTL_CLI = MONTH_MS;
 /** 30 days in ms */
-export const TOKEN_TTL_WEB = 30 * 24 * 60 * 60 * 1000;
+export const TOKEN_TTL_WEB = MONTH_MS;
 
 /** Cookie name */
 export const SESSION_COOKIE = "__Host-tr_session";

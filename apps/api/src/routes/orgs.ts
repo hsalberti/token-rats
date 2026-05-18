@@ -14,6 +14,7 @@ import type { Env } from "../env.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validationError, notFound, forbidden } from "../lib/errors.js";
+import { MONTH_MS } from "../lib/time.js";
 
 /* ---- inline Zod schemas to avoid the type-only re-export collision in api.ts ---- */
 
@@ -299,9 +300,7 @@ orgs.get("/:slug/dashboard", requireAuth, async (c) => {
 
   // Compute the 30-day window
   const now = new Date();
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const thirtyDaysAgo = new Date(now.getTime() - MONTH_MS).toISOString().slice(0, 10);
 
   // Spend by user: sum daily_rollup for all org members (top 50)
   const byUserResult = await c.env.DB.prepare(
@@ -338,7 +337,7 @@ orgs.get("/:slug/dashboard", requireAuth, async (c) => {
   )
     .bind(
       org.id,
-      new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).getTime(),
+      now.getTime() - MONTH_MS,
     )
     .all<{
       model: string;
