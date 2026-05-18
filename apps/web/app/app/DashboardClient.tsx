@@ -15,6 +15,7 @@ import { api, ApiError } from "../../lib/api";
 import type { Room, User } from "@token-rats/contracts";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { SourcePicker } from "../../components/SourcePicker";
 
 interface Props {
   user: User;
@@ -199,6 +200,17 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
           ))}
         </div>
       )}
+
+      {/* Add a source — picker per roadmap-providers.md Track D */}
+      <div className="space-y-3 pt-4">
+        <div>
+          <h2 className="text-xl font-bold tracking-tight">Add a source</h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            Pick where your tokens live. The CLI handles the rest — counts only, never prompts.
+          </p>
+        </div>
+        <SourcePicker />
+      </div>
     </div>
   );
 }

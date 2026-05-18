@@ -1,0 +1,5 @@
+# Auto-synced from ../../../../assets/providers/ via the `sync-providers`
+# script in apps/web/package.json. Don't edit files here directly — fix the
+# canonical copy in assets/providers/ instead. The pre-dev / pre-build hooks
+# refresh this dir.
+*.svg

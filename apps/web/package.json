@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "sync-providers": "mkdir -p public/providers && cp -r ../../assets/providers/*.svg public/providers/",
+    "predev": "pnpm sync-providers",
+    "prebuild": "pnpm sync-providers",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
