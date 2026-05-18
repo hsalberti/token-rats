@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { Leaderboard, LeaderboardRange } from "./leaderboard.js";
-import { Profile, User } from "./user.js";
+import { AutobiographyStats, Profile, User } from "./user.js";
 import { Room, RoomCode, RoomMember } from "./room.js";
 import { SessionRecord } from "./session.js";
 
@@ -53,6 +53,10 @@ export type GetLeaderboardResponse = z.infer<typeof GetLeaderboardResponse>;
 export const GetProfileResponse = z.object({ profile: Profile });
 export type GetProfileResponse = z.infer<typeof GetProfileResponse>;
 
+/* ------------------- GET /v1/u/:handle/autobiography -------------------- */
+export const GetAutobiographyResponse = z.object({ autobiography: AutobiographyStats });
+export type GetAutobiographyResponse = z.infer<typeof GetAutobiographyResponse>;
+
 /* ----------------------------- Endpoint catalog -------------------------- */
 /** Single source of truth for v1 endpoint paths. */
 export const ENDPOINTS = {
@@ -63,6 +67,7 @@ export const ENDPOINTS = {
   joinRoom: (code: RoomCode) => `/v1/rooms/${code}/join`,
   leaderboard: (code: RoomCode) => `/v1/rooms/${code}/leaderboard`,
   profile: (handle: string) => `/v1/u/${handle}`,
+  autobiography: (handle: string) => `/v1/u/${handle}/autobiography`,
   authGithubStart: "/v1/auth/github/start",
   authGithubCallback: "/v1/auth/github/callback",
   authCliExchange: "/v1/auth/cli/exchange",
