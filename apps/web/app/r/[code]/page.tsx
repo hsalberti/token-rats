@@ -28,27 +28,55 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function RoomPage({ params }: Props) {
   const { code } = await params;
   const [cookieHeader, session] = await Promise.all([getCookieHeader(), getSession()]);
+  const roomCode = code as Parameters<typeof api.getRoom>[0];
+
+  // Not signed in — bounce to GitHub via /join, which preserves the auto-join intent.
+  if (!session) {
+    redirect(`/join/${code}`);
+  }
+
+  async function loadRoom() {
+    return Promise.all([
+      api.getRoom(roomCode, cookieHeader),
+      api.getLeaderboard(roomCode, "today", cookieHeader),
+    ]);
+  }
 
   try {
-    const [roomData, leaderboardData] = await Promise.all([
-      api.getRoom(code as Parameters<typeof api.getRoom>[0], cookieHeader),
-      api.getLeaderboard(code as Parameters<typeof api.getLeaderboard>[0], "today", cookieHeader),
-    ]);
-
+    let [roomData, leaderboardData] = await loadRoom();
     return (
       <RoomView
         room={roomData.room}
         members={roomData.members}
         initialLeaderboard={leaderboardData.leaderboard}
         cookieHeader={cookieHeader}
-        currentUserId={session?.id}
+        currentUserId={session.id}
       />
     );
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status === 404) notFound();
-      if (err.status === 401 || err.status === 403) {
-        redirect(`/signin?next=${encodeURIComponent(`/r/${code}`)}`);
+      if (err.status === 401) {
+        redirect(`/join/${code}`);
+      }
+      if (err.status === 403) {
+        // Signed-in non-member — auto-join, then re-render.
+        try {
+          await api.joinRoom(roomCode, cookieHeader);
+        } catch (joinErr) {
+          if (joinErr instanceof ApiError && joinErr.status === 404) notFound();
+          throw joinErr;
+        }
+        const [roomData, leaderboardData] = await loadRoom();
+        return (
+          <RoomView
+            room={roomData.room}
+            members={roomData.members}
+            initialLeaderboard={leaderboardData.leaderboard}
+            cookieHeader={cookieHeader}
+            currentUserId={session.id}
+          />
+        );
       }
     }
     throw err;

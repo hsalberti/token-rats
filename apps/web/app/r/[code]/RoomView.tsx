@@ -72,7 +72,7 @@ export function RoomView({
   const [range, setRange] = useState<LeaderboardRange>("today");
   const [leaderboard, setLeaderboard] = useState<Leaderboard>(initialLeaderboard);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-  const [copied, setCopied] = useState<"share" | "invite" | null>(null);
+  const [copied, setCopied] = useState(false);
   const [renamingRoom, setRenamingRoom] = useState(false);
 
   // Activity tab state
@@ -219,16 +219,10 @@ export function RoomView({
     setRoom(data.room);
   }
 
-  function handleShare() {
-    copyText(`https://tokenrats.com/r/${room.code}`);
-    setCopied("share");
-    setTimeout(() => setCopied(null), 2000);
-  }
-
   function handleInvite() {
     copyText(`https://tokenrats.com/join/${room.code}`);
-    setCopied("invite");
-    setTimeout(() => setCopied(null), 2000);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   const totalTokens = leaderboard.rows.reduce((s, r) => s + r.tokens, 0);
@@ -298,11 +292,8 @@ export function RoomView({
             <p className="mt-1 font-mono text-sm text-zinc-500">{room.code}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={handleShare}>
-              {copied === "share" ? "Copied!" : "Share"}
-            </Button>
             <Button variant="secondary" size="sm" onClick={handleInvite}>
-              {copied === "invite" ? "Copied!" : "Invite"}
+              {copied ? "Copied!" : "Copy invite link"}
             </Button>
           </div>
         </div>
