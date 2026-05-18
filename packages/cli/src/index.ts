@@ -8,6 +8,7 @@
  * Commands:
  *   token-rats login     Authenticate (device-code flow)
  *   token-rats sync      Discover + upload Claude Code & Cursor usage
+ *   token-rats watch     Watch logs in real-time and upload new sessions
  *   token-rats whoami    Show the signed-in account
  *   token-rats logout    Clear credentials
  *   token-rats --version Show version
@@ -17,6 +18,7 @@
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
 import { syncCommand } from "./commands/sync.js";
+import { watchCommand } from "./commands/watch.js";
 import { whoamiCommand } from "./commands/whoami.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

@@ -1,12 +1,14 @@
 /**
- * GET /v1/me          — returns the authenticated user's profile.
- * GET /v1/me/rooms    — returns all rooms the authenticated user is a member of.
+ * GET   /v1/me          — returns the authenticated user's profile.
+ * PATCH /v1/me          — update publicProfile, bio, twitterHandle.
+ * GET   /v1/me/rooms    — returns all rooms the authenticated user is a member of.
  */
 import { Hono } from "hono";
+import { z } from "zod";
 import type { Env } from "../env.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { notFound } from "../lib/errors.js";
+import { notFound, validationError } from "../lib/errors.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 

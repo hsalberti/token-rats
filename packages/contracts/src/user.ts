@@ -4,8 +4,20 @@ export const User = z.object({
   id: z.string(),
   handle: z.string(),
   avatarUrl: z.string().url().nullable(),
+  /** Present only when the caller is the user themselves or the user is public. */
+  bio: z.string().max(200).nullable().optional(),
+  twitterHandle: z.string().max(50).nullable().optional(),
+  publicProfile: z.boolean().optional(),
 });
 export type User = z.infer<typeof User>;
+
+/** Settings for making a profile public and editing discovery fields. */
+export const PublicProfileSettings = z.object({
+  publicProfile: z.boolean().optional(),
+  bio: z.string().max(200).nullable().optional(),
+  twitterHandle: z.string().max(50).nullable().optional(),
+});
+export type PublicProfileSettings = z.infer<typeof PublicProfileSettings>;
 
 export const Profile = User.extend({
   totals: z.object({

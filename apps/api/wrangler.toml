@@ -17,6 +17,14 @@ id = "REPLACE_WITH_KV_ID"
 binding = "CARDS"
 bucket_name = "token-rats-cards"
 
+[[durable_objects.bindings]]
+name = "ROOM_LIVE"
+class_name = "RoomLiveHub"
+
+[[migrations]]
+tag = "v2"
+new_classes = ["RoomLiveHub"]
+
 [triggers]
 crons = ["0 16 * * 1"]   # Mondays 16:00 UTC — weekly digest
 

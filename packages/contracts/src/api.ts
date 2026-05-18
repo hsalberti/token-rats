@@ -1,6 +1,6 @@
 import { z } from "zod";
-import { Leaderboard, LeaderboardRange } from "./leaderboard.js";
-import { AutobiographyStats, Profile, User } from "./user.js";
+import { Leaderboard, LeaderboardRange, LeaderboardRow } from "./leaderboard.js";
+import { AutobiographyStats, Profile, PublicProfileSettings, User } from "./user.js";
 import { Room, RoomCode, RoomMember } from "./room.js";
 import { SessionRecord } from "./session.js";
 import {
@@ -20,6 +20,25 @@ export type {
   NotificationPrefsResponse,
   PushPayload,
 } from "./notifications.js";
+export type {
+  Org,
+  OrgMember,
+  OrgMemberRole,
+  OrgPlan,
+  OrgSlug,
+  OrgInvite,
+  OrgDashboard,
+  OrgSpendByUser,
+  OrgSpendByModel,
+  OrgSpendByDay,
+  CreateOrgRequest,
+  CreateOrgResponse,
+  GetOrgResponse,
+  CreateOrgInviteRequest,
+  CreateOrgInviteResponse,
+  AcceptOrgInviteResponse,
+  GetOrgDashboardResponse,
+} from "./org.js";
 
 /* ------------------------------- GET /v1/me ------------------------------ */
 export const GetMeResponse = z.object({ user: User });
@@ -129,6 +148,36 @@ export const GetChallengesResponse = z.object({
 });
 export type GetChallengesResponse = z.infer<typeof GetChallengesResponse>;
 
+/* --------------------------- PATCH /v1/me -------------------------------- */
+export const PatchMeRequest = PublicProfileSettings;
+export type PatchMeRequest = z.infer<typeof PatchMeRequest>;
+
+export const PatchMeResponse = z.object({ user: User });
+export type PatchMeResponse = z.infer<typeof PatchMeResponse>;
+
+/* ---------------------- GET /v1/trending --------------------------------- */
+export const GetTrendingQuery = z.object({
+  range: LeaderboardRange.default("today"),
+});
+export type GetTrendingQuery = z.infer<typeof GetTrendingQuery>;
+
+export const GetTrendingResponse = z.object({
+  rows: z.array(LeaderboardRow),
+  range: LeaderboardRange,
+  generatedAt: z.number().int().positive(),
+});
+export type GetTrendingResponse = z.infer<typeof GetTrendingResponse>;
+
+/* -------------------- POST /v1/abuse/report ------------------------------ */
+export const ReportAbuseRequest = z.object({
+  targetHandle: z.string().min(1).max(100),
+  reason: z.string().min(1).max(500),
+});
+export type ReportAbuseRequest = z.infer<typeof ReportAbuseRequest>;
+
+export const ReportAbuseResponse = z.object({ ok: z.boolean() });
+export type ReportAbuseResponse = z.infer<typeof ReportAbuseResponse>;
+
 /* ----------------------------- Endpoint catalog -------------------------- */
 /** Single source of truth for v1 endpoint paths. */
 export const ENDPOINTS = {
@@ -155,7 +204,22 @@ export const ENDPOINTS = {
   pushSubscriptions: "/v1/push/subscriptions",
   pushTest: "/v1/push/test",
   notificationPrefs: "/v1/notifications/preferences",
+  // Phase 3 Track L
+  roomLive: (code: RoomCode) => `/v1/rooms/${code}/live`,
+  // Phase 3 Track N
+  patchMe: "/v1/me",
+  trending: "/v1/trending",
+  reportAbuse: "/v1/abuse/report",
+  // Phase 3 Track O — Org plan
+  orgs: "/v1/orgs",
+  org: (slug: string) => `/v1/orgs/${slug}`,
+  orgInvites: (slug: string) => `/v1/orgs/${slug}/invites`,
+  orgAccept: (slug: string) => `/v1/orgs/${slug}/accept`,
+  orgDashboard: (slug: string) => `/v1/orgs/${slug}/dashboard`,
+  stripeWebhook: "/webhooks/stripe",
 } as const;
 
 // Re-export streak/challenge types for convenience
 export type { ActivityRow, Challenge, ChallengeKind, ChallengeWithLeaderboard, StreakRow };
+// Re-export user/profile types for convenience
+export type { PublicProfileSettings };
