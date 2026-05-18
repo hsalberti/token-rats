@@ -1,9 +1,17 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env } from "./env.js";
+import type { AuthVariables } from "./middleware/auth.js";
+import authRoutes from "./routes/auth.js";
+import meRoutes from "./routes/me.js";
+import sessionsRoutes from "./routes/sessions.js";
+import roomsRoutes from "./routes/rooms.js";
+import leaderboardRoutes from "./routes/leaderboard.js";
+import profilesRoutes from "./routes/profiles.js";
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
+// CORS — credentials required for cookie-based auth
 app.use(
   "*",
   cors({
@@ -12,9 +20,46 @@ app.use(
   }),
 );
 
+/* -------------------------------------------------------------------------- */
+/* Health                                                                      */
+/* -------------------------------------------------------------------------- */
+
 app.get("/healthz", (c) => c.json({ ok: true, ts: Date.now() }));
 
-// Phase 1 / Track C fills in the rest of /v1/*.
-app.all("/v1/*", (c) => c.json({ error: { code: "not_implemented", message: "phase 1" } }, 501));
+/* -------------------------------------------------------------------------- */
+/* Auth                                                                        */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/auth", authRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Identity                                                                    */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/me", meRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Session ingest                                                              */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/sessions", sessionsRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Rooms                                                                       */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/rooms", roomsRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Leaderboard (sub-route of rooms, registered separately to share :code)     */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/rooms", leaderboardRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Profiles                                                                    */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/u", profilesRoutes);
 
 export default app;

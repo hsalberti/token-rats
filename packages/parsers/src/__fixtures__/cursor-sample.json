@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cursor-req-001",
+    "model": "claude-3.5-sonnet",
+    "promptTokens": 1200,
+    "completionTokens": 450,
+    "startedAt": 1700005000000,
+    "endedAt": 1700005004500
+  },
+  {
+    "id": "cursor-req-002",
+    "model": "gpt-4o",
+    "promptTokens": 800,
+    "completionTokens": 200,
+    "startedAt": 1700006000000,
+    "endedAt": 1700006002000
+  },
+  {
+    "id": "cursor-req-003",
+    "model": "some-totally-unknown-model",
+    "promptTokens": 500,
+    "completionTokens": 100,
+    "startedAt": 1700007000000,
+    "endedAt": 1700007001000
+  }
+]
