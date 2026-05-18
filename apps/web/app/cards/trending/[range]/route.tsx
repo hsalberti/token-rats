@@ -2,7 +2,7 @@
  * GET /cards/trending/[range]
  *
  * OG image for the /trending page — shows top-10 public users for the given range.
- * Branded with "tokenrats.dev/trending".
+ * Branded with "tokenrats.com/trending".
  */
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
@@ -185,7 +185,7 @@ export async function GET(
             alignItems: "center",
           }}
         >
-          <div style={{ fontSize: 15, color: "#52525b" }}>tokenrats.dev/trending</div>
+          <div style={{ fontSize: 15, color: "#52525b" }}>tokenrats.com/trending</div>
           <div style={{ fontSize: 15, color: "#52525b" }}>
             counts only — we can&apos;t read your prompts
           </div>

@@ -164,9 +164,54 @@ Five tracks, all independent on the contracts and DB after Phase 0. Track P is t
 
 ---
 
+### 🟩 Track W — Finish the `tokenrats.com` migration (sunset `.dev`)
+
+**Owner:** Agent W
+**Inputs:** `chore/migrate-to-tokenrats-com` branch (already swaps every user-facing string, flips `WEB_ORIGIN`, adds the legacy `api.tokenrats.dev` worker route, and loosens CORS to allow both origins)
+**Outputs:** the `.dev` hostname can be turned off without breaking any path that real users hit
+
+The code on `main` already serves both `tokenrats.com` (primary) and `tokenrats.dev` (legacy alias). This track closes the loop on the parts that touch external systems, then removes the legacy plumbing.
+
+- **301 redirect at the edge.** Cloudflare Bulk Redirect (or a tiny Worker) sends every `https://tokenrats.dev/*` → `https://tokenrats.com/$1` and every `https://api.tokenrats.dev/*` → `https://api.tokenrats.com/$1`. Keep the redirect in place for ≥3 months. Anyone with an old OG card, bookmark, or pre-cutover CLI install lands on the new domain without seeing a broken page.
+- **GitHub OAuth app.** Update Homepage URL → `https://tokenrats.com`, Authorization callback → `https://api.tokenrats.com/v1/auth/github/callback`. Same client ID, no secret rotation. Verified by signing out and back in end-to-end.
+- **Resend sender swap.** Blocked on Track S landing. When Resend is wired, add `tokenrats.com` as a verified sender domain, paste the SPF/DKIM/DMARC records into Cloudflare DNS, and flip the `from` address to `noreply@tokenrats.com`. The code already references `.com` — this is purely DNS + provider config.
+- **Stripe webhook URL.** Blocked on the paid plan coming back from behind Track Q's flag. When that happens, update the Stripe dashboard webhook endpoint to `https://api.tokenrats.com/webhooks/stripe`. The signing secret stays; if Stripe issues a new one, `wrangler secret put STRIPE_WEBHOOK_SECRET`.
+- **CLI re-release.** Publish a new `token-rats` CLI version with the new default `https://api.tokenrats.com`. Old installs continue working via the `.dev` worker route + 301 redirect — that's the safety net, not the steady state.
+- **Web Push origin migration.** VAPID subscriptions are bound to the origin that created them, so `.dev` subscribers will not receive pushes on `.com`. Strategy: don't migrate, just prompt re-subscription. The `/settings/notifications` flow already prompts on first visit; users who switch to `.com` re-subscribe organically. Document the limitation in the same place the iOS Safari limitation lives.
+- **Sunset checklist.** Once redirects have been stable for ≥3 months *and* the CLI default has shipped: remove the `api.tokenrats.dev` route from `apps/api/wrangler.toml`, delete the `LEGACY_WEB_ORIGINS` entry in `apps/api/src/index.ts`, and let the `.dev` domain expire on next renewal.
+
+**Definition of done:** From a brand-new machine, none of these paths break: signing in via GitHub, running the latest CLI with no `--api-url`, opening a previously-shared OG card whose URL used `.dev`, and (once Track S lands) receiving a weekly digest email from `noreply@tokenrats.com`. The sunset checklist is queued in the v1.2 inbox with the earliest acceptable execution date.
+
+**Depends on:** Track S (sender swap) and on the paid-plan revival behind Track Q (Stripe webhook). Everything else can ship today.
+
+---
+
+### 🟩 Track X — Coverage waitlists (orgs + untracked providers/tokens)
+
+**Owner:** Agent X
+**Inputs:** D1, the now-hidden `/o` surface (Track Q), the source-picker tree from `roadmap-providers.md`
+**Outputs:** two waitlist surfaces, one shared backend
+
+The v1.1 wedge is consumer-only and free-tier — but two real groups of users will still arrive on the site looking for something we don't offer: (a) companies who want the org plan, (b) users whose primary tool isn't Claude Code, Cursor, or Codex yet. Today both groups bounce. A lightweight waitlist captures them without forcing us to build either feature.
+
+- **One table.** New migration `0008_waitlists.sql`: `waitlists(id, topic TEXT NOT NULL, email TEXT NOT NULL, github_login TEXT, payload_json TEXT, created_at INTEGER, INDEX (topic, created_at))`. `topic` is `"orgs"` or `"provider:<id>"` (e.g. `"provider:gemini-cli"`, `"provider:vscode"`, `"provider:openai-codex"`, `"provider:other"` with a free-text note in `payload_json`).
+- **One endpoint.** `POST /v1/waitlists` with `{ topic, email, githubLogin?, note? }`. Rate-limited per IP and per email (10/day, reusing the abuse helper). Idempotent on `(topic, email)`. Returns `{ ok: true, position }` where position is the row count for that topic at insert time.
+- **Companies waitlist.** When Track Q hides `/o`, replace the link target with `/waitlist/companies` — a page that explains the org plan was paused, captures email + company size + use case, and posts `topic = "orgs"`. The hidden `/o/*` routes stay reachable for internal dogfooding (Track Q already guarantees this).
+- **Providers/tokens waitlist.** On the new "I use something else" branch of the source picker (`roadmap-providers.md` Track P), every leaf option that we don't track yet routes to `/waitlist/provider?id=<id>`. The form pre-fills `topic` from the URL and asks for an optional note. The "Other" picker also exposes a free-text field that posts with `topic = "provider:other"`.
+- **One internal view.** `GET /v1/admin/waitlists?topic=<x>` gated by the existing admin-user check (same one `/admin/abuse` uses). Returns rows newest-first, paginated. No public surface.
+- **No notifications.** v1.1 captures emails; it does not promise to email back. Outreach is manual until the feature returns or ships.
+
+**Why now:** zero engineering on the actual features, real signal on which to revive first. The org-plan waitlist makes the Q hide-don't-delete strategy honest — we're not pretending the surface doesn't exist, we're saying it's paused and pricing interest. The provider waitlist turns every "Token Rats doesn't support my stack" bounce into a captured contact.
+
+**Definition of done:** A signed-out visitor can submit both waitlist forms and sees their position. A signed-in visitor's `github_login` is auto-filled. The `/v1/admin/waitlists` endpoint returns my submission. Re-submitting from the same email returns the original position, not a new row. Rate limiting verified by a unit test.
+
+**Depends on:** Track Q for the `/o` link redirect target; `roadmap-providers.md` Track P for the source-picker leaves to point at. Neither dependency blocks shipping a waitlist page directly at `/waitlist/companies` first.
+
+---
+
 ### 🟨 Phase 4 convergence (~half day)
 
-Order the merge: Q (flag flip, smallest blast radius) → S (migration first, then provider) → R (encryption) → P (new card + route + contract) → T (Playwright, last, so it covers the new surface).
+Order the merge: Q (flag flip, smallest blast radius) → S (migration first, then provider) → R (encryption) → P (new card + route + contract) → T (Playwright, last, so it covers the new surface). W can land any time after Q + S; X any time after Q.
 
 Smoke acceptance — one human walks this path on a fresh machine:
 1. Sign in. See an empty `/app` with no `/o` link visible.
@@ -191,6 +236,8 @@ Smoke acceptance — one human walks this path on a fresh machine:
 | T — Playwright smokes | no | no | no (skip-on-absent for P) |
 | U — Primary-source tag | **yes** (one field on rows + `SessionRecord`) | no | T (covers the pill) |
 | V — Group metrics + heatmap + group streak | **yes** (three new response types) | no | T (covers the new surfaces) |
+| W — Finish `.com` migration / sunset `.dev` | no | no | no (depends on S for sender swap, on Q-revival for Stripe URL) |
+| X — Coverage waitlists | no | **yes** (0008 migration) | no (depends on Q for `/o` redirect target, providers Track P for picker leaves) |
 
 Merge gate: Track P's, U's, and V's contract additions need to go in first (in any order). Everything else is independent and can land in any order.
 
@@ -206,7 +253,7 @@ These came up in interview but are not v1.1. Decide based on what the first publ
 - **VS Code extension as a third source** — broadens audience beyond Claude Code + Cursor users. Pick this up if the addressable audience on X feels too narrow.
 - **Auto-tweet weekly recap** — one-click post-to-X with the autobiography card. Needs X OAuth + posting pipeline; expensive. Pick this up only if v1.1 shows the share-card loop already works manually.
 - **Animated PNG sequences for cards** — listed in Phase 2 Track I, never shipped. Revisit once we know which card format gets the most reshares.
-- **Reviving the org plan publicly** — gated on consumer loop validation. Don't unflag until D7 retention is real.
+- **Reviving the org plan publicly** — gated on consumer loop validation. Don't unflag until D7 retention is real. Track X's waitlist captures interest in the meantime.
 - **iOS push** — known-broken in Safari. Out of scope. Document the limitation; don't chase it.
 
 ---
@@ -220,6 +267,8 @@ These came up in interview but are not v1.1. Decide based on what the first publ
 | Resend free tier or rate limit hits during a viral moment | Digest is weekly Monday, capped per user, and idempotent — re-running the cron can't double-send. No real-time email anywhere. |
 | Playwright suite becomes flaky and gets ignored | Suite is small on purpose (6–7 tests). If a test goes flaky, fix it the same day or delete it; don't add a retry. |
 | Hiding `/o` breaks an existing test that asserts visibility | Tests should import the feature flag, not assume visibility. Audit during Track Q. |
+| `.dev` traffic drops to zero before redirects are in place, looking like a launch dip in analytics | Track W's edge redirect goes up *before* any `.dev` DNS change; verify with a curl loop against both hostnames in the smoke walk. |
+| Waitlist abuse (mass submissions) inflates "position" and pollutes the table | Reuse the existing abuse helper for per-IP + per-email throttling. `(topic, email)` is idempotent, so retries can't multiply rows. |
 
 ---
 

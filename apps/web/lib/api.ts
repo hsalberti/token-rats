@@ -1,6 +1,6 @@
 /**
  * Typed API client for the Token Rats Worker API.
- * Reads NEXT_PUBLIC_API_URL (default: https://api.tokenrats.dev).
+ * Reads NEXT_PUBLIC_API_URL (default: https://api.tokenrats.com).
  *
  * Server components pass through the incoming request cookie via the
  * `cookieHeader` parameter. Client components omit it and rely on the
@@ -47,7 +47,7 @@ import type {
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.tokenrats.dev";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.tokenrats.com";
 
 /** Auth start URL — navigate the browser to this to kick off GitHub OAuth. */
 export const AUTH_GITHUB_START = `${API_URL}${ENDPOINTS.authGithubStart}`;

@@ -80,7 +80,7 @@ export default function NewOrgPage() {
               Slug <span className="font-normal text-zinc-500">(used in URLs)</span>
             </label>
             <div className="flex items-center gap-2">
-              <span className="text-zinc-500">tokenrats.dev/o/</span>
+              <span className="text-zinc-500">tokenrats.com/o/</span>
               <input
                 id="slug"
                 type="text"

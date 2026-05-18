@@ -39,7 +39,7 @@ export function MembersClient({ slug, initialMembers }: Props) {
         ...(email.trim() ? { email: email.trim() } : {}),
       });
       setSuccess(
-        `Invite sent to ${githubLogin.trim() || email.trim()}. They can accept at tokenrats.dev/o/${slug}/accept.`,
+        `Invite sent to ${githubLogin.trim() || email.trim()}. They can accept at tokenrats.com/o/${slug}/accept.`,
       );
       setGithubLogin("");
       setEmail("");

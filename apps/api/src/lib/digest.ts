@@ -127,7 +127,7 @@ function buildHtml(handle: string, stats: WeeklyStats): string {
 
     <p style="font-size:12px;color:#52525b">
       You're receiving this because you have weekly digests enabled.
-      <a href="https://tokenrats.dev/settings/notifications" style="color:#f97316">Manage preferences</a>
+      <a href="https://tokenrats.com/settings/notifications" style="color:#f97316">Manage preferences</a>
     </p>
   </div>
 </body>
@@ -153,7 +153,7 @@ function buildText(handle: string, stats: WeeklyStats): string {
     lines.push(`  ${formatDay(r.day)}: ${formatTokens(r.tokens)} tokens / ${formatCents(r.cost_usd_cents)} / ${r.sessions} sessions`);
   }
 
-  lines.push("", "Manage preferences: https://tokenrats.dev/settings/notifications");
+  lines.push("", "Manage preferences: https://tokenrats.com/settings/notifications");
 
   return lines.join("\n");
 }

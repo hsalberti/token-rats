@@ -8,11 +8,11 @@ export const metadata: Metadata = {
   },
   description:
     "Strava for AI token burn. Auto-sync your Claude Code + Cursor usage to a leaderboard with your crew.",
-  metadataBase: new URL("https://tokenrats.dev"),
+  metadataBase: new URL("https://tokenrats.com"),
   openGraph: {
     title: "Token Rats",
     description: "Gym rats for token tracking with friends.",
-    url: "https://tokenrats.dev",
+    url: "https://tokenrats.com",
     siteName: "Token Rats",
     type: "website",
   },

@@ -5,13 +5,13 @@
  * Resend example:
  *   import { Resend } from "resend";
  *   const resend = new Resend(env.RESEND_API_KEY);
- *   await resend.emails.send({ from: "noreply@tokenrats.dev", to, subject, html });
+ *   await resend.emails.send({ from: "noreply@tokenrats.com", to, subject, html });
  *
  * Postmark example:
  *   const res = await fetch("https://api.postmarkapp.com/email", {
  *     method: "POST",
  *     headers: { "X-Postmark-Server-Token": env.POSTMARK_API_TOKEN, "Content-Type": "application/json" },
- *     body: JSON.stringify({ From: "noreply@tokenrats.dev", To: to, Subject: subject, HtmlBody: html, TextBody: text }),
+ *     body: JSON.stringify({ From: "noreply@tokenrats.com", To: to, Subject: subject, HtmlBody: html, TextBody: text }),
  *   });
  */
 

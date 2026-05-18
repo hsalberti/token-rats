@@ -125,7 +125,7 @@ export default async function ProxyPage() {
           </p>
           <pre className="bg-zinc-800 border border-zinc-700 rounded-md p-4 text-sm overflow-x-auto">
             <code className="text-zinc-100">
-{`ANTHROPIC_BASE_URL=https://api.tokenrats.dev/v1/proxy/anthropic
+{`ANTHROPIC_BASE_URL=https://api.tokenrats.com/v1/proxy/anthropic
 ANTHROPIC_API_KEY=<your Token Rats user token>`}
             </code>
           </pre>

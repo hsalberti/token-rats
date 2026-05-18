@@ -28,8 +28,21 @@ new_classes = ["RoomLiveHub"]
 [triggers]
 crons = ["0 16 * * 1"]   # Mondays 16:00 UTC — weekly digest
 
+# Custom-domain routes. Primary is tokenrats.com; the legacy .dev hostname
+# is kept as a parallel alias during migration so old CLI installs and
+# previously-shared OG links keep working. Drop the .dev entry once usage
+# has shifted (see roadmap-v1.1 Track W).
+routes = [
+  { pattern = "api.tokenrats.com", custom_domain = true },
+  { pattern = "api.tokenrats.dev", custom_domain = true },
+]
+
 [vars]
-WEB_ORIGIN = "https://tokenrats.dev"
+# Canonical origin used for OAuth post-login redirects, CLI verification
+# URLs, and the VAPID `mailto:` subject. CORS allows both .com and .dev
+# (see src/index.ts) so a user landing on the legacy .dev host still
+# completes auth, even though they finish on .com.
+WEB_ORIGIN = "https://tokenrats.com"
 
 # Secrets (set via `wrangler secret put`):
 #   GITHUB_CLIENT_ID

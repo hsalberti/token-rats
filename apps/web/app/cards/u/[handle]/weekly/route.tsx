@@ -241,7 +241,7 @@ export async function GET(
           }}
         >
           <div style={{ fontSize: 16, color: "#52525b" }}>
-            {`tokenrats.dev/u/${handle}`}
+            {`tokenrats.com/u/${handle}`}
           </div>
           <div style={{ fontSize: 16, color: "#52525b" }}>
             counts only — we can&apos;t read your prompts

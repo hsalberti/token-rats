@@ -218,7 +218,7 @@ export async function GET(
             alignItems: "center",
           }}
         >
-          <div style={{ fontSize: 16, color: "#52525b" }}>{`tokenrats.dev/r/${code}`}</div>
+          <div style={{ fontSize: 16, color: "#52525b" }}>{`tokenrats.com/r/${code}`}</div>
           <div style={{ fontSize: 16, color: "#52525b" }}>
             counts only — we can&apos;t read your prompts
           </div>

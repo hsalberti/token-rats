@@ -43,7 +43,7 @@ function printHelp(): void {
   help       Show this help message
 
 \x1b[1mFlags (all commands):\x1b[0m
-  --api-url <url>   Override API URL (default: https://api.tokenrats.dev)
+  --api-url <url>   Override API URL (default: https://api.tokenrats.com)
 
 \x1b[1mFlags (sync only):\x1b[0m
   --dry-run         Parse but do not upload; print what would be sent

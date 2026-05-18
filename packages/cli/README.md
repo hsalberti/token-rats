@@ -79,7 +79,7 @@ Authentication uses a device-code flow:
 ## Requirements
 
 - Node.js ≥ 20
-- A Token Rats account (sign up at [tokenrats.dev](https://tokenrats.dev))
+- A Token Rats account (sign up at [tokenrats.com](https://tokenrats.com))
 
 ## Privacy
 

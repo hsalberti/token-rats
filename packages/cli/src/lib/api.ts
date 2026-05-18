@@ -11,7 +11,7 @@ import type {
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
-const DEFAULT_API_URL = "https://api.tokenrats.dev";
+const DEFAULT_API_URL = "https://api.tokenrats.com";
 
 export interface ApiClientOptions {
   apiUrl?: string;

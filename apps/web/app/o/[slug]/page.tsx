@@ -54,7 +54,7 @@ export default async function OrgOverviewPage({ params }: Props) {
           <div>
             <h1 className="text-3xl font-black tracking-tight">{org.name}</h1>
             <p className="mt-1 text-sm text-zinc-500">
-              {org.slug ? `tokenrats.dev/o/${org.slug}` : ""} &middot;{" "}
+              {org.slug ? `tokenrats.com/o/${org.slug}` : ""} &middot;{" "}
               <span
                 className={
                   org.plan === "pro"

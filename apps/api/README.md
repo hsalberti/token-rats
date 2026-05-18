@@ -11,7 +11,7 @@ Go to **GitHub → Settings → Developer settings → OAuth Apps → New OAuth 
 | Field | Value |
 |---|---|
 | Application name | Token Rats (dev) |
-| Homepage URL | `https://tokenrats.dev` (or your dev URL) |
+| Homepage URL | `https://tokenrats.com` (or your dev URL) |
 | Authorization callback URL | `https://<your-worker-domain>/v1/auth/github/callback` |
 
 Note down the **Client ID** and generate a **Client Secret**.

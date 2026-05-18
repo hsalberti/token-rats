@@ -219,13 +219,13 @@ export function RoomView({
   }
 
   function handleShare() {
-    copyText(`https://tokenrats.dev/r/${room.code}`);
+    copyText(`https://tokenrats.com/r/${room.code}`);
     setCopied("share");
     setTimeout(() => setCopied(null), 2000);
   }
 
   function handleInvite() {
-    copyText(`https://tokenrats.dev/join/${room.code}`);
+    copyText(`https://tokenrats.com/join/${room.code}`);
     setCopied("invite");
     setTimeout(() => setCopied(null), 2000);
   }

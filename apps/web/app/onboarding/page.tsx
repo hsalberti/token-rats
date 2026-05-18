@@ -8,7 +8,7 @@
  *
  * TODO (CLI wire-up): After `npx token-rats sync` succeeds for the first time,
  * print a line like:
- *   "  🐀  Your Token Autobiography is ready: https://tokenrats.dev/onboarding"
+ *   "  🐀  Your Token Autobiography is ready: https://tokenrats.com/onboarding"
  * This will make /onboarding discoverable from the CLI.
  */
 
