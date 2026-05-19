@@ -41,3 +41,19 @@ Node themselves.
 `NodeInstallHint` covers the immediate UX bleed for ~2 lines of code; the
 binary path is worth doing properly when we have a stretch to spend on
 release engineering.
+
+## Pro-tier org Stripe checkout email on approval
+
+**Problem.** When an admin approves a `pro`-tier org via the v1.2 soft-create
+flow, we flip status → `approved` and plan → `pro`, but we don't trigger a
+Stripe checkout session or email the founder a payment link. They have a
+green org with no billing path.
+
+**Why deferred.** Billing isn't wired yet — `apps/api/src/lib/email.ts` is a
+stub, the Resend account is uncreated, and the Stripe SDK paths in
+`stripe.ts` are tested but unused. Sending an outbound email + creating a
+checkout session both depend on those landing first.
+
+**When to revisit.** When the weekly digest / email-capture cron from the
+deferred "automated email sending" entry is ready — same Resend wiring
+unlocks both surfaces.

@@ -27,6 +27,7 @@ export type {
   OrgMemberRole,
   OrgPlan,
   OrgSlug,
+  OrgStatus,
   OrgInvite,
   OrgDashboard,
   OrgSpendByUser,
@@ -37,6 +38,11 @@ export type {
   CreateOrgInviteResponse,
   AcceptOrgInviteResponse,
   GetOrgDashboardResponse,
+  PatchOrgRequest,
+  PatchOrgResponse,
+  AdminPendingOrg,
+  GetPendingOrgsResponse,
+  ApproveOrgResponse,
 } from "./org.js";
 export {
   CreateOrgRequest,
@@ -306,6 +312,9 @@ export const ENDPOINTS = {
   adminSignups: "/v1/admin/signups",
   adminActivity: "/v1/admin/activity",
   adminReferrers: "/v1/admin/referrers",
+  // Admin org approval (v1.2)
+  adminOrgsPending: "/v1/admin/orgs/pending",
+  adminOrgApprove: (slug: string) => `/v1/admin/orgs/${slug}/approve`,
 } as const;
 
 // Re-export streak/challenge types for convenience

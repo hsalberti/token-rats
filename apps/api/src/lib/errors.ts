@@ -44,6 +44,10 @@ export function notFound(c: AnyCtx, message = "Not found") {
   return apiError(c, 404, "not_found", message);
 }
 
+export function conflict(c: AnyCtx, message = "Conflict", details?: unknown) {
+  return apiError(c, 409, "conflict", message, details);
+}
+
 export function gone(c: AnyCtx, message = "Resource expired or already used") {
   return apiError(c, 410, "gone", message);
 }

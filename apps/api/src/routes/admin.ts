@@ -2,6 +2,7 @@ import type {
   AdminActivityResponse,
   AdminReferrersResponse,
   AdminSignupsResponse,
+  GetPendingOrgsResponse,
 } from "@token-rats/contracts";
 /**
  * GET /v1/admin/signups    — total user count + cumulative signups by UTC day (30d)
@@ -17,7 +18,7 @@ import type {
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { isAdmin } from "../lib/admin.js";
-import { forbidden } from "../lib/errors.js";
+import { forbidden, notFound } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -243,5 +244,154 @@ admin.get("/referrers", async (c) => {
   };
   return c.json(payload);
 });
+
+/* -------------------------------------------------------------------------- */
+/* GET /v1/admin/orgs/pending?q=<search>                                       */
+/* -------------------------------------------------------------------------- */
+/* Searchable list of pending orgs. Search matches name / slug / founder      */
+/* email substrings (case-insensitive). Capped at 100 rows.                   */
+
+admin.get("/orgs/pending", async (c) => {
+  const q = new URL(c.req.url).searchParams.get("q")?.trim() ?? "";
+
+  let rows: { results?: PendingOrgRow[] };
+  if (q.length === 0) {
+    rows = await c.env.DB.prepare(
+      `SELECT o.id, o.name, o.slug, o.requested_plan, o.founder_email,
+              o.founder_name, o.created_at, u.handle AS founder_handle
+         FROM orgs o
+         LEFT JOIN org_members om
+                ON om.org_id = o.id AND om.role = 'owner'
+         LEFT JOIN users u
+                ON u.id = om.user_id
+        WHERE o.status = 'pending'
+        ORDER BY o.created_at DESC
+        LIMIT 100`,
+    ).all<PendingOrgRow>();
+  } else {
+    const wild = `%${q.toLowerCase()}%`;
+    rows = await c.env.DB.prepare(
+      `SELECT o.id, o.name, o.slug, o.requested_plan, o.founder_email,
+              o.founder_name, o.created_at, u.handle AS founder_handle
+         FROM orgs o
+         LEFT JOIN org_members om
+                ON om.org_id = o.id AND om.role = 'owner'
+         LEFT JOIN users u
+                ON u.id = om.user_id
+        WHERE o.status = 'pending'
+          AND (
+                LOWER(o.name)          LIKE ?
+             OR LOWER(o.slug)          LIKE ?
+             OR LOWER(o.founder_email) LIKE ?
+             OR LOWER(u.handle)        LIKE ?
+          )
+        ORDER BY o.created_at DESC
+        LIMIT 100`,
+    )
+      .bind(wild, wild, wild, wild)
+      .all<PendingOrgRow>();
+  }
+
+  const payload: GetPendingOrgsResponse = {
+    orgs: (rows.results ?? []).map((r) => ({
+      id: r.id,
+      name: r.name,
+      slug: r.slug,
+      requestedPlan: (r.requested_plan ?? null) as "free" | "student" | "pro" | null,
+      founderEmail: r.founder_email,
+      founderName: r.founder_name,
+      founderHandle: r.founder_handle ?? "",
+      createdAt: r.created_at,
+    })),
+  };
+  return c.json(payload);
+});
+
+/* -------------------------------------------------------------------------- */
+/* POST /v1/admin/orgs/:slug/approve                                          */
+/* -------------------------------------------------------------------------- */
+
+admin.post("/orgs/:slug/approve", async (c) => {
+  const slug = c.req.param("slug");
+  const adminUserId = c.var.userId;
+
+  const org = await c.env.DB.prepare(
+    `SELECT id, status, requested_plan FROM orgs WHERE slug = ?`,
+  )
+    .bind(slug)
+    .first<{ id: string; status: string; requested_plan: string | null }>();
+
+  if (!org) return notFound(c, "Org not found");
+  if (org.status === "approved") {
+    return forbidden(c, "Org is already approved");
+  }
+
+  // Promote the requested_plan to the live plan. Student tier becomes
+  // usable immediately; pro tier is also immediate in this round (Stripe
+  // checkout email defers to roadmap-deferred.md).
+  const newPlan = (org.requested_plan ?? "free") as "free" | "student" | "pro";
+  const now = Date.now();
+
+  await c.env.DB.prepare(
+    `UPDATE orgs
+        SET status = 'approved',
+            plan = ?,
+            approved_by = ?,
+            approved_at = ?
+      WHERE id = ?`,
+  )
+    .bind(newPlan, adminUserId, now, org.id)
+    .run();
+
+  // Read-back the now-approved org for the response.
+  const refreshed = await c.env.DB.prepare(
+    `SELECT id, name, slug, plan, seat_count, github_org_login, created_at,
+            status, requested_plan, founder_email, founder_name
+       FROM orgs WHERE id = ?`,
+  )
+    .bind(org.id)
+    .first<{
+      id: string;
+      name: string;
+      slug: string | null;
+      plan: string;
+      seat_count: number;
+      github_org_login: string | null;
+      created_at: number;
+      status: string;
+      requested_plan: string | null;
+      founder_email: string | null;
+      founder_name: string | null;
+    }>();
+
+  if (!refreshed) return notFound(c, "Org not found");
+
+  return c.json({
+    org: {
+      id: refreshed.id,
+      name: refreshed.name,
+      slug: refreshed.slug,
+      plan: refreshed.plan as "free" | "student" | "pro",
+      seatCount: refreshed.seat_count,
+      githubOrgLogin: refreshed.github_org_login,
+      createdAt: refreshed.created_at,
+      status: refreshed.status as "pending" | "approved",
+      requestedPlan: (refreshed.requested_plan ?? null) as "free" | "student" | "pro" | null,
+      founderEmail: refreshed.founder_email,
+      founderName: refreshed.founder_name,
+    },
+  });
+});
+
+interface PendingOrgRow {
+  id: string;
+  name: string;
+  slug: string | null;
+  requested_plan: string | null;
+  founder_email: string | null;
+  founder_name: string | null;
+  founder_handle: string | null;
+  created_at: number;
+}
 
 export default admin;

@@ -12,6 +12,7 @@ import type {
   AdminActivityResponse,
   AdminReferrersResponse,
   AdminSignupsResponse,
+  ApproveOrgResponse,
   CreateChallengeRequest,
   CreateChallengeResponse,
   CreateOrgInviteRequest,
@@ -19,6 +20,9 @@ import type {
   // Phase 3 Track O — Org plan
   CreateOrgRequest,
   CreateOrgResponse,
+  GetPendingOrgsResponse,
+  PatchOrgRequest,
+  PatchOrgResponse,
   CreateRoomRequest,
   CreateRoomResponse,
   FriendsResponse,
@@ -371,7 +375,7 @@ export async function reportAbuse(
 
 // Phase 3 Track O: org plan
 
-/** Create a new org. */
+/** Soft-create a new org (v1.2). Returns 201 with the pending org row. */
 export async function createOrg(
   body: CreateOrgRequest,
   cookieHeader?: string,
@@ -379,6 +383,41 @@ export async function createOrg(
   return request<CreateOrgResponse>(ENDPOINTS.orgs, {
     method: "POST",
     body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Founder updates founder_email / founder_name while the org is pending. */
+export async function patchOrg(
+  slug: string,
+  body: PatchOrgRequest,
+  cookieHeader?: string,
+): Promise<PatchOrgResponse> {
+  return request<PatchOrgResponse>(ENDPOINTS.org(slug), {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Admin: list pending orgs (optionally filtered by `?q=`). */
+export async function getPendingOrgs(
+  q: string,
+  cookieHeader?: string,
+): Promise<GetPendingOrgsResponse> {
+  const url = q
+    ? `${ENDPOINTS.adminOrgsPending}?q=${encodeURIComponent(q)}`
+    : ENDPOINTS.adminOrgsPending;
+  return request<GetPendingOrgsResponse>(url, { cookieHeader });
+}
+
+/** Admin: flip an org from pending to approved (promotes requested_plan). */
+export async function approveOrg(
+  slug: string,
+  cookieHeader?: string,
+): Promise<ApproveOrgResponse> {
+  return request<ApproveOrgResponse>(ENDPOINTS.adminOrgApprove(slug), {
+    method: "POST",
     cookieHeader,
   });
 }
@@ -458,10 +497,14 @@ export const api = {
   getMeFriends,
   // Phase 3 Track O
   createOrg,
+  patchOrg,
   getOrg,
   createOrgInvite,
   acceptOrgInvite,
   getOrgDashboard,
+  // v1.2 admin
+  getPendingOrgs,
+  approveOrg,
   // Phase 3 Track M
   getProxyAnthropicKeyStatus,
   setProxyAnthropicKey,

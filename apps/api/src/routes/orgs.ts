@@ -1,17 +1,20 @@
 /**
- * Org routes — Phase 3 Track O
+ * Org routes — Phase 3 Track O + v1.2 soft-create.
  *
- *  POST  /v1/orgs                      – create org (auth required)
- *  GET   /v1/orgs/:slug                – org details (member-only)
- *  POST  /v1/orgs/:slug/invites        – create invite (admin/owner only)
- *  POST  /v1/orgs/:slug/accept         – accept invite (auth required)
- *  GET   /v1/orgs/:slug/dashboard      – aggregate spend stats (member-only)
+ *  POST   /v1/orgs                 – soft-create an org (auth required, 1-per-user cap)
+ *  GET    /v1/orgs/:slug           – org details (member-only when approved; founder
+ *                                    can fetch their own pending org)
+ *  PATCH  /v1/orgs/:slug           – founder updates founder_email / founder_name
+ *                                    while still pending
+ *  POST   /v1/orgs/:slug/invites   – create invite (admin/owner only, approved only)
+ *  POST   /v1/orgs/:slug/accept    – accept invite
+ *  GET    /v1/orgs/:slug/dashboard – aggregate spend stats (member-only, approved only)
  */
 
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
-import { forbidden, notFound, validationError } from "../lib/errors.js";
+import { conflict, forbidden, notFound, validationError } from "../lib/errors.js";
 import { MONTH_MS } from "../lib/time.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -26,6 +29,14 @@ const CreateOrgRequestSchema = z.object({
     .max(48)
     .regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
   githubOrgLogin: z.string().optional(),
+  founderEmail: z.string().email(),
+  founderName: z.string().min(1).max(80).optional(),
+  requestedPlan: z.enum(["free", "student", "pro"]),
+});
+
+const PatchOrgRequestSchema = z.object({
+  founderEmail: z.string().email().optional(),
+  founderName: z.string().min(1).max(80).optional(),
 });
 
 const CreateOrgInviteRequestSchema = z
@@ -43,11 +54,7 @@ const orgs = new Hono<HonoEnv>();
 
 /* ------------------------------------------------------------------ helpers */
 
-/** Lookup an org by slug. Returns null if not found. */
-async function getOrgBySlug(
-  db: D1Database,
-  slug: string,
-): Promise<{
+interface OrgRow {
   id: string;
   name: string;
   slug: string | null;
@@ -55,25 +62,33 @@ async function getOrgBySlug(
   seat_count: number;
   github_org_login: string | null;
   created_at: number;
-} | null> {
-  return db
-    .prepare(
-      `SELECT id, name, slug, plan, seat_count, github_org_login, created_at
-       FROM orgs WHERE slug = ?`,
-    )
-    .bind(slug)
-    .first<{
-      id: string;
-      name: string;
-      slug: string | null;
-      plan: string;
-      seat_count: number;
-      github_org_login: string | null;
-      created_at: number;
-    }>();
+  status: string;
+  requested_plan: string | null;
+  founder_email: string | null;
+  founder_name: string | null;
 }
 
-/** Check that userId is a member of orgId; returns their role or null. */
+const ORG_SELECT_COLUMNS =
+  "id, name, slug, plan, seat_count, github_org_login, created_at, " +
+  "status, requested_plan, founder_email, founder_name";
+
+async function getOrgBySlug(db: D1Database, slug: string): Promise<OrgRow | null> {
+  return db
+    .prepare(`SELECT ${ORG_SELECT_COLUMNS} FROM orgs WHERE slug = ?`)
+    .bind(slug)
+    .first<OrgRow>();
+}
+
+/** Find the founder (owner) row for an org. */
+async function getOwnerId(db: D1Database, orgId: string): Promise<string | null> {
+  const row = await db
+    .prepare("SELECT user_id FROM org_members WHERE org_id = ? AND role = 'owner' LIMIT 1")
+    .bind(orgId)
+    .first<{ user_id: string }>();
+  return row?.user_id ?? null;
+}
+
+/** Membership lookup — returns role or null. */
 async function getMembership(
   db: D1Database,
   orgId: string,
@@ -84,6 +99,23 @@ async function getMembership(
     .bind(orgId, userId)
     .first<{ role: string }>();
   return row?.role ?? null;
+}
+
+/** Project an `OrgRow` into the Org contract shape. */
+function orgPayload(row: OrgRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    plan: row.plan as "free" | "student" | "pro",
+    seatCount: row.seat_count,
+    githubOrgLogin: row.github_org_login,
+    createdAt: row.created_at,
+    status: row.status as "pending" | "approved",
+    requestedPlan: (row.requested_plan ?? null) as "free" | "student" | "pro" | null,
+    founderEmail: row.founder_email,
+    founderName: row.founder_name,
+  };
 }
 
 /* ------------------------------------------------------------------ POST /v1/orgs */
@@ -99,7 +131,25 @@ orgs.post("/", requireAuth, async (c) => {
     return validationError(c, e instanceof Error ? e.message : e);
   }
 
-  // Check slug uniqueness
+  // 1-per-user cap: a user may not have a second pending OR approved org.
+  // The check is done before any writes so a user can re-submit after
+  // re-trying a slug collision without ending up in a 409 deadlock.
+  const existing = await c.env.DB.prepare(
+    `SELECT o.slug FROM orgs o
+       JOIN org_members om ON om.org_id = o.id AND om.user_id = ? AND om.role = 'owner'
+      LIMIT 1`,
+  )
+    .bind(userId)
+    .first<{ slug: string | null }>();
+
+  if (existing) {
+    return conflict(c, "You already have an org", {
+      existingSlug: existing.slug,
+    });
+  }
+
+  // Slug uniqueness check (no race protection beyond idx_orgs_slug — D1's
+  // serial nature makes this fine for the failure mode we care about).
   const slugConflict = await c.env.DB.prepare("SELECT id FROM orgs WHERE slug = ?")
     .bind(body.slug)
     .first<{ id: string }>();
@@ -111,13 +161,26 @@ orgs.post("/", requireAuth, async (c) => {
   const id = crypto.randomUUID();
   const now = Date.now();
 
-  // TODO: create stripe.com customer here, store stripe_customer_id
-
+  // Soft-create: status='pending', plan stays at the default 'free' until
+  // approval flips it. `requested_plan` carries the user's intent.
   await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO orgs (id, name, slug, plan, seat_count, github_org_login, created_at)
-       VALUES (?, ?, ?, 'free', 0, ?, ?)`,
-    ).bind(id, body.name, body.slug, body.githubOrgLogin ?? null, now),
+      `INSERT INTO orgs
+         (id, name, slug, plan, seat_count, github_org_login, created_at,
+          status, requested_plan, founder_email, founder_name)
+       VALUES
+         (?, ?, ?, 'free', 0, ?, ?,
+          'pending', ?, ?, ?)`,
+    ).bind(
+      id,
+      body.name,
+      body.slug,
+      body.githubOrgLogin ?? null,
+      now,
+      body.requestedPlan,
+      body.founderEmail,
+      body.founderName ?? null,
+    ),
     c.env.DB.prepare(`INSERT INTO org_members (org_id, user_id, role) VALUES (?, ?, 'owner')`).bind(
       id,
       userId,
@@ -134,6 +197,10 @@ orgs.post("/", requireAuth, async (c) => {
         seatCount: 0,
         githubOrgLogin: body.githubOrgLogin ?? null,
         createdAt: now,
+        status: "pending" as const,
+        requestedPlan: body.requestedPlan,
+        founderEmail: body.founderEmail,
+        founderName: body.founderName ?? null,
       },
     },
     201,
@@ -148,6 +215,16 @@ orgs.get("/:slug", requireAuth, async (c) => {
 
   const org = await getOrgBySlug(c.env.DB, slug);
   if (!org) return notFound(c, "Org not found");
+
+  // Pending org: only the founder can fetch their own pending org (the
+  // pending page reads this to populate the form). Everyone else 403s.
+  if (org.status === "pending") {
+    const ownerId = await getOwnerId(c.env.DB, org.id);
+    if (ownerId !== userId) {
+      return forbidden(c, "This org is still pending approval");
+    }
+    return c.json({ org: orgPayload(org), members: [] });
+  }
 
   const role = await getMembership(c.env.DB, org.id, userId);
   if (!role) return forbidden(c, "You are not a member of this org");
@@ -174,18 +251,58 @@ orgs.get("/:slug", requireAuth, async (c) => {
     role: m.role,
   }));
 
-  return c.json({
-    org: {
-      id: org.id,
-      name: org.name,
-      slug: org.slug,
-      plan: org.plan,
-      seatCount: org.seat_count,
-      githubOrgLogin: org.github_org_login,
-      createdAt: org.created_at,
-    },
-    members,
-  });
+  return c.json({ org: orgPayload(org), members });
+});
+
+/* ------------------------------------------------------------------ PATCH /v1/orgs/:slug */
+/* Founder-only edits to the pending-org form. Slug is fixed at first submit; */
+/* only founder_email and founder_name are editable.                          */
+
+orgs.patch("/:slug", requireAuth, async (c) => {
+  const userId = c.var.userId;
+  const slug = c.req.param("slug");
+
+  let body: ReturnType<typeof PatchOrgRequestSchema.parse>;
+  try {
+    const raw: unknown = await c.req.json();
+    body = PatchOrgRequestSchema.parse(raw);
+  } catch (e) {
+    return validationError(c, e instanceof Error ? e.message : e);
+  }
+
+  const org = await getOrgBySlug(c.env.DB, slug);
+  if (!org) return notFound(c, "Org not found");
+
+  if (org.status !== "pending") {
+    return forbidden(c, "Cannot edit an approved org via this endpoint");
+  }
+
+  const ownerId = await getOwnerId(c.env.DB, org.id);
+  if (ownerId !== userId) return forbidden(c, "Only the founder can edit a pending org");
+
+  const updates: string[] = [];
+  const binds: unknown[] = [];
+  if (body.founderEmail !== undefined) {
+    updates.push("founder_email = ?");
+    binds.push(body.founderEmail);
+  }
+  if (body.founderName !== undefined) {
+    updates.push("founder_name = ?");
+    binds.push(body.founderName);
+  }
+
+  if (updates.length === 0) {
+    return c.json({ org: orgPayload(org) });
+  }
+
+  binds.push(org.id);
+  await c.env.DB.prepare(`UPDATE orgs SET ${updates.join(", ")} WHERE id = ?`)
+    .bind(...binds)
+    .run();
+
+  const refreshed = await getOrgBySlug(c.env.DB, slug);
+  if (!refreshed) return notFound(c, "Org not found");
+  return c.json({ org: orgPayload(refreshed) });
 });
 
 /* ------------------------------------------------------------------ POST /v1/orgs/:slug/invites */
@@ -204,6 +321,10 @@ orgs.post("/:slug/invites", requireAuth, async (c) => {
 
   const org = await getOrgBySlug(c.env.DB, slug);
   if (!org) return notFound(c, "Org not found");
+
+  if (org.status !== "approved") {
+    return forbidden(c, "Cannot send invites for a pending org");
+  }
 
   const role = await getMembership(c.env.DB, org.id, userId);
   if (!role || (role !== "owner" && role !== "admin")) {
@@ -245,15 +366,16 @@ orgs.post("/:slug/accept", requireAuth, async (c) => {
   const org = await getOrgBySlug(c.env.DB, slug);
   if (!org) return notFound(c, "Org not found");
 
-  // Look up the accepting user's handle (for GitHub login match)
+  if (org.status !== "approved") {
+    return forbidden(c, "Cannot accept invites for a pending org");
+  }
+
   const user = await c.env.DB.prepare("SELECT id, handle FROM users WHERE id = ?")
     .bind(userId)
     .first<{ id: string; handle: string }>();
 
   if (!user) return notFound(c, "User not found");
 
-  // Find an un-accepted invite matching email OR github_login.
-  // We match github_login against the user's handle (their GitHub login).
   const invite = await c.env.DB.prepare(
     `SELECT id FROM org_invites
      WHERE org_id = ?
@@ -270,7 +392,6 @@ orgs.post("/:slug/accept", requireAuth, async (c) => {
 
   const now = Date.now();
 
-  // Mark invite accepted and add org membership (idempotent via INSERT OR IGNORE)
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE org_invites SET accepted_at = ? WHERE id = ?").bind(now, invite.id),
     c.env.DB.prepare(
@@ -290,14 +411,16 @@ orgs.get("/:slug/dashboard", requireAuth, async (c) => {
   const org = await getOrgBySlug(c.env.DB, slug);
   if (!org) return notFound(c, "Org not found");
 
+  if (org.status !== "approved") {
+    return forbidden(c, "Dashboard is unavailable until the org is approved");
+  }
+
   const role = await getMembership(c.env.DB, org.id, userId);
   if (!role) return forbidden(c, "You are not a member of this org");
 
-  // Compute the 30-day window
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - MONTH_MS).toISOString().slice(0, 10);
 
-  // Spend by user: sum daily_rollup for all org members (top 50)
   const byUserResult = await c.env.DB.prepare(
     `SELECT dr.user_id, u.handle, u.avatar_url,
             SUM(dr.tokens)         AS tokens,
@@ -319,7 +442,6 @@ orgs.get("/:slug/dashboard", requireAuth, async (c) => {
       cost_usd_cents: number;
     }>();
 
-  // Spend by model: aggregate across org members for last 30d
   const byModelResult = await c.env.DB.prepare(
     `SELECT s.model,
             SUM(s.in_tokens + s.out_tokens) AS tokens,
@@ -337,7 +459,6 @@ orgs.get("/:slug/dashboard", requireAuth, async (c) => {
       cost_usd_cents: number;
     }>();
 
-  // Spend by day: last 30d, all org members combined
   const byDayResult = await c.env.DB.prepare(
     `SELECT dr.day,
             SUM(dr.tokens)         AS tokens,

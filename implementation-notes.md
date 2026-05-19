@@ -75,7 +75,20 @@ Shipped. Key decisions:
 
 ### Feature #3 — Soft-create org waitlist + student tier
 
-_(filled in during/after implementation)_
+Shipped. Key decisions:
+
+- **Migration uses `PRAGMA defer_foreign_keys = TRUE`.** D1 enables FKs by default ([cf docs](https://developers.cloudflare.com/d1/reference/foreign-keys/)). The table-rebuild needs FKs from `rooms`, `org_members`, `org_invites` deferred until the rebuild + rename completes. D1 migration files run in a single transaction so the PRAGMA scope is correct.
+- **Existing orgs default to `status='approved'`** in the migration. The roadmap doesn't address back-fill explicitly, but gating pre-existing orgs behind a manual approval queue would brick anyone who was already using the platform. `requested_plan` is mirrored from `plan` so the new column is non-null where it makes sense.
+- **`plan` stays at `'free'` during pending; `requested_plan` carries intent.** When admin approves, we promote `requested_plan` → `plan`. This keeps the existing "what plan am I on right now" surface (`/o/[slug]/billing`, `org.plan` checks) honest — they show `free` while pending and only flip on approval.
+- **1-per-user cap.** Implemented by looking up *any* org where the user is the `owner` (in `org_members`), pending or approved. Matches the roadmap rule literally. The 409 response includes the existing slug as `details.existingSlug` so the UI can deep-link to it (the form currently surfaces a generic message — could be tightened later).
+- **`POST /v1/orgs` payload widened, no separate "submit" step.** The roadmap distinguishes "POST creates" from "form lets the founder edit". On submit we already write the name + email + plan. The `/pending` page edits via PATCH for users who need to fix their email after the fact.
+- **PATCH `/v1/orgs/:slug`** added — founder-only, pending-only, `founder_email` and `founder_name` only. Slug is fixed per the roadmap. The name was NOT added to the editable surface — the roadmap was explicit ("Only `founder_name` and `founder_email` are editable").
+- **`GET /v1/orgs/:slug` for pending orgs returns `members: []`.** The founder *is* in `org_members` (we insert at create time as `'owner'`), but exposing the members list before approval doesn't make sense — the org has only the founder. The pending page doesn't need it; the empty array keeps the contract uniform.
+- **Existing `getOrgMembership` helper bypassed in `/o/[slug]/page.tsx`.** The helper returns `null` on any non-200, which conflates "pending" with "not a member". The page now calls `getOrg` directly so it can branch on `status === "pending"` and redirect to `/o/[slug]/pending`. Helper kept untouched in case other callers rely on it.
+- **No reject path.** Per the roadmap. Rejected requests simply stay `pending` forever. The admin search returns them on every query unless we add a "hide" toggle — left for follow-up.
+- **Admin "approve" is one-click + confirm prompt.** Single confirm() dialog before the irreversible flip. The roadmap doesn't require richer affordance and this matches the rest of the admin panel.
+- **Stripe checkout-email on pro approval is deferred** to `roadmap-deferred.md` (entry added).
+- **New shared `conflict()` error helper** added to `lib/errors.ts`. The codebase didn't have a 409 helper — we use it for the 1-per-user cap. Other call sites left alone.
 
 ### Feature #4 — Email capture
 

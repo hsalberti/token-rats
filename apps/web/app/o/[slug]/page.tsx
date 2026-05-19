@@ -9,8 +9,8 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
-import { getCookieHeader } from "../../../lib/auth";
-import { getOrgMembership } from "../../../lib/org-auth";
+import { ApiError, getOrg } from "../../../lib/api";
+import { getCookieHeader, getSession } from "../../../lib/auth";
 
 export const runtime = "edge";
 
@@ -26,15 +26,29 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function OrgOverviewPage({ params }: Props) {
   const { slug } = await params;
   const cookieHeader = await getCookieHeader();
-  const membership = await getOrgMembership(slug, cookieHeader);
+  const user = await getSession();
+  if (!user) notFound();
 
-  if (!membership) {
-    // Could be unauthenticated OR not a member — treat both as 404 to avoid
-    // leaking org existence to outsiders.
-    notFound();
+  let orgRes;
+  try {
+    orgRes = await getOrg(slug, cookieHeader);
+  } catch (err) {
+    if (err instanceof ApiError) notFound();
+    throw err;
   }
 
-  const { org, members } = membership;
+  const { org, members } = orgRes;
+
+  // Pending orgs always redirect to the confirmation page for the founder.
+  // The API only returns a pending org to its founder, so reaching this
+  // branch as a non-founder is impossible.
+  if (org.status === "pending") {
+    redirect(`/o/${slug}/pending`);
+  }
+
+  const member = members.find((m) => m.userId === user.id);
+  if (!member) notFound();
+  const membership = { role: member.role };
 
   return (
     <div className="min-h-screen bg-zinc-950">

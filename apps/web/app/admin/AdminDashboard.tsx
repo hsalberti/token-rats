@@ -11,16 +11,19 @@ import type {
   AdminActivityResponse,
   AdminReferrersResponse,
   AdminSignupsResponse,
+  GetPendingOrgsResponse,
 } from "@token-rats/contracts";
 import { Card } from "../../components/ui/Card";
+import { PendingOrgsPanel } from "./PendingOrgsPanel";
 
 interface Props {
   signups: AdminSignupsResponse;
   activity: AdminActivityResponse;
   referrers: AdminReferrersResponse;
+  pendingOrgs: GetPendingOrgsResponse;
 }
 
-export function AdminDashboard({ signups, activity, referrers }: Props) {
+export function AdminDashboard({ signups, activity, referrers, pendingOrgs }: Props) {
   const generated = new Date(signups.generatedAt);
 
   return (
@@ -33,6 +36,7 @@ export function AdminDashboard({ signups, activity, referrers }: Props) {
         </p>
       </div>
 
+      <PendingOrgsPanel initial={pendingOrgs.orgs} />
       <SignupsSection data={signups} />
       <ActivitySection data={activity} />
       <ReferrersSection data={referrers} />

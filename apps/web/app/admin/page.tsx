@@ -2,11 +2,18 @@ import type {
   AdminActivityResponse,
   AdminReferrersResponse,
   AdminSignupsResponse,
+  GetPendingOrgsResponse,
 } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Avatar } from "../../components/ui/Avatar";
-import { ApiError, getAdminActivity, getAdminReferrers, getAdminSignups } from "../../lib/api";
+import {
+  ApiError,
+  getAdminActivity,
+  getAdminReferrers,
+  getAdminSignups,
+  getPendingOrgs,
+} from "../../lib/api";
 import { getCookieHeader, requireSession } from "../../lib/auth";
 import { AdminDashboard } from "./AdminDashboard";
 
@@ -26,11 +33,13 @@ export default async function AdminPage() {
   let signups: AdminSignupsResponse;
   let activity: AdminActivityResponse;
   let referrers: AdminReferrersResponse;
+  let pendingOrgs: GetPendingOrgsResponse;
   try {
-    [signups, activity, referrers] = await Promise.all([
+    [signups, activity, referrers, pendingOrgs] = await Promise.all([
       getAdminSignups(cookieHeader),
       getAdminActivity(cookieHeader),
       getAdminReferrers(cookieHeader),
+      getPendingOrgs("", cookieHeader),
     ]);
   } catch (err) {
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
@@ -59,7 +68,12 @@ export default async function AdminPage() {
       </header>
 
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <AdminDashboard signups={signups} activity={activity} referrers={referrers} />
+        <AdminDashboard
+          signups={signups}
+          activity={activity}
+          referrers={referrers}
+          pendingOrgs={pendingOrgs}
+        />
       </main>
     </div>
   );
