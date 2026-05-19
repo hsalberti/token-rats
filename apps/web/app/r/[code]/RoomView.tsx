@@ -79,11 +79,11 @@ function buildShareText(opts: {
   const top = rows.slice(0, 3);
 
   if (top.length === 0) {
-    return `🐀 ${roomName}\n\nJoin the rats:\n${joinUrl}`;
+    return `[TR🔶🐭] ${roomName}\n\nJoin the rats:\n${joinUrl}`;
   }
 
   const lines = [
-    `🐀 ${roomName} — ${SHARE_RANGE_LABELS[range]}`,
+    `[TR🔶🐭] ${roomName} — ${SHARE_RANGE_LABELS[range]}`,
     "",
     ...top.map((r, i) => `${MEDALS[i]} @${r.handle} ${fmtTokens(r.tokens)}`),
     "",
