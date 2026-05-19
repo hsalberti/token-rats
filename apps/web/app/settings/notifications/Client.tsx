@@ -97,7 +97,13 @@ export function NotificationsClient({ initialPrefs, email }: Props) {
       if (result.ok) {
         setPushStatus("enabled");
       } else {
-        setPushStatus(result.reason === "denied" ? "denied" : result.reason === "unsupported" ? "unsupported" : "error");
+        setPushStatus(
+          result.reason === "denied"
+            ? "denied"
+            : result.reason === "unsupported"
+              ? "unsupported"
+              : "error",
+        );
       }
     } catch {
       setPushStatus("error");
@@ -130,8 +136,7 @@ export function NotificationsClient({ initialPrefs, email }: Props) {
                 We&apos;ll only send one email a week, Mondays.
               </div>
               <div className="text-xs text-zinc-500 mt-1 truncate">
-                Sending to:{" "}
-                <span className="text-zinc-300">{email ?? "not yet captured"}</span>
+                Sending to: <span className="text-zinc-300">{email ?? "not yet captured"}</span>
               </div>
             </div>
             <Toggle
@@ -176,9 +181,7 @@ export function NotificationsClient({ initialPrefs, email }: Props) {
           </div>
         </div>
 
-        {saveStatus === "saved" && (
-          <p className="text-sm text-green-500 mt-2">Saved.</p>
-        )}
+        {saveStatus === "saved" && <p className="text-sm text-green-500 mt-2">Saved.</p>}
         {saveStatus === "error" && (
           <p className="text-sm text-red-500 mt-2">Failed to save. Please try again.</p>
         )}
@@ -234,9 +237,7 @@ export function NotificationsClient({ initialPrefs, email }: Props) {
           </p>
         )}
         {pushStatus === "unsupported" && (
-          <p className="text-sm text-zinc-400 mt-2">
-            Web Push is not supported in this browser.
-          </p>
+          <p className="text-sm text-zinc-400 mt-2">Web Push is not supported in this browser.</p>
         )}
         {testStatus === "error" && (
           <p className="text-sm text-red-400 mt-2">

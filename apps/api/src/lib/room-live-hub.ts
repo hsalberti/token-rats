@@ -21,10 +21,7 @@ export class RoomLiveHub {
   private readonly encoder = new TextEncoder();
 
   // Durable Objects require this constructor signature
-  constructor(
-    _state: DurableObjectState,
-    _env: unknown,
-  ) {}
+  constructor(_state: DurableObjectState, _env: unknown) {}
 
   async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);

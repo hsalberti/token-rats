@@ -22,3 +22,54 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  taskbar:
+    # Track AH (roadmap v1.2): cross-platform Tauri tray app. Unsigned builds
+    # warn but produce binaries — fail-soft until code-signing lands in v1.3.
+    needs: ci
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-14
+          - platform: windows-2022
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            apps/taskbar/src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('apps/taskbar/src-tauri/Cargo.toml') }}
+      - run: pnpm install --frozen-lockfile
+      - name: Typecheck taskbar
+        run: pnpm --filter @token-rats/taskbar typecheck
+      - name: Cargo check (Rust)
+        working-directory: apps/taskbar/src-tauri
+        run: cargo check
+      - name: Build taskbar (Tauri bundle, unsigned)
+        run: pnpm --filter @token-rats/taskbar tauri:build
+        env:
+          # No signing keys yet; bundler will emit unsigned artifacts.
+          TAURI_SIGNING_PRIVATE_KEY: ""
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: taskbar-${{ matrix.platform }}
+          path: |
+            apps/taskbar/src-tauri/target/release/bundle/**
+          if-no-files-found: warn

@@ -15,8 +15,10 @@ import type {
   GetActivityResponse,
   GetAutobiographyResponse,
   GetChallengesResponse,
-  GetHeatmapResponse,
+  GroupStreakResponse,
+  HeatmapResponse,
   GetLeaderboardResponse,
+  RoomSummaryResponse,
   GetMeResponse,
   GetMyRoomsResponse,
   GetProfileResponse,
@@ -45,6 +47,9 @@ import type {
   CreateOrgInviteResponse,
   AcceptOrgInviteResponse,
   GetOrgDashboardResponse,
+  // v1.2 Track AA — waitlists
+  CreateWaitlistRequest,
+  CreateWaitlistResponse,
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
@@ -163,14 +168,52 @@ export async function getAutobiography(
   });
 }
 
-/** Get the 364-day calendar heatmap for a user's public profile. */
+/**
+ * Get the calendar heatmap for a user's public profile.
+ * v1.2 Track Y — defaults to 60 days; pass `364` for the 52w toggle.
+ */
 export async function getHeatmap(
   handle: string,
+  days: 60 | 364 = 60,
   cookieHeader?: string,
-): Promise<GetHeatmapResponse> {
-  return request<GetHeatmapResponse>(ENDPOINTS.profileHeatmap(handle), {
-    cookieHeader,
-  });
+): Promise<HeatmapResponse> {
+  const url = `${ENDPOINTS.profileHeatmap(handle)}?days=${days}`;
+  return request<HeatmapResponse>(url, { cookieHeader });
+}
+
+/**
+ * Get the heatmap for a room (member-gated).
+ * v1.2 Track Y — defaults to 60 days; pass `364` for the 52w toggle.
+ */
+export async function getRoomHeatmap(
+  code: string,
+  days: 60 | 364 = 60,
+  cookieHeader?: string,
+): Promise<HeatmapResponse> {
+  const url = `/v1/heatmap?scope=room&id=${encodeURIComponent(code)}&days=${days}`;
+  return request<HeatmapResponse>(url, { cookieHeader });
+}
+
+/**
+ * v1.2 Track Y — room stat strip data (member-gated).
+ */
+export async function getRoomSummary(
+  code: string,
+  range: LeaderboardRange = "7d",
+  cookieHeader?: string,
+): Promise<RoomSummaryResponse> {
+  const url = `/v1/rooms/${code}/summary?range=${range}`;
+  return request<RoomSummaryResponse>(url, { cookieHeader });
+}
+
+/**
+ * v1.2 Track Y — group active / unanimous streak (member-gated).
+ */
+export async function getRoomGroupStreak(
+  code: string,
+  cookieHeader?: string,
+): Promise<GroupStreakResponse> {
+  return request<GroupStreakResponse>(`/v1/rooms/${code}/group-streak`, { cookieHeader });
 }
 
 /** Approve a pending CLI device code. */
@@ -375,6 +418,20 @@ export async function getOrgDashboard(
   return request<GetOrgDashboardResponse>(ENDPOINTS.orgDashboard(slug), { cookieHeader });
 }
 
+// v1.2 Track AA: waitlists
+
+/** Submit a row to a public waitlist topic. Idempotent on (topic, email). */
+export async function submitWaitlist(
+  body: CreateWaitlistRequest,
+  cookieHeader?: string,
+): Promise<CreateWaitlistResponse> {
+  return request<CreateWaitlistResponse>(ENDPOINTS.waitlists, {
+    method: "POST",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
 /**
  * Convenience object exported for import as `api.me()` etc.
  * Each method re-exports the standalone function above.
@@ -389,6 +446,9 @@ export const api = {
   getProfile,
   getAutobiography,
   getHeatmap,
+  getRoomHeatmap,
+  getRoomSummary,
+  getRoomGroupStreak,
   approveCli,
   getMyRooms,
   leaveRoom,

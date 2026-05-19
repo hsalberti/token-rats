@@ -23,6 +23,8 @@ import { StreakBadge } from "../../../components/room/StreakBadge";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
 import { ChallengesPanel } from "../../../components/room/ChallengesPanel";
 import { RenameRoomForm } from "../../../components/room/RenameRoomForm";
+import { RoomStatStrip } from "../../../components/room/RoomStatStrip";
+import { RoomHeatmap } from "../../../components/room/RoomHeatmap";
 
 interface Props {
   room: Room;
@@ -225,8 +227,6 @@ export function RoomView({
     setTimeout(() => setCopied(false), 2000);
   }
 
-  const totalTokens = leaderboard.rows.reduce((s, r) => s + r.tokens, 0);
-
   // Build streak lookup by userId for leaderboard augmentation
   const streakByUser = new Map(streaks.map((s) => [s.userId, s]));
 
@@ -305,16 +305,13 @@ export function RoomView({
           </div>
         </div>
 
-        {/* Stat strip */}
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <StatCard label="Members" value={`${leaderboard.rows.length}`} />
-          <StatCard label="Total tokens" value={fmtTokens(totalTokens)} />
-          <StatCard
-            label="Total spent"
-            value={fmtCost(leaderboard.rows.reduce((s, r) => s + r.costUsdCents, 0))}
-            className="col-span-2 sm:col-span-1"
-          />
-        </div>
+        {/* v1.2 Track Y — stat strip with group-streak pill, model/source mix,
+            and headline totals. Uses the leaderboard range as the single
+            source of truth. */}
+        <RoomStatStrip code={room.code} range={range} />
+
+        {/* v1.2 Track Y — room heatmap, 60d default with 52w toggle. */}
+        <RoomHeatmap code={room.code} />
 
         {/* Tab bar */}
         <div className="flex gap-1 rounded-xl border border-zinc-800 bg-zinc-900 p-1 w-fit">
@@ -388,23 +385,6 @@ export function RoomView({
           />
         )}
       </main>
-    </div>
-  );
-}
-
-function StatCard({
-  label,
-  value,
-  className = "",
-}: {
-  label: string;
-  value: string;
-  className?: string;
-}) {
-  return (
-    <div className={`rounded-xl border border-zinc-800 bg-zinc-900 p-4 ${className}`}>
-      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
-      <p className="mt-1 text-2xl font-black text-rat-400">{value}</p>
     </div>
   );
 }

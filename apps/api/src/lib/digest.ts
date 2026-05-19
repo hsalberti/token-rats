@@ -83,9 +83,7 @@ export async function signUnsubscribeToken(userId: string, signingKey: string): 
   return `${userId}.${issuedAt}.${b64urlEncode(sig)}`;
 }
 
-export type VerifyUnsubResult =
-  | { ok: true; userId: string }
-  | { ok: false; reason: string };
+export type VerifyUnsubResult = { ok: true; userId: string } | { ok: false; reason: string };
 
 /**
  * Verify an unsubscribe token. No expiry — once a user clicks "unsubscribe", the

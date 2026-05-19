@@ -41,11 +41,7 @@ export type SendWebPushResult =
   | { ok: true }
   | {
       ok: false;
-      reason:
-        | "encryption-not-implemented"
-        | "delivery-failed"
-        | "invalid-subscription"
-        | "error";
+      reason: "encryption-not-implemented" | "delivery-failed" | "invalid-subscription" | "error";
       status?: number;
     };
 
@@ -209,11 +205,9 @@ export async function encryptPayload(opts: EncryptOptions): Promise<EncryptedPay
   // Step 1 — ephemeral AS keypair.
   const asKeyPair =
     opts.asKeyPair ??
-    ((await crypto.subtle.generateKey(
-      { name: "ECDH", namedCurve: "P-256" },
-      true,
-      ["deriveBits"],
-    )) as CryptoKeyPair);
+    ((await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+      "deriveBits",
+    ])) as CryptoKeyPair);
 
   const asPublicRaw = new Uint8Array(
     (await crypto.subtle.exportKey("raw", asKeyPair.publicKey)) as ArrayBuffer,
@@ -258,9 +252,7 @@ export async function encryptPayload(opts: EncryptOptions): Promise<EncryptedPay
 
   // Step 7 — encrypt plaintext || 0x02 (single-record delimiter, RFC 8188 §2).
   const padded = concat(opts.plaintext, new Uint8Array([0x02]));
-  const aesKey = await crypto.subtle.importKey("raw", cek, { name: "AES-GCM" }, false, [
-    "encrypt",
-  ]);
+  const aesKey = await crypto.subtle.importKey("raw", cek, { name: "AES-GCM" }, false, ["encrypt"]);
   const ctBuf = await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, aesKey, padded);
   const ciphertext = new Uint8Array(ctBuf);
 

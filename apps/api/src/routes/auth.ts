@@ -21,7 +21,14 @@ import {
   SESSION_COOKIE,
   cookieDomainFor,
 } from "../lib/auth.js";
-import { validationError, authRequired, notFound, gone, internalError, rateLimited } from "../lib/errors.js";
+import {
+  validationError,
+  authRequired,
+  notFound,
+  gone,
+  internalError,
+  rateLimited,
+} from "../lib/errors.js";
 import { rateLimit } from "../lib/rate-limit.js";
 import { z } from "zod";
 
@@ -208,8 +215,7 @@ auth.get("/github/callback", async (c) => {
 
 auth.post("/cli/exchange", async (c) => {
   // Rate limit: 5 requests/min per IP — prevents flooding KV with device codes.
-  const ip =
-    c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
+  const ip = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
   const rl = await rateLimit(c.env.CACHE, `cli-exchange:${ip}`, 5);
   if (!rl.allowed) return rateLimited(c);
 

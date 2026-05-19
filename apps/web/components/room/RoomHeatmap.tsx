@@ -1,54 +1,78 @@
 /**
- * ProfileHeatmap — v1.2 Track Y refactor.
- *
- * Thin client-side wrapper around the reusable <Heatmap /> that adds a
- * `60d ⇄ 52w` toggle. The 60d response is pre-loaded by the server component
- * and passed in as `initialResponse`; toggling to 52w fetches lazily on the
- * client. We never re-fetch 60d (it's already loaded).
+ * RoomHeatmap — v1.2 Track Y. Thin client wrapper that fetches the room-scope
+ * heatmap from /v1/heatmap?scope=room&id=:code and supports the 60d ⇄ 52w
+ * toggle. Same UX as ProfileHeatmap but pulls a different endpoint.
  */
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { HeatmapResponse } from "@token-rats/contracts";
-import { api } from "../lib/api";
-import { Heatmap } from "./Heatmap";
+import { api } from "../../lib/api";
+import { Heatmap } from "../Heatmap";
 
-export interface ProfileHeatmapProps {
-  handle: string;
-  /** The server-loaded response for the default 60d range. */
-  initialResponse: HeatmapResponse;
+export interface RoomHeatmapProps {
+  code: string;
 }
 
-export function ProfileHeatmap({ handle, initialResponse }: ProfileHeatmapProps) {
-  const [response, setResponse] = useState<HeatmapResponse>(initialResponse);
-  const [loading, setLoading] = useState(false);
-  // Memoize the 364 response after the first toggle, so flipping back and
-  // forth doesn't re-fetch every time.
+export function RoomHeatmap({ code }: RoomHeatmapProps) {
+  const [response, setResponse] = useState<HeatmapResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [cache60, setCache60] = useState<HeatmapResponse | null>(null);
   const [cache364, setCache364] = useState<HeatmapResponse | null>(null);
-  const [cache60, setCache60] = useState<HeatmapResponse>(initialResponse);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    api
+      .getRoomHeatmap(code, 60)
+      .then((data) => {
+        if (cancelled) return;
+        setResponse(data);
+        setCache60(data);
+      })
+      .catch(() => {
+        if (!cancelled) setError(true);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
 
   async function switchRange(days: 60 | 364) {
+    if (!response) return;
     if (days === response.rangeDays) return;
-    if (days === 60) {
+    if (days === 60 && cache60) {
       setResponse(cache60);
       return;
     }
-    if (cache364) {
+    if (days === 364 && cache364) {
       setResponse(cache364);
       return;
     }
     setLoading(true);
     try {
-      const data = await api.getHeatmap(handle, 364);
-      setCache364(data);
+      const data = await api.getRoomHeatmap(code, days);
+      if (days === 60) setCache60(data);
+      else setCache364(data);
       setResponse(data);
     } catch {
-      // keep current view on error
+      // keep current view
     } finally {
       setLoading(false);
     }
-    // also refresh the 60 cache in case it's stale
-    setCache60(initialResponse);
+  }
+
+  if (error) return null;
+  if (!response) {
+    return (
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
+        <p className="text-sm text-zinc-500">Loading activity…</p>
+      </div>
+    );
   }
 
   return (

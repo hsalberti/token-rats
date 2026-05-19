@@ -162,7 +162,10 @@ notifications.post("/unsubscribe", async (c) => {
 
   const result = await verifyUnsubscribeToken(token, c.env.SESSION_SIGNING_KEY);
   if (!result.ok) {
-    return c.html(unsubscribePage("That unsubscribe link is invalid or has been tampered with.", false), 400);
+    return c.html(
+      unsubscribePage("That unsubscribe link is invalid or has been tampered with.", false),
+      400,
+    );
   }
 
   const now = Date.now();
@@ -176,10 +179,7 @@ notifications.post("/unsubscribe", async (c) => {
     .bind(result.userId, now)
     .run();
 
-  return c.html(
-    unsubscribePage("You won't get the weekly Token Rats digest anymore.", true),
-    200,
-  );
+  return c.html(unsubscribePage("You won't get the weekly Token Rats digest anymore.", true), 200);
 });
 
 export default notifications;

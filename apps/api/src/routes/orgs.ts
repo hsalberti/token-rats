@@ -189,10 +189,10 @@ orgs.post("/", requireAuth, async (c) => {
   // and just compute their existing position.
   await c.env.DB.prepare(
     `INSERT INTO waitlists (id, topic, email, github_login, payload_json, created_at)
-     VALUES (?, 'orgs', ?, ?, ?, ?)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(topic, email) DO NOTHING`,
   )
-    .bind(crypto.randomUUID(), caller.email, caller.handle, payload, now)
+    .bind(crypto.randomUUID(), "orgs", caller.email, caller.handle, payload, now)
     .run();
 
   const positionRow = await c.env.DB.prepare(

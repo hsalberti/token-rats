@@ -5,7 +5,7 @@ import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
 import { SourceTiles } from "../../../components/SourcePill";
 import { ProfileHeatmap } from "../../../components/ProfileHeatmap";
-import type { Heatmap } from "@token-rats/contracts";
+import type { HeatmapResponse } from "@token-rats/contracts";
 
 export const runtime = "edge";
 
@@ -64,7 +64,7 @@ export default async function ProfilePage({ params }: Props) {
   } | null = null;
 
   let isPrivate = false;
-  let heatmap: Heatmap | null = null;
+  let heatmap: HeatmapResponse | null = null;
 
   try {
     const data = await api.getProfile(handle, cookieHeader);
@@ -78,10 +78,10 @@ export default async function ProfilePage({ params }: Props) {
   }
 
   // Heatmap is best-effort: a render error here shouldn't break the profile.
+  // v1.2 Track Y — default to 60d; the client toggles to 52w lazily.
   if (!isPrivate) {
     try {
-      const data = await api.getHeatmap(handle, cookieHeader);
-      heatmap = data.heatmap;
+      heatmap = await api.getHeatmap(handle, 60, cookieHeader);
     } catch {
       heatmap = null;
     }
@@ -200,7 +200,9 @@ export default async function ProfilePage({ params }: Props) {
         {/* GitHub-style activity heatmap — last 364 days of daily_rollup.
             Best-effort; if the API call errored, `heatmap` is null and we
             skip the block silently. */}
-        {heatmap && heatmap.days.length > 0 && <ProfileHeatmap heatmap={heatmap} />}
+        {heatmap && heatmap.cells.some((c) => c.tokens > 0) && (
+          <ProfileHeatmap handle={profile.handle} initialResponse={heatmap} />
+        )}
 
         {/* Badges / tagline */}
         <Card>

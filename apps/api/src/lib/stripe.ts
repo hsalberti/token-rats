@@ -30,9 +30,7 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes;
 }
 
-export type VerifyStripeResult =
-  | { ok: true; timestamp: number }
-  | { ok: false; reason: string };
+export type VerifyStripeResult = { ok: true; timestamp: number } | { ok: false; reason: string };
 
 /**
  * Verify a Stripe webhook signature.
