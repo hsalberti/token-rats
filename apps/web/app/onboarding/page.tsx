@@ -12,11 +12,12 @@
  * This will make /onboarding discoverable from the CLI.
  */
 
+import type { AutobiographyStats } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { requireSession, getCookieHeader } from "../../lib/auth";
-import { api, ApiError } from "../../lib/api";
 import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
+import { ApiError, api } from "../../lib/api";
+import { getCookieHeader, requireSession } from "../../lib/auth";
 
 export const runtime = "edge";
 
@@ -31,7 +32,7 @@ export default async function OnboardingPage() {
   const cookieHeader = await getCookieHeader();
 
   // Fetch autobiography stats
-  let stats;
+  let stats: AutobiographyStats | undefined;
   try {
     const resp = await api.getAutobiography(user.handle, cookieHeader);
     stats = resp.autobiography;
@@ -40,7 +41,7 @@ export default async function OnboardingPage() {
       redirect("/signin");
     }
     // Any other error — surface below
-    stats = null;
+    stats = undefined;
   }
 
   // No sessions yet — show a friendly nudge
@@ -133,8 +134,11 @@ function NoSessionsView({ handle }: { handle: string }) {
             @{handle}, you haven&apos;t synced yet.
           </h1>
           <p className="text-zinc-400">
-            Run <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-rat-400 font-mono text-sm">npx token-rats sync</code> to
-            upload your Claude Code + Cursor usage, then come back here.
+            Run{" "}
+            <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-rat-400 font-mono text-sm">
+              npx token-rats sync
+            </code>{" "}
+            to upload your Claude Code + Cursor usage, then come back here.
           </p>
         </div>
 

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
+import { ApiError, api } from "../../../lib/api";
 import { getCookieHeader, getSession } from "../../../lib/auth";
-import { api, ApiError } from "../../../lib/api";
 import { RoomView } from "./RoomView";
 
 export const runtime = "edge";

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { api, ApiError } from "../../../lib/api";
+import { useEffect, useState } from "react";
+import { ApiError, api } from "../../../lib/api";
 
 interface Props {
   code: string;
@@ -13,6 +13,7 @@ export function JoinClient({ code, cookieHeader }: Props) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only effect.
   useEffect(() => {
     let cancelled = false;
     api
@@ -28,7 +29,6 @@ export function JoinClient({ code, cookieHeader }: Props) {
     return () => {
       cancelled = true;
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (error) {

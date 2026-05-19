@@ -13,10 +13,10 @@
  *   - "Send test push" button — calls sendTestPush()
  */
 
-import { useState } from "react";
-import type { NotificationPrefs } from "@token-rats/contracts";
 import { upsertNotificationPrefs } from "@/lib/api";
-import { subscribeToPush, sendTestPush } from "@/lib/push";
+import { sendTestPush, subscribeToPush } from "@/lib/push";
+import type { NotificationPrefs } from "@token-rats/contracts";
+import { useState } from "react";
 
 interface Props {
   initialPrefs: NotificationPrefs;
@@ -96,7 +96,13 @@ export function NotificationsClient({ initialPrefs }: Props) {
       if (result.ok) {
         setPushStatus("enabled");
       } else {
-        setPushStatus(result.reason === "denied" ? "denied" : result.reason === "unsupported" ? "unsupported" : "error");
+        setPushStatus(
+          result.reason === "denied"
+            ? "denied"
+            : result.reason === "unsupported"
+              ? "unsupported"
+              : "error",
+        );
       }
     } catch {
       setPushStatus("error");
@@ -168,9 +174,7 @@ export function NotificationsClient({ initialPrefs }: Props) {
           </div>
         </div>
 
-        {saveStatus === "saved" && (
-          <p className="text-sm text-green-500 mt-2">Saved.</p>
-        )}
+        {saveStatus === "saved" && <p className="text-sm text-green-500 mt-2">Saved.</p>}
         {saveStatus === "error" && (
           <p className="text-sm text-red-500 mt-2">Failed to save. Please try again.</p>
         )}
@@ -226,9 +230,7 @@ export function NotificationsClient({ initialPrefs }: Props) {
           </p>
         )}
         {pushStatus === "unsupported" && (
-          <p className="text-sm text-zinc-400 mt-2">
-            Web Push is not supported in this browser.
-          </p>
+          <p className="text-sm text-zinc-400 mt-2">Web Push is not supported in this browser.</p>
         )}
         {testStatus === "error" && (
           <p className="text-sm text-red-400 mt-2">

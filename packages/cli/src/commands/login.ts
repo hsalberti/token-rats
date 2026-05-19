@@ -31,11 +31,7 @@ async function openBrowser(url: string): Promise<void> {
     const { promisify } = await import("node:util");
     const exec = promisify(execFile);
     const cmd =
-      process.platform === "darwin"
-        ? "open"
-        : process.platform === "win32"
-          ? "cmd"
-          : "xdg-open";
+      process.platform === "darwin" ? "open" : process.platform === "win32" ? "cmd" : "xdg-open";
     const args = process.platform === "win32" ? ["/c", "start", url] : [url];
     await exec(cmd, args).catch(() => null);
   } catch {
@@ -77,7 +73,7 @@ export async function loginCommand(opts: { apiUrl?: string }): Promise<void> {
   const code = codeMatch?.[1] ?? "";
 
   console.log("");
-  console.log(`  Open this URL to sign in:`);
+  console.log("  Open this URL to sign in:");
   console.log(`  \x1b[1m\x1b[36m${verificationUrl}\x1b[0m`);
   if (code) {
     console.log(`  Code: \x1b[1m${code}\x1b[0m`);

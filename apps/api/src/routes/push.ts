@@ -7,10 +7,10 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
-import type { AuthVariables } from "../middleware/auth.js";
-import { requireAuth } from "../middleware/auth.js";
 import { validationError } from "../lib/errors.js";
 import { sendWebPush } from "../lib/webpush.js";
+import type { AuthVariables } from "../middleware/auth.js";
+import { requireAuth } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -65,9 +65,7 @@ push.post("/subscriptions", requireAuth, async (c) => {
 push.delete("/subscriptions", requireAuth, async (c) => {
   const userId = c.var.userId;
 
-  const result = await c.env.DB.prepare(
-    "DELETE FROM push_subscriptions WHERE user_id = ?",
-  )
+  const result = await c.env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ?")
     .bind(userId)
     .run();
 

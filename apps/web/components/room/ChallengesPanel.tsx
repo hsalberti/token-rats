@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
 import type { ChallengeKind, ChallengeWithLeaderboard } from "@token-rats/contracts";
-import { Button } from "../ui/Button";
+import { useState } from "react";
 import { Avatar } from "../ui/Avatar";
+import { Button } from "../ui/Button";
 
 interface ChallengesPanelProps {
   active: ChallengeWithLeaderboard[];
@@ -69,7 +69,10 @@ function ChallengeCard({ challenge }: { challenge: ChallengeWithLeaderboard }) {
       {isPast && challenge.winnerHandle && (
         <div className="rounded-lg bg-zinc-800/60 px-3 py-2 text-sm">
           <span className="text-zinc-400">Winner: </span>
-          <a href={`/u/${challenge.winnerHandle}`} className="font-bold text-rat-400 hover:underline">
+          <a
+            href={`/u/${challenge.winnerHandle}`}
+            className="font-bold text-rat-400 hover:underline"
+          >
             @{challenge.winnerHandle}
           </a>
           {challenge.rows[0] && (
@@ -86,7 +89,10 @@ function ChallengeCard({ challenge }: { challenge: ChallengeWithLeaderboard }) {
             <div key={row.userId} className="flex items-center gap-2 text-sm">
               <span className="w-4 text-center text-xs font-bold text-zinc-600">{row.rank}</span>
               <Avatar src={row.avatarUrl} handle={row.handle} size="xs" />
-              <a href={`/u/${row.handle}`} className="flex-1 truncate font-medium hover:text-rat-400">
+              <a
+                href={`/u/${row.handle}`}
+                className="flex-1 truncate font-medium hover:text-rat-400"
+              >
                 @{row.handle}
               </a>
               <span className="font-mono text-xs text-zinc-400">
@@ -130,7 +136,11 @@ export function ChallengesPanel({
     return (
       <div className="space-y-3">
         {[...Array(2)].map((_, i) => (
-          <div key={i} className="h-32 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />
+          <div
+            // biome-ignore lint/suspicious/noArrayIndexKey: fixed-length skeleton list.
+            key={i}
+            className="h-32 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900"
+          />
         ))}
       </div>
     );
@@ -172,7 +182,10 @@ export function ChallengesPanel({
             </div>
 
             <div>
-              <label htmlFor="duration" className="mb-1.5 block text-sm font-semibold text-zinc-400">
+              <label
+                htmlFor="duration"
+                className="mb-1.5 block text-sm font-semibold text-zinc-400"
+              >
                 Duration
               </label>
               <select
@@ -220,9 +233,7 @@ export function ChallengesPanel({
         <div className="rounded-xl border border-dashed border-zinc-700 px-8 py-12 text-center">
           <p className="text-3xl">🏆</p>
           <p className="mt-3 font-bold text-zinc-300">No challenges yet</p>
-          <p className="mt-1 text-sm text-zinc-500">
-            Start a challenge to compete with your room.
-          </p>
+          <p className="mt-1 text-sm text-zinc-500">Start a challenge to compete with your room.</p>
         </div>
       )}
     </div>

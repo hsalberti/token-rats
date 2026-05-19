@@ -15,9 +15,9 @@
  */
 import { Hono } from "hono";
 import type { Env } from "../env.js";
+import { forbidden, notFound } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { notFound, forbidden } from "../lib/errors.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -162,10 +162,7 @@ streaks.get("/:code/streaks", requireAuth, async (c) => {
   });
 
   // Sort by currentStreak DESC, then longestStreak DESC
-  streakRows.sort(
-    (a, b) =>
-      b.currentStreak - a.currentStreak || b.longestStreak - a.longestStreak,
-  );
+  streakRows.sort((a, b) => b.currentStreak - a.currentStreak || b.longestStreak - a.longestStreak);
 
   return c.json({ streaks: streakRows });
 });

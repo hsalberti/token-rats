@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import { getSession, getCookieHeader } from "../../../lib/auth";
-import { JoinClient } from "./JoinClient";
 import { AUTH_GITHUB_START } from "../../../lib/api";
+import { getCookieHeader, getSession } from "../../../lib/auth";
+import { JoinClient } from "./JoinClient";
 
 export const runtime = "edge";
 
@@ -42,8 +42,8 @@ export default async function JoinPage({ params }: Props) {
                 {code}
               </p>
               <p className="mb-6 text-sm text-zinc-400">
-                Sign in with GitHub to join this room and start tracking your
-                token burn with your crew.
+                Sign in with GitHub to join this room and start tracking your token burn with your
+                crew.
               </p>
               <a
                 href={signInUrl}

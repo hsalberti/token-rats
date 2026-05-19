@@ -5,8 +5,8 @@
  * Handles the invite form with live feedback.
  */
 
-import { useState } from "react";
 import type { OrgMember } from "@token-rats/contracts";
+import { useState } from "react";
 import { Avatar } from "../../../../components/ui/Avatar";
 import { Button } from "../../../../components/ui/Button";
 import { Card } from "../../../../components/ui/Card";

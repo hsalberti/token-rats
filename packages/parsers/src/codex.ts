@@ -92,18 +92,18 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
     if (typeof event !== "object" || event === null) continue;
     const ev = event as Record<string, unknown>;
 
-    const ts = parseTimestamp(ev["timestamp"]);
-    const type = typeof ev["type"] === "string" ? ev["type"] : null;
+    const ts = parseTimestamp(ev.timestamp);
+    const type = typeof ev.type === "string" ? ev.type : null;
     const payload =
-      typeof ev["payload"] === "object" && ev["payload"] !== null
-        ? (ev["payload"] as Record<string, unknown>)
+      typeof ev.payload === "object" && ev.payload !== null
+        ? (ev.payload as Record<string, unknown>)
         : null;
 
     if (type === "session_meta" && payload) {
-      const id = typeof payload["id"] === "string" ? payload["id"] : null;
+      const id = typeof payload.id === "string" ? payload.id : null;
       if (!id) continue;
       currentSessionId = id;
-      const metaTs = parseTimestamp(payload["timestamp"]) || ts;
+      const metaTs = parseTimestamp(payload.timestamp) || ts;
       const acc = upsert(sessions, id);
       if (metaTs > 0 && (acc.startedAt === 0 || metaTs < acc.startedAt)) {
         acc.startedAt = metaTs;
@@ -120,21 +120,21 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
       if (ts > acc.endedAt) acc.endedAt = ts;
     }
 
-    if (type === "turn_context" && payload && typeof payload["model"] === "string") {
-      acc.model = payload["model"];
+    if (type === "turn_context" && payload && typeof payload.model === "string") {
+      acc.model = payload.model;
       continue;
     }
 
-    if (type === "event_msg" && payload && payload["type"] === "token_count") {
-      const info = payload["info"];
+    if (type === "event_msg" && payload && payload.type === "token_count") {
+      const info = payload.info;
       if (typeof info !== "object" || info === null) continue;
-      const total = (info as Record<string, unknown>)["total_token_usage"];
+      const total = (info as Record<string, unknown>).total_token_usage;
       if (typeof total !== "object" || total === null) continue;
       const t = total as Record<string, unknown>;
-      const inputTotal = toNonNegInt(t["input_tokens"]);
-      const cachedInput = toNonNegInt(t["cached_input_tokens"]);
-      const output = toNonNegInt(t["output_tokens"]);
-      const reasoning = toNonNegInt(t["reasoning_output_tokens"]);
+      const inputTotal = toNonNegInt(t.input_tokens);
+      const cachedInput = toNonNegInt(t.cached_input_tokens);
+      const output = toNonNegInt(t.output_tokens);
+      const reasoning = toNonNegInt(t.reasoning_output_tokens);
       // `total_token_usage` is cumulative — replace, don't add.
       acc.inTokens = Math.max(0, inputTotal - cachedInput);
       acc.outTokens = output + reasoning;
@@ -149,13 +149,7 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
 
     const model = acc.model.length > 0 ? acc.model : "unknown";
     const { costUsdCents } = priceOf(model, acc.inTokens, acc.outTokens);
-    const dedupeKey = computeDedupeKey(
-      "codex",
-      model,
-      startedAt,
-      acc.inTokens,
-      acc.outTokens,
-    );
+    const dedupeKey = computeDedupeKey("codex", model, startedAt, acc.inTokens, acc.outTokens);
 
     results.push({
       id: `codex:${acc.sessionId}`,
@@ -189,7 +183,7 @@ function upsert(map: Map<string, SessionAcc>, sessionId: string): SessionAcc {
 }
 
 function parseTimestamp(v: unknown): number {
-  if (typeof v === "number" && isFinite(v)) return v;
+  if (typeof v === "number" && Number.isFinite(v)) return v;
   if (typeof v === "string") {
     const parsed = Date.parse(v);
     if (!Number.isNaN(parsed)) return parsed;
@@ -198,6 +192,6 @@ function parseTimestamp(v: unknown): number {
 }
 
 function toNonNegInt(v: unknown): number {
-  if (typeof v !== "number" || !isFinite(v)) return 0;
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
   return Math.max(0, Math.floor(v));
 }
