@@ -13,6 +13,7 @@ import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
 import { notFound, validationError } from "../lib/errors.js";
 import { buildHeatmapResponse } from "./heatmap.js";
+import { getPrimarySourceForUser } from "../lib/primary-source.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -22,7 +23,8 @@ profiles.get("/:handle", optionalAuth, async (c) => {
   const handle = c.req.param("handle");
 
   const user = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle FROM users WHERE handle = ?",
+    `SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_verified_at
+       FROM users WHERE handle = ?`,
   )
     .bind(handle)
     .first<{
@@ -32,6 +34,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       public_profile: number;
       bio: string | null;
       twitter_handle: string | null;
+      twitter_verified_at: number | null;
     }>();
 
   if (!user) {
@@ -116,13 +119,26 @@ profiles.get("/:handle", optionalAuth, async (c) => {
     sessions: r.sessions,
   }));
 
+  // v1.2 Track AF — primary-source pill. Reads sessions over the last 30d
+  // grouped by (source, source_plan); KV-cached for 5 minutes.
+  const primarySource = await getPrimarySourceForUser(c.env.DB, c.env.CACHE, user.id).catch(
+    () => null,
+  );
+
   return c.json({
     profile: {
       id: user.id,
       handle: user.handle,
       avatarUrl: user.avatar_url,
-      ...(isPublic || isOwner ? { bio: user.bio, twitterHandle: user.twitter_handle } : {}),
+      ...(isPublic || isOwner
+        ? {
+            bio: user.bio,
+            twitterHandle: user.twitter_handle,
+            twitterVerified: user.twitter_verified_at !== null,
+          }
+        : {}),
       ...(isOwner ? { publicProfile: user.public_profile === 1 } : {}),
+      primarySource,
       totals: {
         today: {
           tokens: totals.today_tokens,

@@ -7,6 +7,7 @@
  */
 
 import { Avatar } from "@/components/ui/Avatar";
+import { TwitterHandlePill } from "@/components/TwitterHandlePill";
 import { getTrending } from "@/lib/api";
 import { useState, useTransition } from "react";
 
@@ -20,6 +21,7 @@ interface TrendingRow {
   tokens: number;
   costUsdCents: number;
   sessions: number;
+  twitterHandle?: string | null;
 }
 
 interface Props {
@@ -147,9 +149,10 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
                 {/* Avatar */}
                 <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
 
-                {/* Handle */}
-                <span className="flex-1 font-semibold text-zinc-100 truncate min-w-0">
-                  @{row.handle}
+                {/* Handle + verified Twitter pill */}
+                <span className="flex-1 min-w-0 flex items-center gap-2">
+                  <span className="font-semibold text-zinc-100 truncate">@{row.handle}</span>
+                  <TwitterHandlePill handle={row.twitterHandle} />
                 </span>
 
                 {/* Stats */}

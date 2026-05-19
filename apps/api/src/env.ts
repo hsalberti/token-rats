@@ -31,4 +31,13 @@ export type Env = {
    * and CI keep working without a secret.
    */
   EMAIL_PROVIDER_API_KEY?: string;
+  /**
+   * v1.2 Track AC — Twitter/X OAuth 2.0 client credentials.
+   * Both are optional: when unset, `/v1/auth/twitter/start` returns a 503
+   * "Twitter integration not configured" so local dev / CI keep working.
+   * Set via `wrangler secret put X_OAUTH_CLIENT_ID` /
+   * `wrangler secret put X_OAUTH_CLIENT_SECRET` for prod.
+   */
+  X_OAUTH_CLIENT_ID?: string;
+  X_OAUTH_CLIENT_SECRET?: string;
 };

@@ -8,48 +8,52 @@
  */
 
 import type {
+  AcceptOrgInviteResponse,
   CreateChallengeRequest,
   CreateChallengeResponse,
+  CreateOrgInviteRequest,
+  CreateOrgInviteResponse,
+  // Phase 3 Track O — Org plan
+  CreateOrgRequest,
+  CreateOrgResponse,
   CreateRoomRequest,
   CreateRoomResponse,
+  // v1.2 Track AA — waitlists
+  CreateWaitlistRequest,
+  CreateWaitlistResponse,
+  // v1.2 Track AD — friends derived from shared private rooms
+  FriendsResponse,
   GetActivityResponse,
   GetAutobiographyResponse,
   GetChallengesResponse,
-  GroupStreakResponse,
-  HeatmapResponse,
   GetLeaderboardResponse,
-  RoomSummaryResponse,
   GetMeResponse,
   GetMyRoomsResponse,
+  GetOrgDashboardResponse,
+  GetOrgResponse,
   GetProfileResponse,
   GetRoomResponse,
   GetStreaksResponse,
   GetTrendingResponse,
+  GroupStreakResponse,
+  HeatmapResponse,
   JoinRoomResponse,
   LeaderboardRange,
   LeaveRoomResponse,
+  // v1.2 Track AE — public country-locked groups
+  ListPublicGroupsResponse,
   NotificationPrefsResponse,
   PatchMeRequest,
   PatchMeResponse,
-  ReportAbuseRequest,
-  ReportAbuseResponse,
   RenameRoomRequest,
   RenameRoomResponse,
+  ReportAbuseRequest,
+  ReportAbuseResponse,
   RoomCode,
+  RoomSummaryResponse,
   UploadSessionsRequest,
   UploadSessionsResponse,
   UpsertNotificationPrefsRequest,
-  // Phase 3 Track O — Org plan
-  CreateOrgRequest,
-  CreateOrgResponse,
-  GetOrgResponse,
-  CreateOrgInviteRequest,
-  CreateOrgInviteResponse,
-  AcceptOrgInviteResponse,
-  GetOrgDashboardResponse,
-  // v1.2 Track AA — waitlists
-  CreateWaitlistRequest,
-  CreateWaitlistResponse,
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
@@ -415,6 +419,29 @@ export async function getOrgDashboard(
   return request<GetOrgDashboardResponse>(ENDPOINTS.orgDashboard(slug), { cookieHeader });
 }
 
+// v1.2 Track AD: friends derived from shared private rooms
+
+/** Get the signed-in user's friends — everyone they share a private room with. */
+export async function getMeFriends(
+  range: LeaderboardRange = "7d",
+  cookieHeader?: string,
+): Promise<FriendsResponse> {
+  const url = `${ENDPOINTS.meFriends}?range=${range}`;
+  return request<FriendsResponse>(url, { cookieHeader });
+}
+
+// v1.2 Track AE: public country-locked groups
+
+/**
+ * List public rooms in the viewer's Cloudflare-resolved country.
+ * Anonymous-safe: the Worker reads `cf-ipcountry` on the incoming edge
+ * request. When called from a Next.js server component the same edge will
+ * proxy the call, so the viewer's country still resolves correctly.
+ */
+export async function getGroups(cookieHeader?: string): Promise<ListPublicGroupsResponse> {
+  return request<ListPublicGroupsResponse>(ENDPOINTS.groups, { cookieHeader });
+}
+
 // v1.2 Track AA: waitlists
 
 /** Submit a row to a public waitlist topic. Idempotent on (topic, email). */
@@ -470,6 +497,10 @@ export const api = {
   getOrgDashboard,
   // v1.2 Track AA
   submitWaitlist,
+  // v1.2 Track AD
+  getMeFriends,
+  // v1.2 Track AE
+  getGroups,
   // Phase 3 Track M
   getProxyAnthropicKeyStatus,
   setProxyAnthropicKey,

@@ -9,6 +9,16 @@ import { api, ApiError } from "../../../../../lib/api";
 
 export const runtime = "edge";
 
+/** v1.2 Track AC — surface the verified X handle alongside the autobiography. */
+async function fetchVerifiedTwitterHandle(handle: string): Promise<string | null> {
+  try {
+    const resp = await api.getProfile(handle);
+    return resp.profile.twitterVerified ? (resp.profile.twitterHandle ?? null) : null;
+  } catch {
+    return null;
+  }
+}
+
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export async function GET(
@@ -43,6 +53,9 @@ export async function GET(
     }
     return new Response("Card unavailable", { status: 500 });
   }
+
+  // v1.2 Track AC — best-effort fetch for the verified X handle.
+  const verifiedTwitterHandle = await fetchVerifiedTwitterHandle(handle);
 
   function fmtTokens(n: number) {
     if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
@@ -83,79 +96,79 @@ export async function GET(
   const monthTokens = data?.monthTokens ?? 0;
 
   const image = new ImageResponse(
-    (
+    <div
+      style={{
+        width: 1200,
+        height: 630,
+        background: "#09090b",
+        display: "flex",
+        flexDirection: "column",
+        padding: "48px 60px",
+        fontFamily: "system-ui, sans-serif",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Background glow */}
       <div
         style={{
-          width: 1200,
-          height: 630,
-          background: "#09090b",
+          position: "absolute",
+          bottom: -120,
+          left: -60,
+          width: 500,
+          height: 500,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 60%)",
+        }}
+      />
+
+      {/* Header row */}
+      <div
+        style={{
           display: "flex",
-          flexDirection: "column",
-          padding: "48px 60px",
-          fontFamily: "system-ui, sans-serif",
-          position: "relative",
-          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 32,
         }}
       >
-        {/* Background glow */}
         <div
           style={{
-            position: "absolute",
-            bottom: -120,
-            left: -60,
-            width: 500,
-            height: 500,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 60%)",
+            fontSize: 20,
+            fontWeight: 900,
+            color: "#f97316",
+            letterSpacing: "-0.02em",
           }}
-        />
-
-        {/* Header row */}
+        >
+          Token Rats
+        </div>
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 32,
+            gap: 8,
+            background: "rgba(249,115,22,0.1)",
+            border: "1px solid rgba(249,115,22,0.3)",
+            borderRadius: 999,
+            padding: "4px 14px",
           }}
         >
+          <div style={{ fontSize: 14 }}>🐀</div>
           <div
             style={{
-              fontSize: 20,
-              fontWeight: 900,
+              fontSize: 12,
+              fontWeight: 700,
               color: "#f97316",
-              letterSpacing: "-0.02em",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
             }}
           >
-            Token Rats
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "rgba(249,115,22,0.1)",
-              border: "1px solid rgba(249,115,22,0.3)",
-              borderRadius: 999,
-              padding: "4px 14px",
-            }}
-          >
-            <div style={{ fontSize: 14 }}>🐀</div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#f97316",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Token Autobiography
-            </div>
+            Token Autobiography
           </div>
         </div>
+      </div>
 
-        {/* Handle */}
+      {/* Handle + verified Twitter pill (v1.2 Track AC) */}
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 32 }}>
         <div
           style={{
             fontSize: 60,
@@ -163,82 +176,92 @@ export async function GET(
             color: "#f4f4f5",
             letterSpacing: "-0.04em",
             lineHeight: 1,
-            marginBottom: 32,
           }}
         >
           {`@${data?.handle ?? handle}`}
         </div>
-
-        {/* Stats grid: 3 columns × 2 rows */}
-        <div style={{ display: "flex", gap: 14, flex: 1 }}>
-          {/* Column 1 */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-            {/* All-time tokens */}
-            <StatBlock
-              label="All-time tokens"
-              value={fmtTokens(totalTokens)}
-              sub={fmtCost(totalCost)}
-              accent
-            />
-            {/* Biggest session */}
-            <StatBlock
-              label="Best single session"
-              value={fmtTokens(biggestSession)}
-              sub="tokens in one go"
-            />
+        {verifiedTwitterHandle && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              background: "#27272a",
+              border: "1.5px solid #3f3f46",
+              borderRadius: 9,
+              padding: "6px 12px",
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#e4e4e7",
+            }}
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+            </svg>
+            <span>{`@${verifiedTwitterHandle}`}</span>
           </div>
+        )}
+      </div>
 
-          {/* Column 2 */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-            {/* This month */}
-            <StatBlock
-              label="This month"
-              value={fmtTokens(monthTokens)}
-              sub={fmtCost(monthCost)}
-            />
-            {/* Dominant model */}
-            <StatBlock
-              label="Favourite model"
-              value={dominantModel}
-              sub="by token volume"
-            />
-          </div>
-
-          {/* Column 3 */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-            {/* Coffee equivalence */}
-            <StatBlock
-              label="Coffees this month"
-              value={coffees < 1 ? `<1` : `${Math.floor(coffees)}`}
-              sub={`at $5/cup · ${fmtCost(monthCost)}`}
-            />
-            {/* Most active day */}
-            <StatBlock
-              label="Most active day"
-              value={mostActiveDay}
-              sub={`${sessionsPerDay.toFixed(1)} sessions/day avg`}
-            />
-          </div>
+      {/* Stats grid: 3 columns × 2 rows */}
+      <div style={{ display: "flex", gap: 14, flex: 1 }}>
+        {/* Column 1 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+          {/* All-time tokens */}
+          <StatBlock
+            label="All-time tokens"
+            value={fmtTokens(totalTokens)}
+            sub={fmtCost(totalCost)}
+            accent
+          />
+          {/* Biggest session */}
+          <StatBlock
+            label="Best single session"
+            value={fmtTokens(biggestSession)}
+            sub="tokens in one go"
+          />
         </div>
 
-        {/* Footer */}
-        <div
-          style={{
-            marginTop: 24,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div style={{ fontSize: 15, color: "#52525b" }}>
-            {`tokenrats.com/u/${handle}`}
-          </div>
-          <div style={{ fontSize: 15, color: "#52525b" }}>
-            counts only — we can&apos;t read your prompts
-          </div>
+        {/* Column 2 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+          {/* This month */}
+          <StatBlock label="This month" value={fmtTokens(monthTokens)} sub={fmtCost(monthCost)} />
+          {/* Dominant model */}
+          <StatBlock label="Favourite model" value={dominantModel} sub="by token volume" />
+        </div>
+
+        {/* Column 3 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+          {/* Coffee equivalence */}
+          <StatBlock
+            label="Coffees this month"
+            value={coffees < 1 ? `<1` : `${Math.floor(coffees)}`}
+            sub={`at $5/cup · ${fmtCost(monthCost)}`}
+          />
+          {/* Most active day */}
+          <StatBlock
+            label="Most active day"
+            value={mostActiveDay}
+            sub={`${sessionsPerDay.toFixed(1)} sessions/day avg`}
+          />
         </div>
       </div>
-    ),
+
+      {/* Footer */}
+      <div
+        style={{
+          marginTop: 24,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ fontSize: 15, color: "#52525b" }}>{`tokenrats.com/u/${handle}`}</div>
+        <div style={{ fontSize: 15, color: "#52525b" }}>
+          counts only — we can&apos;t read your prompts
+        </div>
+      </div>
+    </div>,
     {
       width: 1200,
       height: 630,
@@ -247,6 +270,31 @@ export async function GET(
 
   image.headers.set("Cache-Control", "public, max-age=300, s-maxage=600");
   return image;
+}
+
+/** v1.2 Track AC — Twitter/X pill (OG card variant). */
+function TwitterPillSvg({ handle }: { handle: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#27272a",
+        border: "1.5px solid #3f3f46",
+        borderRadius: 9,
+        padding: "6px 12px",
+        fontSize: 18,
+        fontWeight: 700,
+        color: "#e4e4e7",
+      }}
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+      <span>{`@${handle}`}</span>
+    </div>
+  );
 }
 
 /** Mini stat block used in the autobiography card grid. */
@@ -296,11 +344,7 @@ function StatBlock({
       >
         {value}
       </div>
-      {sub && (
-        <div style={{ fontSize: 13, color: "#71717a" }}>
-          {sub}
-        </div>
-      )}
+      {sub && <div style={{ fontSize: 13, color: "#71717a" }}>{sub}</div>}
     </div>
   );
 }

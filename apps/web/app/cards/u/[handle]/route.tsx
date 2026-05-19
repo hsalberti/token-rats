@@ -12,6 +12,8 @@ export async function GET(
 
   let profile: {
     handle: string;
+    twitterHandle?: string | null;
+    twitterVerified?: boolean;
     totals: {
       today: { tokens: number; costUsdCents: number };
       week: { tokens: number; costUsdCents: number };
@@ -107,15 +109,26 @@ export async function GET(
       {/* Handle + subtitle */}
       <div
         style={{
-          fontSize: 76,
-          fontWeight: 900,
-          color: "#f4f4f5",
-          letterSpacing: "-0.04em",
-          lineHeight: 1,
+          display: "flex",
+          alignItems: "center",
+          gap: 16,
           marginBottom: 10,
         }}
       >
-        {`@${handle}`}
+        <div
+          style={{
+            fontSize: 76,
+            fontWeight: 900,
+            color: "#f4f4f5",
+            letterSpacing: "-0.04em",
+            lineHeight: 1,
+          }}
+        >
+          {`@${handle}`}
+        </div>
+        {profile?.twitterVerified && profile.twitterHandle && (
+          <TwitterPillSvg handle={profile.twitterHandle} />
+        )}
       </div>
       <div style={{ fontSize: 20, color: "#71717a", marginBottom: 44 }}>Token Rat 🐀</div>
 
@@ -283,4 +296,39 @@ export async function GET(
 
   image.headers.set("Cache-Control", "public, max-age=300, s-maxage=600");
   return image;
+}
+
+/**
+ * v1.2 Track AC — Twitter/X verified-handle pill used in OG cards.
+ * Inline SVG flag rendering via Satori; we keep the same X glyph as the
+ * web `<TwitterHandlePill>` so screenshots match the live UI.
+ */
+function TwitterPillSvg({ handle }: { handle: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        background: "#27272a",
+        border: "1.5px solid #3f3f46",
+        borderRadius: 10,
+        padding: "8px 14px",
+        fontSize: 22,
+        fontWeight: 700,
+        color: "#e4e4e7",
+      }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        width="20"
+        height="20"
+        style={{ color: "#e4e4e7" }}
+      >
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+      <span>{`@${handle}`}</span>
+    </div>
+  );
 }

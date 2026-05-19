@@ -7,7 +7,9 @@
  */
 
 import * as fs from "node:fs";
-import type { SessionRecord } from "@token-rats/contracts";
+import * as os from "node:os";
+import * as path from "node:path";
+import type { SessionRecord, SourcePlan } from "@token-rats/contracts";
 import { computeDedupeKey, parseClaudeCode, parseCodex, parseCursor } from "@token-rats/parsers";
 import { priceOf } from "@token-rats/pricing";
 import { ApiClient, ApiError } from "../lib/api.js";
@@ -19,6 +21,49 @@ import {
   discoverCursorDb,
 } from "../lib/discover.js";
 import { dim, error, info, spinner, success, warn } from "../lib/log.js";
+
+/**
+ * v1.2 Track AF — pick the strongest filesystem/env signal for Claude Code's
+ * auth mode. `~/.claude/.credentials.json` indicates the OAuth flow (Claude
+ * Pro/Max account); `ANTHROPIC_API_KEY` indicates a raw API key. We default
+ * to `'max'` for OAuth (the dominant tier; users on `pro` are rare in our
+ * audience) and `'api'` for raw keys. Returns `'unknown'` if neither signal
+ * is present (e.g. a stale install or pre-OAuth Claude Code).
+ *
+ * Every probe is wrapped — a missing $HOME or unreadable file never throws.
+ */
+function detectClaudeCodePlan(): SourcePlan {
+  try {
+    const home = os.homedir();
+    if (home) {
+      const credPath = path.join(home, ".claude", ".credentials.json");
+      if (fs.existsSync(credPath)) return "max";
+    }
+  } catch {
+    // ignore — fall through
+  }
+  if (process.env["ANTHROPIC_API_KEY"]) return "api";
+  return "unknown";
+}
+
+/**
+ * v1.2 Track AF — Codex auth mode. `~/.codex/auth.json` is written by the
+ * `codex login` flow (ChatGPT Plus/Pro OAuth) → `'pro'`. `OPENAI_API_KEY`
+ * indicates a raw key → `'api'`. Otherwise `'unknown'`.
+ */
+function detectCodexPlan(): SourcePlan {
+  try {
+    const home = os.homedir();
+    if (home) {
+      const authPath = path.join(home, ".codex", "auth.json");
+      if (fs.existsSync(authPath)) return "pro";
+    }
+  } catch {
+    // ignore
+  }
+  if (process.env["OPENAI_API_KEY"]) return "api";
+  return "unknown";
+}
 
 const BATCH_SIZE = 500;
 
@@ -90,6 +135,11 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
     for (const f of claudeFiles) dim(`  ${f}`);
   }
 
+  // v1.2 Track AF — detect plan tier once for the whole run; the parser
+  // copies it onto every emitted SessionRecord.
+  const claudePlan = detectClaudeCodePlan();
+  if (opts.verbose) dim(`  Claude Code plan signal: ${claudePlan}`);
+
   const claudeSessions: SessionRecord[] = [];
   for (const file of claudeFiles) {
     let text: string;
@@ -101,7 +151,7 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
     }
 
     try {
-      const records = parseClaudeCode(text);
+      const records = parseClaudeCode(text, { defaultPlan: claudePlan });
       claudeSessions.push(...records);
       if (opts.verbose) dim(`  ${file}: ${records.length} session(s)`);
     } catch {
@@ -116,6 +166,10 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
     for (const f of codexFiles) dim(`  ${f}`);
   }
 
+  // v1.2 Track AF — Codex plan tier detection.
+  const codexPlan = detectCodexPlan();
+  if (opts.verbose) dim(`  Codex plan signal: ${codexPlan}`);
+
   const codexSessions: SessionRecord[] = [];
   for (const file of codexFiles) {
     let text: string;
@@ -126,7 +180,7 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
       continue;
     }
     try {
-      const records = parseCodex(text);
+      const records = parseCodex(text, { defaultPlan: codexPlan });
       codexSessions.push(...records);
       if (opts.verbose) dim(`  ${file}: ${records.length} session(s)`);
     } catch {

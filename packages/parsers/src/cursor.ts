@@ -28,9 +28,20 @@
  * No prompt or completion text is ever read, stored, or returned.
  */
 
-import type { SessionRecord } from "@token-rats/contracts";
+import type { SessionRecord, SourcePlan } from "@token-rats/contracts";
 import { priceOf } from "@token-rats/pricing";
 import { computeDedupeKey } from "./hash.js";
+
+/**
+ * v1.2 Track AF — Cursor is always an IDE-context source. The exported
+ * row shape (see `CursorRow` below) doesn't carry a plan/subscription
+ * field today, and even when it did the only meaningful distinction
+ * we'd surface is "Cursor IDE", so we always emit `'ide'`. A caller
+ * can override via `defaultPlan` if a future Cursor build adds tiers.
+ */
+export interface ParseCursorOptions {
+  defaultPlan?: SourcePlan;
+}
 
 /** Maps Cursor model names → canonical pricing-table model names. */
 const CURSOR_MODEL_MAP: Record<string, string> = {
@@ -59,7 +70,11 @@ interface CursorRow {
   endedAt: number;
 }
 
-export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRecord[] {
+export function parseCursor(
+  input: string | ArrayBuffer | Uint8Array,
+  opts: ParseCursorOptions = {},
+): SessionRecord[] {
+  const sourcePlan: SourcePlan = opts.defaultPlan ?? "ide";
   // Normalise input to string
   let text: string;
   if (typeof input === "string") {
@@ -120,6 +135,7 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
       startedAt,
       endedAt,
       dedupeKey,
+      sourcePlan,
     });
   }
 

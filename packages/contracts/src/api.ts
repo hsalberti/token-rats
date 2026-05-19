@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { Leaderboard, LeaderboardRange, LeaderboardRow } from "./leaderboard.js";
-import { AutobiographyStats, Profile, PublicProfileSettings, User } from "./user.js";
-import { Room, RoomCode, RoomMember } from "./room.js";
+import { CountryCode, Room, type RoomCode, RoomMember } from "./room.js";
 import { SessionRecord } from "./session.js";
 import {
   ActivityRow,
@@ -10,6 +9,7 @@ import {
   ChallengeWithLeaderboard,
   StreakRow,
 } from "./streaks.js";
+import { AutobiographyStats, Profile, PublicProfileSettings, User } from "./user.js";
 export type {
   CreatePushSubscriptionRequest,
   CreatePushSubscriptionResponse,
@@ -61,6 +61,11 @@ export type UploadSessionsResponse = z.infer<typeof UploadSessionsResponse>;
 /* ----------------------------- POST /v1/rooms ---------------------------- */
 export const CreateRoomRequest = z.object({
   name: z.string().min(1).max(64),
+  /** v1.2 Track AE — when true, the room is discoverable in `/groups` for
+   *  viewers whose `cf-ipcountry` matches `country`. Server enforces that
+   *  `country` matches the creator's resolved `cf-ipcountry`. */
+  isPublic: z.boolean().optional(),
+  country: CountryCode.optional(),
 });
 export type CreateRoomRequest = z.infer<typeof CreateRoomRequest>;
 
@@ -125,10 +130,18 @@ export type GetMyRoomsResponse = z.infer<typeof GetMyRoomsResponse>;
 export const LeaveRoomResponse = z.object({ ok: z.boolean() });
 export type LeaveRoomResponse = z.infer<typeof LeaveRoomResponse>;
 
-/* PATCH /v1/rooms/:code  (owner only — rename) */
-export const RenameRoomRequest = z.object({
-  name: z.string().min(1).max(64),
-});
+/* PATCH /v1/rooms/:code  (owner only — rename + v1.2 AE: toggle is_public) */
+export const RenameRoomRequest = z
+  .object({
+    name: z.string().min(1).max(64).optional(),
+    /** v1.2 Track AE — flip a room's public visibility. Going false→true
+     *  requires `country` to match the owner's current `cf-ipcountry`. */
+    isPublic: z.boolean().optional(),
+    country: CountryCode.optional(),
+  })
+  .refine((v) => v.name !== undefined || v.isPublic !== undefined, {
+    message: "At least one of `name` or `isPublic` must be provided",
+  });
 export type RenameRoomRequest = z.infer<typeof RenameRoomRequest>;
 
 export const RenameRoomResponse = z.object({ room: Room });
@@ -214,8 +227,14 @@ export const ENDPOINTS = {
   authGithubCallback: "/v1/auth/github/callback",
   authCliExchange: "/v1/auth/cli/exchange",
   authCliPoll: "/v1/auth/cli/poll",
+  // v1.2 Track AC — Twitter/X OAuth verification
+  authTwitterStart: "/v1/auth/twitter/start",
+  authTwitterCallback: "/v1/auth/twitter/callback",
+  twitterDisconnect: "/v1/me/twitter/disconnect",
   // Phase 2 Track G+H
   meRooms: "/v1/me/rooms",
+  // v1.2 Track AD — friends derived from shared private rooms
+  meFriends: "/v1/me/friends",
   leaveRoom: (code: RoomCode) => `/v1/rooms/${code}/leave`,
   renameRoom: (code: RoomCode) => `/v1/rooms/${code}`,
   roomActivity: (code: RoomCode) => `/v1/rooms/${code}/activity`,
@@ -238,6 +257,8 @@ export const ENDPOINTS = {
   orgAccept: (slug: string) => `/v1/orgs/${slug}/accept`,
   orgDashboard: (slug: string) => `/v1/orgs/${slug}/dashboard`,
   stripeWebhook: "/webhooks/stripe",
+  // v1.2 Track AE — public country-locked groups
+  groups: "/v1/groups",
   // v1.2 Track AA — waitlists + admin queue
   waitlists: "/v1/waitlists",
   adminOrgsPending: "/v1/admin/orgs/pending",

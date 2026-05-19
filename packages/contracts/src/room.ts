@@ -34,5 +34,7 @@ export const RoomMember = z.object({
   handle: z.string(),
   avatarUrl: z.string().url().nullable(),
   joinedAt: z.number().int().positive(),
+  /** v1.2 Track AC — verified Twitter/X handle (without @), or null. */
+  twitterHandle: z.string().nullable().optional(),
 });
 export type RoomMember = z.infer<typeof RoomMember>;

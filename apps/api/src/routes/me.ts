@@ -10,6 +10,7 @@ import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { notFound, validationError } from "../lib/errors.js";
 import { PatchMeRequest } from "@token-rats/contracts";
+import { getPrimarySourceForUser } from "../lib/primary-source.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -19,7 +20,10 @@ me.get("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
   const row = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, email FROM users WHERE id = ?",
+    `SELECT id, handle, avatar_url, public_profile, bio,
+            twitter_handle, twitter_user_id, twitter_verified_at, email
+       FROM users
+      WHERE id = ?`,
   )
     .bind(userId)
     .first<{
@@ -29,12 +33,19 @@ me.get("/", requireAuth, async (c) => {
       public_profile: number;
       bio: string | null;
       twitter_handle: string | null;
+      twitter_user_id: string | null;
+      twitter_verified_at: number | null;
       email: string | null;
     }>();
 
   if (!row) {
     return notFound(c, "User not found");
   }
+
+  // v1.2 Track AF — primary-source pill on the signed-in user's own record.
+  const primarySource = await getPrimarySourceForUser(c.env.DB, c.env.CACHE, row.id).catch(
+    () => null,
+  );
 
   return c.json({
     user: {
@@ -44,7 +55,9 @@ me.get("/", requireAuth, async (c) => {
       publicProfile: row.public_profile === 1,
       bio: row.bio,
       twitterHandle: row.twitter_handle,
+      twitterVerified: row.twitter_verified_at !== null,
       email: row.email,
+      primarySource,
     },
   });
 });
@@ -71,7 +84,8 @@ me.patch("/", requireAuth, async (c) => {
     body.twitterHandle === undefined
   ) {
     const row = await c.env.DB.prepare(
-      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle FROM users WHERE id = ?",
+      `SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_verified_at
+         FROM users WHERE id = ?`,
     )
       .bind(userId)
       .first<{
@@ -81,6 +95,7 @@ me.patch("/", requireAuth, async (c) => {
         public_profile: number;
         bio: string | null;
         twitter_handle: string | null;
+        twitter_verified_at: number | null;
       }>();
     if (!row) return notFound(c, "User not found");
     return c.json({
@@ -91,6 +106,7 @@ me.patch("/", requireAuth, async (c) => {
         publicProfile: row.public_profile === 1,
         bio: row.bio,
         twitterHandle: row.twitter_handle,
+        twitterVerified: row.twitter_verified_at !== null,
       },
     });
   }
@@ -108,7 +124,10 @@ me.patch("/", requireAuth, async (c) => {
     binds.push(body.bio ?? null);
   }
   if (body.twitterHandle !== undefined) {
-    setClauses.push("twitter_handle = ?");
+    // Manual handle edits clear the verified state — verification is owned by
+    // the OAuth callback in routes/auth-twitter.ts. Nulling these together
+    // keeps `twitterVerified` accurate without a separate code path.
+    setClauses.push("twitter_handle = ?", "twitter_user_id = NULL", "twitter_verified_at = NULL");
     binds.push(body.twitterHandle ?? null);
   }
 
@@ -119,7 +138,8 @@ me.patch("/", requireAuth, async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle FROM users WHERE id = ?",
+    `SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_verified_at
+       FROM users WHERE id = ?`,
   )
     .bind(userId)
     .first<{
@@ -129,6 +149,7 @@ me.patch("/", requireAuth, async (c) => {
       public_profile: number;
       bio: string | null;
       twitter_handle: string | null;
+      twitter_verified_at: number | null;
     }>();
 
   if (!updated) return notFound(c, "User not found");
@@ -141,6 +162,7 @@ me.patch("/", requireAuth, async (c) => {
       publicProfile: updated.public_profile === 1,
       bio: updated.bio,
       twitterHandle: updated.twitter_handle,
+      twitterVerified: updated.twitter_verified_at !== null,
     },
   });
 });

@@ -50,8 +50,23 @@ function makeD1Mock(changes: number): Pick<D1Database, "prepare"> {
   } as unknown as Pick<D1Database, "prepare">;
 }
 
+/**
+ * Minimal KV mock — `recordSession` calls `env.CACHE.delete` to bust the
+ * friends-cache (Track AD) and the per-user primary-source cache (Track AF).
+ * Without this stub the helper throws on the cache writes.
+ */
+function makeKvMock(): KVNamespace {
+  return {
+    get: vi.fn().mockResolvedValue(null),
+    put: vi.fn().mockResolvedValue(undefined),
+    delete: vi.fn().mockResolvedValue(undefined),
+    list: vi.fn().mockResolvedValue({ keys: [] }),
+    getWithMetadata: vi.fn().mockResolvedValue({ value: null, metadata: null }),
+  } as unknown as KVNamespace;
+}
+
 function makeEnv(d1: Pick<D1Database, "prepare">): Env {
-  return { DB: d1 } as unknown as Env;
+  return { DB: d1, CACHE: makeKvMock() } as unknown as Env;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -102,8 +117,9 @@ describe("recordSession", () => {
 
     await recordSession(env, "user-1", record);
 
-    // prepare() is called twice: once for INSERT, once for rollup upsert.
-    expect((d1.prepare as Mock).mock.calls.length).toBe(2);
+    // prepare() is called three times: INSERT, rollup upsert, and the
+    // co-member lookup in bustFriendCachesForCoMembers (Track AD).
+    expect((d1.prepare as Mock).mock.calls.length).toBe(3);
 
     // Both prepare() calls return the same stmtMock (mockReturnValue), so
     // bind() is recorded on the same object. The INSERT is bind call [0];

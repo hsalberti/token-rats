@@ -102,7 +102,11 @@ export default async function OnboardingPage() {
         </div>
 
         {/* Animated reveal — client component */}
-        <AutobiographyReveal stats={stats} handle={user.handle} />
+        <AutobiographyReveal
+          stats={stats}
+          handle={user.handle}
+          twitterHandle={user.twitterVerified ? (user.twitterHandle ?? null) : null}
+        />
       </main>
     </div>
   );
@@ -133,8 +137,11 @@ function NoSessionsView({ handle }: { handle: string }) {
             @{handle}, you haven&apos;t synced yet.
           </h1>
           <p className="text-zinc-400">
-            Run <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-rat-400 font-mono text-sm">npx token-rats sync</code> to
-            upload your Claude Code + Cursor usage, then come back here.
+            Run{" "}
+            <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-rat-400 font-mono text-sm">
+              npx token-rats sync
+            </code>{" "}
+            to upload your Claude Code + Cursor usage, then come back here.
           </p>
         </div>
 

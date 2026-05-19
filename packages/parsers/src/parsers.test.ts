@@ -124,6 +124,28 @@ describe("parseClaudeCode", () => {
   it("returns empty array when all lines are malformed", () => {
     expect(parseClaudeCode("not json\nalso bad\n")).toHaveLength(0);
   });
+
+  // v1.2 Track AF — sourcePlan emission
+  describe("sourcePlan (Track AF)", () => {
+    it("defaults to 'unknown' when no defaultPlan is provided", () => {
+      const recs = parseClaudeCode(readFixture("claude-code-sample.jsonl"));
+      expect(recs.every((r) => r.sourcePlan === "unknown")).toBe(true);
+    });
+
+    it("respects defaultPlan='max' when caller provides it", () => {
+      const recs = parseClaudeCode(readFixture("claude-code-sample.jsonl"), {
+        defaultPlan: "max",
+      });
+      expect(recs.every((r) => r.sourcePlan === "max")).toBe(true);
+    });
+
+    it("respects defaultPlan='api'", () => {
+      const recs = parseClaudeCode(readFixture("claude-code-sample.jsonl"), {
+        defaultPlan: "api",
+      });
+      expect(recs.every((r) => r.sourcePlan === "api")).toBe(true);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -214,6 +236,21 @@ describe("parseCursor", () => {
   it("returns empty array for JSON non-array (object)", () => {
     expect(parseCursor('{"id": "x"}')).toHaveLength(0);
   });
+
+  // v1.2 Track AF — Cursor is always IDE-context
+  describe("sourcePlan (Track AF)", () => {
+    it("defaults to 'ide' for every record", () => {
+      const recs = parseCursor(readFixture("cursor-sample.json"));
+      expect(recs.every((r) => r.sourcePlan === "ide")).toBe(true);
+    });
+
+    it("respects an explicit defaultPlan override", () => {
+      const recs = parseCursor(readFixture("cursor-sample.json"), {
+        defaultPlan: "unknown",
+      });
+      expect(recs.every((r) => r.sourcePlan === "unknown")).toBe(true);
+    });
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -297,6 +334,56 @@ describe("parseCodex", () => {
     const fromBytes = parseCodex(bytes);
     expect(fromBytes).toHaveLength(records.length);
     expect(fromBytes.map((r) => r.id).sort()).toEqual(records.map((r) => r.id).sort());
+  });
+
+  // v1.2 Track AF — Codex auth mode detection
+  describe("sourcePlan (Track AF)", () => {
+    it("defaults to 'unknown' without a defaultPlan or in-log signal", () => {
+      // The shipped fixture has no `chatgpt_account_id` in session_meta.
+      expect(records.every((r) => r.sourcePlan === "unknown")).toBe(true);
+    });
+
+    it("respects caller-provided defaultPlan='api'", () => {
+      const recs = parseCodex(input, { defaultPlan: "api" });
+      expect(recs.every((r) => r.sourcePlan === "api")).toBe(true);
+    });
+
+    it("infers 'pro' from a chatgpt_account_id in session_meta (overrides defaultPlan)", () => {
+      const jsonl = [
+        JSON.stringify({
+          timestamp: "2026-04-22T00:42:10.314Z",
+          type: "session_meta",
+          payload: {
+            id: "oauth-session",
+            timestamp: "2026-04-22T00:34:27.656Z",
+            chatgpt_account_id: "acct_xyz",
+          },
+        }),
+        JSON.stringify({
+          timestamp: "2026-04-22T00:42:10.315Z",
+          type: "turn_context",
+          payload: { model: "gpt-5.3-codex" },
+        }),
+        JSON.stringify({
+          timestamp: "2026-04-22T00:42:15.706Z",
+          type: "event_msg",
+          payload: {
+            type: "token_count",
+            info: {
+              total_token_usage: {
+                input_tokens: 100,
+                cached_input_tokens: 0,
+                output_tokens: 50,
+                reasoning_output_tokens: 0,
+              },
+            },
+          },
+        }),
+      ].join("\n");
+      const recs = parseCodex(jsonl, { defaultPlan: "api" });
+      expect(recs).toHaveLength(1);
+      expect(recs[0]?.sourcePlan).toBe("pro");
+    });
   });
 });
 

@@ -9,13 +9,13 @@
  * immediately after sign-in.
  */
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { api, ApiError } from "../../lib/api";
 import type { Room, User } from "@token-rats/contracts";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { SourcePicker } from "../../components/SourcePicker";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { SourcePicker } from "../../components/SourcePicker";
+import { ApiError, api } from "../../lib/api";
 
 interface Props {
   user: User;
@@ -32,6 +32,11 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // v1.2 Track AE — make-public toggle + the country the Worker resolved
+  // for this client. The country is resolved server-side via `cf-ipcountry`,
+  // so we have to fetch it (we use /v1/groups, which already exposes it).
+  const [makePublic, setMakePublic] = useState(false);
+  const [viewerCountry, setViewerCountry] = useState<string | null>(null);
 
   // Track GH (Phase 2): load rooms from GET /v1/me/rooms instead of localStorage
   useEffect(() => {
@@ -46,6 +51,12 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
       .finally(() => {
         setRoomsLoading(false);
       });
+    // v1.2 Track AE — resolve the viewer's Cloudflare-derived country so we
+    // can offer (or hide) the "public country-locked room" checkbox.
+    api
+      .getGroups()
+      .then((data) => setViewerCountry(data.viewerCountry))
+      .catch(() => undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -55,7 +66,11 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const data = await api.createRoom({ name: roomName.trim() }, cookieHeader);
+      const body =
+        makePublic && viewerCountry
+          ? { name: roomName.trim(), isPublic: true, country: viewerCountry }
+          : { name: roomName.trim() };
+      const data = await api.createRoom(body, cookieHeader);
       router.push(`/r/${data.room.code}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create room");
@@ -131,6 +146,31 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
                 className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:border-rat-500 focus:outline-none focus:ring-1 focus:ring-rat-500"
               />
             </div>
+            {/* v1.2 Track AE — public country-locked room checkbox. */}
+            {viewerCountry ? (
+              <label className="flex items-start gap-2 text-sm text-zinc-300">
+                <input
+                  type="checkbox"
+                  checked={makePublic}
+                  onChange={(e) => setMakePublic(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 rounded border-zinc-700 bg-zinc-800 text-rat-500"
+                />
+                <span>
+                  Make this a public country-locked room
+                  <span className="ml-1 rounded bg-zinc-800 px-1.5 py-0.5 font-mono text-xs text-zinc-400">
+                    {viewerCountry}
+                  </span>
+                  <span className="block text-xs text-zinc-500">
+                    Anyone connecting from {viewerCountry} can discover and join. Joiners outside
+                    the country get a country-mismatch 403.
+                  </span>
+                </span>
+              </label>
+            ) : (
+              <p className="text-xs text-zinc-500">
+                Public rooms unavailable — we couldn&apos;t resolve your country.
+              </p>
+            )}
             {error && <p className="text-sm text-red-400">{error}</p>}
             <div className="flex gap-3">
               <Button type="submit" disabled={busy || !roomName.trim()}>
@@ -182,7 +222,10 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
       {roomsLoading ? (
         <div className="grid gap-4 sm:grid-cols-2">
           {[...Array(2)].map((_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900" />
+            <div
+              key={i}
+              className="h-28 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900"
+            />
           ))}
         </div>
       ) : rooms.length === 0 ? (

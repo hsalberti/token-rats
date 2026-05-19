@@ -45,3 +45,5 @@ WEB_ORIGIN = "https://tokenrats.com"
 #   STRIPE_WEBHOOK_SECRET
 #   EMAIL_PROVIDER_API_KEY   (Resend API key; weekly digest cron — `wrangler secret put EMAIL_PROVIDER_API_KEY`)
 #   ANTHROPIC_API_KEY        (optional; proxy fallback)
+#   X_OAUTH_CLIENT_ID        (v1.2 Track AC — X/Twitter OAuth 2.0 client id; `wrangler secret put X_OAUTH_CLIENT_ID`)
+#   X_OAUTH_CLIENT_SECRET    (v1.2 Track AC — X/Twitter OAuth 2.0 client secret; `wrangler secret put X_OAUTH_CLIENT_SECRET`)

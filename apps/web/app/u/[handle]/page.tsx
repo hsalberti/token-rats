@@ -3,8 +3,9 @@ import { getCookieHeader, getSession } from "../../../lib/auth";
 import { api, ApiError } from "../../../lib/api";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
-import { SourceTiles } from "../../../components/SourcePill";
+import { PrimarySourcePill, SourceTiles } from "../../../components/SourcePill";
 import { ProfileHeatmap } from "../../../components/ProfileHeatmap";
+import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import type { HeatmapResponse } from "@token-rats/contracts";
 
 export const runtime = "edge";
@@ -54,7 +55,10 @@ export default async function ProfilePage({ params }: Props) {
     avatarUrl: string | null;
     bio?: string | null;
     twitterHandle?: string | null;
+    twitterVerified?: boolean;
     publicProfile?: boolean;
+    /** v1.2 Track AF — kebab-case primary-source label or null. */
+    primarySource?: string | null;
     totals: {
       today: { tokens: number; costUsdCents: number };
       week: { tokens: number; costUsdCents: number };
@@ -144,13 +148,18 @@ export default async function ProfilePage({ params }: Props) {
         <div className="flex items-center gap-5">
           <Avatar src={profile.avatarUrl} handle={profile.handle} size="xl" />
           <div className="flex-1 min-w-0">
-            <h1 className="text-3xl font-black tracking-tight">@{profile.handle}</h1>
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="text-3xl font-black tracking-tight">@{profile.handle}</h1>
+              {profile.twitterVerified && <TwitterHandlePill handle={profile.twitterHandle} />}
+            </div>
             {profile.bio ? (
               <p className="mt-1 text-zinc-300 text-sm leading-relaxed">{profile.bio}</p>
             ) : (
               <p className="mt-1 text-zinc-400">Token Rat</p>
             )}
-            {profile.twitterHandle && (
+            {/* Unverified manual handles still get the classic link below the bio,
+                so legacy users keep their link until they connect via OAuth. */}
+            {profile.twitterHandle && !profile.twitterVerified && (
               <a
                 href={`https://twitter.com/${profile.twitterHandle}`}
                 target="_blank"

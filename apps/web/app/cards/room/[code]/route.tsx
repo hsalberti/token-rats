@@ -12,7 +12,13 @@ export async function GET(
 
   // Attempt to fetch live data; fall back to placeholder on error
   let roomName = code;
-  type TopRow = { rank: number; handle: string; tokens: number; costUsdCents: number };
+  type TopRow = {
+    rank: number;
+    handle: string;
+    tokens: number;
+    costUsdCents: number;
+    twitterHandle?: string | null;
+  };
   let top3: TopRow[] = [];
 
   // v1.2 Track Y — fetch the 60d room heatmap to render as a strip.
@@ -30,6 +36,7 @@ export async function GET(
       handle: r.handle,
       tokens: r.tokens,
       costUsdCents: r.costUsdCents,
+      twitterHandle: r.twitterHandle ?? null,
     }));
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
@@ -184,17 +191,26 @@ export async function GET(
                   {medalLabels[i] ?? `#${row.rank}`}
                 </div>
 
-                {/* Handle */}
+                {/* Handle + verified pill */}
                 <div
                   style={{
-                    fontSize: i === 0 ? 30 : 24,
-                    fontWeight: 800,
-                    color: i === 0 ? "#fbbf24" : "#f4f4f5",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
                     flex: 1,
-                    letterSpacing: "-0.02em",
                   }}
                 >
-                  {`@${row.handle}`}
+                  <div
+                    style={{
+                      fontSize: i === 0 ? 30 : 24,
+                      fontWeight: 800,
+                      color: i === 0 ? "#fbbf24" : "#f4f4f5",
+                      letterSpacing: "-0.02em",
+                    }}
+                  >
+                    {`@${row.handle}`}
+                  </div>
+                  {row.twitterHandle && <TwitterPillSvg handle={row.twitterHandle} />}
                 </div>
 
                 {/* Token count + cost */}
@@ -283,4 +299,29 @@ export async function GET(
   // Allow CDN caching
   image.headers.set("Cache-Control", "public, max-age=300, s-maxage=600");
   return image;
+}
+
+/** v1.2 Track AC — Twitter/X pill (OG card variant). */
+function TwitterPillSvg({ handle }: { handle: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        background: "#27272a",
+        border: "1.5px solid #3f3f46",
+        borderRadius: 8,
+        padding: "4px 10px",
+        fontSize: 16,
+        fontWeight: 700,
+        color: "#e4e4e7",
+      }}
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+      </svg>
+      <span>{`@${handle}`}</span>
+    </div>
+  );
 }

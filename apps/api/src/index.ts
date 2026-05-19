@@ -4,19 +4,22 @@ import type { Env } from "./env.js";
 import type { AuthVariables } from "./middleware/auth.js";
 import abuseRoutes from "./routes/abuse.js";
 import adminRoutes from "./routes/admin.js";
+import twitterAuthRoutes from "./routes/auth-twitter.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
+import friendsRoutes from "./routes/friends.js";
 import groupStreakRoutes from "./routes/group-streak.js";
+import groupsRoutes from "./routes/groups.js";
 import heatmapRoutes from "./routes/heatmap.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
 import liveRoutes from "./routes/live.js";
 import meRoutes from "./routes/me.js";
-import roomSummaryRoutes from "./routes/room-summary.js";
 import notificationsRoutes from "./routes/notifications.js";
 import orgsRoutes from "./routes/orgs.js";
 import profilesRoutes from "./routes/profiles.js";
 import proxyRoutes from "./routes/proxy.js";
 import pushRoutes from "./routes/push.js";
+import roomSummaryRoutes from "./routes/room-summary.js";
 import roomsRoutes from "./routes/rooms.js";
 import sessionsRoutes from "./routes/sessions.js";
 import streaksRoutes from "./routes/streaks.js";
@@ -58,10 +61,21 @@ app.get("/healthz", (c) => c.json({ ok: true, ts: Date.now() }));
 app.route("/v1/auth", authRoutes);
 
 /* -------------------------------------------------------------------------- */
+/* v1.2 Track AC — Twitter/X OAuth                                             */
+/* Mounted at /v1 so it can register both /v1/auth/twitter/* and               */
+/* /v1/me/twitter/disconnect without splitting across files.                   */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1", twitterAuthRoutes);
+
+/* -------------------------------------------------------------------------- */
 /* Identity                                                                    */
 /* -------------------------------------------------------------------------- */
 
 app.route("/v1/me", meRoutes);
+// v1.2 Track AD — friends derived from shared private rooms.
+// Mounted on the me namespace so the path is `/v1/me/friends`.
+app.route("/v1/me", friendsRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Session ingest                                                              */
@@ -105,6 +119,8 @@ app.route("/v1/notifications", notificationsRoutes);
 /* -------------------------------------------------------------------------- */
 
 app.route("/v1/trending", trendingRoutes);
+// v1.2 Track AE — public country-locked groups discovery.
+app.route("/v1/groups", groupsRoutes);
 app.route("/v1/abuse", abuseRoutes);
 app.route("/v1/proxy", proxyRoutes);
 app.route("/v1/orgs", orgsRoutes);

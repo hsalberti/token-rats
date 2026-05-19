@@ -12,6 +12,7 @@ import type { Env } from "../env.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { GetTrendingQuery } from "@token-rats/contracts";
 import { validationError } from "../lib/errors.js";
+import { getPrimarySourceMap } from "../lib/primary-source.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -58,6 +59,8 @@ trending.get("/", async (c) => {
        u.id         AS user_id,
        u.handle,
        u.avatar_url,
+       u.twitter_handle,
+       u.twitter_verified_at,
        COALESCE(SUM(dr.tokens),         0) AS tokens,
        COALESCE(SUM(dr.cost_usd_cents), 0) AS cost_usd_cents,
        COALESCE(SUM(dr.sessions),       0) AS sessions
@@ -66,7 +69,7 @@ trending.get("/", async (c) => {
        ON dr.user_id = u.id
        AND dr.day >= ?
      WHERE u.public_profile = 1
-     GROUP BY u.id, u.handle, u.avatar_url
+     GROUP BY u.id, u.handle, u.avatar_url, u.twitter_handle, u.twitter_verified_at
      ORDER BY tokens DESC
      LIMIT 100`,
   )
@@ -75,12 +78,14 @@ trending.get("/", async (c) => {
       user_id: string;
       handle: string;
       avatar_url: string | null;
+      twitter_handle: string | null;
+      twitter_verified_at: number | null;
       tokens: number;
       cost_usd_cents: number;
       sessions: number;
     }>();
 
-  const rows = (result.results ?? []);
+  const rows = result.results ?? [];
 
   // 4. Filter banned handles
   const filtered: typeof rows = [];
@@ -94,6 +99,13 @@ trending.get("/", async (c) => {
 
   const generatedAt = Date.now();
 
+  // v1.2 Track AF — primary-source pill per user.
+  const primarySourceMap = await getPrimarySourceMap(
+    c.env.DB,
+    c.env.CACHE,
+    filtered.map((r) => r.user_id),
+  );
+
   const payload = {
     rows: filtered.map((row, i) => ({
       rank: i + 1,
@@ -103,6 +115,9 @@ trending.get("/", async (c) => {
       tokens: row.tokens,
       costUsdCents: row.cost_usd_cents,
       sessions: row.sessions,
+      // v1.2 Track AC — only verified handles surface on /trending.
+      twitterHandle: row.twitter_verified_at !== null ? row.twitter_handle : null,
+      primarySource: primarySourceMap.get(row.user_id) ?? null,
     })),
     range,
     generatedAt,

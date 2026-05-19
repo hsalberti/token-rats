@@ -15,12 +15,32 @@
  */
 
 import * as fs from "node:fs";
-import type { SessionRecord } from "@token-rats/contracts";
+import * as os from "node:os";
+import * as path from "node:path";
+import type { SessionRecord, SourcePlan } from "@token-rats/contracts";
 import { parseClaudeCode } from "@token-rats/parsers";
 import { ApiClient, ApiError } from "../lib/api.js";
 import { loadToken } from "../lib/auth-store.js";
 import { claudeCodeProjectsDir } from "../lib/discover.js";
 import { dim, error, info, success, warn } from "../lib/log.js";
+
+/**
+ * v1.2 Track AF — same detection used by `sync`. Defensive: missing $HOME
+ * or unreadable files never throw, just return `'unknown'`.
+ */
+function detectClaudeCodePlan(): SourcePlan {
+  try {
+    const home = os.homedir();
+    if (home) {
+      const credPath = path.join(home, ".claude", ".credentials.json");
+      if (fs.existsSync(credPath)) return "max";
+    }
+  } catch {
+    // ignore
+  }
+  if (process.env["ANTHROPIC_API_KEY"]) return "api";
+  return "unknown";
+}
 
 export interface WatchOptions {
   apiUrl?: string;
@@ -33,6 +53,11 @@ export interface WatchOptions {
 
 const seen = new Set<string>();
 
+// v1.2 Track AF — capture the plan signal once at module load. `watch` is a
+// long-running process; auth state changes (e.g. user runs `claude logout`)
+// are rare and re-running `token-rats watch` is the recovery path.
+const watchClaudePlan: SourcePlan = detectClaudeCodePlan();
+
 function parseAndFilter(filePath: string, verbose: boolean): SessionRecord[] {
   let text: string;
   try {
@@ -44,7 +69,7 @@ function parseAndFilter(filePath: string, verbose: boolean): SessionRecord[] {
 
   let records: SessionRecord[];
   try {
-    records = parseClaudeCode(text);
+    records = parseClaudeCode(text, { defaultPlan: watchClaudePlan });
   } catch {
     if (verbose) warn(`Failed to parse ${filePath} — skipping`);
     return [];

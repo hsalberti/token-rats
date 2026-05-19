@@ -37,11 +37,14 @@ export async function recordSession(
   userId: string,
   record: SessionRecord,
 ): Promise<RecordSessionResult> {
+  // v1.2 Track AF — persist `source_plan` (nullable). The CLI sends it on
+  // every new SessionRecord; pre-AF rows simply degrade to NULL and the
+  // read-side primary-source compute treats them as plan = unknown.
   const insertStmt = env.DB.prepare(
     `INSERT OR IGNORE INTO sessions
        (id, user_id, source, model, in_tokens, out_tokens, cost_usd_cents,
-        started_at, ended_at, dedupe_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        started_at, ended_at, dedupe_key, source_plan)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     record.id,
     userId,
@@ -53,6 +56,7 @@ export async function recordSession(
     record.startedAt,
     record.endedAt,
     record.dedupeKey,
+    record.sourcePlan ?? null,
   );
 
   const [insertResult] = await env.DB.batch([insertStmt]);
@@ -72,7 +76,60 @@ export async function recordSession(
     )
       .bind(userId, day, tokens, record.costUsdCents, 1)
       .run();
+
+    // v1.2 Track AD — bust the friends cache for every co-member of every
+    // private room this user is in. Their `fr:` view includes this user as
+    // a friend row whose stats just changed.
+    //
+    // Done here (rather than in routes/sessions.ts where the lb: bust lives)
+    // so the proxy ingest path also picks it up. Fire-and-forget — if the KV
+    // delete fails, the worst case is a 60s stale read.
+    await bustFriendCachesForCoMembers(env, userId);
+
+    // v1.2 Track AF — bust the per-user primary-source cache so the next
+    // leaderboard / profile / trending read recomputes the pill against the
+    // freshly-ingested session. Tiny cost vs. the 5 min stale window.
+    await env.CACHE.delete(`ps:${userId}`);
   }
 
   return { inserted };
+}
+
+/**
+ * Delete `fr:<otherUserId>:<range>` for every user that shares a private room
+ * with `userId`, plus the caller's own cache (their own range numbers may
+ * affect the trailing "vs you" comparison the web UI will render).
+ *
+ * One KV delete per (user, range) — bounded by the size of the user's
+ * private-room co-member set, which is small in practice.
+ */
+async function bustFriendCachesForCoMembers(env: Env, userId: string): Promise<void> {
+  // Test-time envs sometimes omit CACHE — short-circuit so this doesn't break
+  // unit suites that only exercise the DB write path.
+  if (!env.CACHE) return;
+
+  const result = await env.DB.prepare(
+    `SELECT DISTINCT rm_other.user_id AS user_id
+       FROM room_members rm_self
+       JOIN rooms r ON r.id = rm_self.room_id
+       JOIN room_members rm_other ON rm_other.room_id = r.id
+      WHERE rm_self.user_id = ?
+        AND COALESCE(r.is_public, 0) = 0`,
+  )
+    .bind(userId)
+    .all<{ user_id: string }>();
+
+  const userIds = new Set<string>([userId]);
+  for (const row of result.results ?? []) {
+    userIds.add(row.user_id);
+  }
+
+  const ranges = ["today", "7d", "30d", "all"] as const;
+  const deletes: Promise<void>[] = [];
+  for (const uid of userIds) {
+    for (const r of ranges) {
+      deletes.push(env.CACHE.delete(`fr:${uid}:${r}`));
+    }
+  }
+  await Promise.all(deletes);
 }

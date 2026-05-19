@@ -59,6 +59,7 @@ export default async function TrendingPage({ searchParams }: Props) {
     tokens: number;
     costUsdCents: number;
     sessions: number;
+    twitterHandle?: string | null;
   }> = [];
 
   let generatedAt = Date.now();

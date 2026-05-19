@@ -11,6 +11,7 @@ import type { Env } from "../env.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validationError, notFound, forbidden } from "../lib/errors.js";
+import { getPrimarySourceMap } from "../lib/primary-source.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -95,6 +96,8 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
       u.id          AS user_id,
       u.handle,
       u.avatar_url,
+      u.twitter_handle,
+      u.twitter_verified_at,
       COALESCE(SUM(dr.tokens), 0)         AS tokens,
       COALESCE(SUM(dr.cost_usd_cents), 0) AS cost_usd_cents,
       COALESCE(SUM(dr.sessions), 0)       AS sessions
@@ -113,6 +116,8 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     user_id: string;
     handle: string;
     avatar_url: string | null;
+    twitter_handle: string | null;
+    twitter_verified_at: number | null;
     tokens: number;
     cost_usd_cents: number;
     sessions: number;
@@ -144,6 +149,12 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     top2ByUser.set(r.user_id, list);
   }
 
+  // v1.2 Track AF — primary-source pill per user. One D1 read per uncached
+  // user (KV-cached for 5 min). Done after we know the user set so we can
+  // batch the lookups in parallel.
+  const userIds = (result.results ?? []).map((r) => r.user_id);
+  const primarySourceMap = await getPrimarySourceMap(c.env.DB, c.env.CACHE, userIds);
+
   const rows = (result.results ?? []).map((r, i) => ({
     rank: i + 1,
     userId: r.user_id,
@@ -153,6 +164,10 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     costUsdCents: r.cost_usd_cents,
     sessions: r.sessions,
     topSources: top2ByUser.get(r.user_id) ?? [],
+    // v1.2 Track AC — only surface a Twitter handle once it has been verified
+    // through OAuth. Manual (unverified) handles stay private to the user.
+    twitterHandle: r.twitter_verified_at !== null ? r.twitter_handle : null,
+    primarySource: primarySourceMap.get(r.user_id) ?? null,
   }));
 
   const generatedAt = Date.now();

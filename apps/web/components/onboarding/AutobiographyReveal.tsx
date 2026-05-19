@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import type { AutobiographyStats } from "@token-rats/contracts";
+import { TwitterHandlePill } from "../TwitterHandlePill";
 
 const DAY_NAMES = [
   "Sundays",
@@ -124,9 +125,11 @@ function buildSteps(s: AutobiographyStats): Step[] {
 interface Props {
   stats: AutobiographyStats;
   handle: string;
+  /** v1.2 Track AC — verified Twitter/X handle for the pill next to display name. */
+  twitterHandle?: string | null;
 }
 
-export function AutobiographyReveal({ stats, handle }: Props) {
+export function AutobiographyReveal({ stats, handle, twitterHandle }: Props) {
   const steps = buildSteps(stats);
   const [visibleCount, setVisibleCount] = useState(0);
   const [done, setDone] = useState(false);
@@ -151,6 +154,15 @@ export function AutobiographyReveal({ stats, handle }: Props) {
 
   return (
     <div className="mx-auto max-w-xl w-full">
+      {/* Verified handle pill, surfaced once at the top so screenshot-share
+          captures the X identity alongside the autobiography stats. */}
+      {twitterHandle && (
+        <div className="mb-3 flex items-center gap-2 text-sm text-zinc-400">
+          <span>@{handle}</span>
+          <TwitterHandlePill handle={twitterHandle} />
+        </div>
+      )}
+
       {/* Steps */}
       <div className="space-y-4">
         {steps.map((step, i) => (
@@ -168,7 +180,9 @@ export function AutobiographyReveal({ stats, handle }: Props) {
       >
         <div className="text-center space-y-1">
           <div className="text-2xl">🐀</div>
-          <h2 className="text-lg font-black tracking-tight">That&apos;s your Token Autobiography</h2>
+          <h2 className="text-lg font-black tracking-tight">
+            That&apos;s your Token Autobiography
+          </h2>
           <p className="text-sm text-zinc-400">
             Share it — let your friends know who burns the most.
           </p>
@@ -238,12 +252,8 @@ function StepCard({
       style={{ transitionDelay: `${index * 40}ms` }}
       className={[
         "rounded-2xl border p-5 transition-all duration-500",
-        visible
-          ? "opacity-100 translate-y-0"
-          : "opacity-0 translate-y-6 pointer-events-none",
-        index === 0
-          ? "border-rat-700/60 bg-rat-900/20"
-          : "border-zinc-800 bg-zinc-900",
+        visible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6 pointer-events-none",
+        index === 0 ? "border-rat-700/60 bg-rat-900/20" : "border-zinc-800 bg-zinc-900",
       ].join(" ")}
     >
       <div className="flex items-start gap-4">
@@ -265,12 +275,8 @@ function StepCard({
           >
             {step.value}
           </p>
-          {step.sub && (
-            <p className="mt-1.5 font-mono text-sm text-zinc-500">{step.sub}</p>
-          )}
-          {step.flavor && (
-            <p className="mt-2 text-sm text-zinc-600 italic">{step.flavor}</p>
-          )}
+          {step.sub && <p className="mt-1.5 font-mono text-sm text-zinc-500">{step.sub}</p>}
+          {step.flavor && <p className="mt-2 text-sm text-zinc-600 italic">{step.flavor}</p>}
         </div>
       </div>
     </div>

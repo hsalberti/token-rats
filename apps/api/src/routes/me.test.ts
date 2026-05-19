@@ -70,3 +70,47 @@ describe("PatchMeRequest validation", () => {
     expect(result.success).toBe(false);
   });
 });
+
+/* -------------------------------------------------------------------------- */
+/* v1.2 Track AC — User contract surfaces twitterVerified                     */
+/* -------------------------------------------------------------------------- */
+
+import { User } from "@token-rats/contracts";
+
+describe("User contract — twitterVerified", () => {
+  it("accepts a fully verified Twitter user", () => {
+    const result = User.safeParse({
+      id: "u1",
+      handle: "vibedev",
+      avatarUrl: null,
+      twitterHandle: "vibedev",
+      twitterVerified: true,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.twitterVerified).toBe(true);
+      expect(result.data.twitterHandle).toBe("vibedev");
+    }
+  });
+
+  it("accepts a user with no twitter linkage at all", () => {
+    const result = User.safeParse({
+      id: "u1",
+      handle: "vibedev",
+      avatarUrl: null,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it("treats twitterVerified=false as a valid unverified state", () => {
+    const result = User.safeParse({
+      id: "u1",
+      handle: "vibedev",
+      avatarUrl: null,
+      twitterHandle: "manual",
+      twitterVerified: false,
+    });
+    expect(result.success).toBe(true);
+    if (result.success) expect(result.data.twitterVerified).toBe(false);
+  });
+});

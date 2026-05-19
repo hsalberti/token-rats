@@ -44,7 +44,7 @@
  * No prompt or completion text is ever read, stored, or returned.
  */
 
-import type { SessionRecord } from "@token-rats/contracts";
+import type { SessionRecord, SourcePlan } from "@token-rats/contracts";
 import { priceOf } from "@token-rats/pricing";
 import { computeDedupeKey } from "./hash.js";
 
@@ -58,7 +58,21 @@ interface SessionAcc {
   model: string;
 }
 
-export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): SessionRecord[] {
+/**
+ * v1.2 Track AF — caller may pass a `defaultPlan` (typically inferred by the
+ * CLI from filesystem signals like `~/.claude/.credentials.json` presence vs
+ * `ANTHROPIC_API_KEY` env var). The parser itself is pure and has no fs
+ * access, so without this hint we emit `unknown` and let the read-side label
+ * degrade to the bare source name.
+ */
+export interface ParseClaudeCodeOptions {
+  defaultPlan?: SourcePlan;
+}
+
+export function parseClaudeCode(
+  input: string | ArrayBuffer | Uint8Array,
+  opts: ParseClaudeCodeOptions = {},
+): SessionRecord[] {
   // Normalise input to a string
   let text: string;
   if (typeof input === "string") {
@@ -147,6 +161,13 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     }
   }
 
+  // v1.2 Track AF — sourcePlan inference: the JSONL itself doesn't expose
+  // Claude Code's auth mode (OAuth vs raw API key) or account tier, so we
+  // fall back to the caller-provided default (the CLI passes a hint based on
+  // filesystem signals: `~/.claude/.credentials.json` presence vs the
+  // `ANTHROPIC_API_KEY` env var). Without a hint, emit `unknown`.
+  const sourcePlan: SourcePlan = opts.defaultPlan ?? "unknown";
+
   // Emit one SessionRecord per session
   const results: SessionRecord[] = [];
   for (const acc of sessions.values()) {
@@ -176,6 +197,7 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
       startedAt,
       endedAt,
       dedupeKey,
+      sourcePlan,
     });
   }
 

@@ -27,29 +27,26 @@ export default async function ProfileSettingsPage() {
   const publicProfile = data.user.publicProfile ?? false;
   const bio = data.user.bio ?? null;
   const twitterHandle = data.user.twitterHandle ?? null;
+  const twitterVerified = data.user.twitterVerified ?? false;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
       <div className="max-w-lg mx-auto">
         <div className="mb-8">
-          <a
-            href="/app"
-            className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
-          >
+          <a href="/app" className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
             &larr; Back to app
           </a>
         </div>
 
         <h1 className="text-2xl font-bold mb-2">Profile Settings</h1>
-        <p className="text-zinc-400 mb-8">
-          Control your public presence on Token Rats.
-        </p>
+        <p className="text-zinc-400 mb-8">Control your public presence on Token Rats.</p>
 
         <ProfileSettingsClient
           handle={currentUser.handle}
           initialPublicProfile={publicProfile}
           initialBio={bio}
           initialTwitterHandle={twitterHandle}
+          initialTwitterVerified={twitterVerified}
         />
       </div>
     </main>

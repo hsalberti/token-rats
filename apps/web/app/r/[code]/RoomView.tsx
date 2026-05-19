@@ -19,6 +19,8 @@ import { Avatar } from "../../../components/ui/Avatar";
 import { RankBadge } from "../../../components/ui/RankBadge";
 import { Button } from "../../../components/ui/Button";
 import { SourceBadges } from "../../../components/SourceBadge";
+import { PrimarySourcePill } from "../../../components/SourcePill";
+import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { StreakBadge } from "../../../components/room/StreakBadge";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
 import { ChallengesPanel } from "../../../components/room/ChallengesPanel";
@@ -267,8 +269,18 @@ export function RoomView({
                 onClose={() => setRenamingRoom(false)}
               />
             ) : (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-3xl font-black tracking-tight">{room.name}</h1>
+                {/* v1.2 Track AE — country-locked public-room badge. */}
+                {room.isPublic && room.country && (
+                  <span
+                    className="inline-flex items-center gap-1 rounded-md bg-rat-500/15 px-2 py-0.5 text-xs font-semibold text-rat-300"
+                    title={`Public, country-locked to ${room.country}`}
+                  >
+                    <span aria-hidden>🌎</span>
+                    <span>Public, {room.country}</span>
+                  </span>
+                )}
                 {isOwner && (
                   <button
                     onClick={() => setRenamingRoom(true)}
@@ -449,6 +461,8 @@ function LeaderboardTable({
             <div className="flex min-w-0 items-center gap-2">
               <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
               <span className="truncate font-semibold group-hover:text-rat-400">@{row.handle}</span>
+              <TwitterHandlePill handle={row.twitterHandle} />
+              <PrimarySourcePill source={row.primarySource} />
               {isCurrentUser && (
                 <span className="rounded-md bg-rat-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rat-400">
                   you

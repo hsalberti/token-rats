@@ -42,12 +42,19 @@ export async function GET(
     handle: string;
     tokens: number;
     costUsdCents: number;
+    twitterHandle?: string | null;
   };
 
   let rows: Row[] = [];
   try {
     const data = await getTrending(range);
-    rows = data.rows.slice(0, 10);
+    rows = data.rows.slice(0, 10).map((r) => ({
+      rank: r.rank,
+      handle: r.handle,
+      tokens: r.tokens,
+      costUsdCents: r.costUsdCents,
+      twitterHandle: r.twitterHandle ?? null,
+    }));
   } catch {
     return new Response("Card unavailable", { status: 500 });
   }
@@ -55,111 +62,120 @@ export async function GET(
   const rangeLabel = RANGE_LABELS[range];
 
   const image = new ImageResponse(
-    (
+    <div
+      style={{
+        width: 1200,
+        height: 630,
+        background: "#09090b",
+        display: "flex",
+        flexDirection: "column",
+        padding: "48px 56px",
+        fontFamily: "system-ui, sans-serif",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Glow */}
       <div
         style={{
-          width: 1200,
-          height: 630,
-          background: "#09090b",
-          display: "flex",
-          flexDirection: "column",
-          padding: "48px 56px",
-          fontFamily: "system-ui, sans-serif",
-          position: "relative",
-          overflow: "hidden",
+          position: "absolute",
+          top: -100,
+          left: -100,
+          width: 500,
+          height: 500,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%)",
         }}
-      >
-        {/* Glow */}
-        <div
-          style={{
-            position: "absolute",
-            top: -100,
-            left: -100,
-            width: 500,
-            height: 500,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 70%)",
-          }}
-        />
+      />
 
-        {/* Brand bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-          <div style={{ fontSize: 20, fontWeight: 900, color: "#f97316", letterSpacing: "-0.03em" }}>
-            Token Rats
-          </div>
-          <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
-          <div style={{ fontSize: 14, color: "#71717a" }}>Global Trending</div>
-          <div
-            style={{
-              marginLeft: "auto",
-              background: "#1c1917",
-              border: "1.5px solid #f97316",
-              borderRadius: 8,
-              padding: "4px 12px",
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#f97316",
-            }}
-          >
-            {rangeLabel}
-          </div>
+      {/* Brand bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
+        <div style={{ fontSize: 20, fontWeight: 900, color: "#f97316", letterSpacing: "-0.03em" }}>
+          Token Rats
         </div>
-
-        {/* Title */}
+        <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
+        <div style={{ fontSize: 14, color: "#71717a" }}>Global Trending</div>
         <div
           style={{
-            fontSize: 52,
-            fontWeight: 900,
-            color: "#f4f4f5",
-            letterSpacing: "-0.04em",
-            lineHeight: 1,
-            marginBottom: 32,
+            marginLeft: "auto",
+            background: "#1c1917",
+            border: "1.5px solid #f97316",
+            borderRadius: 8,
+            padding: "4px 12px",
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#f97316",
           }}
         >
-          Top Token Rats
+          {rangeLabel}
         </div>
+      </div>
 
-        {/* Leaderboard list — two columns of 5 */}
-        <div style={{ display: "flex", gap: 16, flex: 1 }}>
-          {[rows.slice(0, 5), rows.slice(5, 10)].map((half, colIdx) => (
-            <div key={colIdx} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
-              {half.map((row) => (
-                <div
-                  key={row.rank}
+      {/* Title */}
+      <div
+        style={{
+          fontSize: 52,
+          fontWeight: 900,
+          color: "#f4f4f5",
+          letterSpacing: "-0.04em",
+          lineHeight: 1,
+          marginBottom: 32,
+        }}
+      >
+        Top Token Rats
+      </div>
+
+      {/* Leaderboard list — two columns of 5 */}
+      <div style={{ display: "flex", gap: 16, flex: 1 }}>
+        {[rows.slice(0, 5), rows.slice(5, 10)].map((half, colIdx) => (
+          <div key={colIdx} style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
+            {half.map((row) => (
+              <div
+                key={row.rank}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  background: row.rank <= 3 ? "#1c1917" : "#18181b",
+                  borderRadius: 10,
+                  padding: "8px 12px",
+                  border:
+                    row.rank <= 3 ? "1.5px solid rgba(249,115,22,0.3)" : "1.5px solid #27272a",
+                }}
+              >
+                <span
+                  style={{
+                    width: 28,
+                    fontSize: row.rank <= 3 ? 18 : 13,
+                    fontWeight: 900,
+                    color:
+                      row.rank === 1
+                        ? "#fbbf24"
+                        : row.rank === 2
+                          ? "#d4d4d8"
+                          : row.rank === 3
+                            ? "#b45309"
+                            : "#71717a",
+                    textAlign: "center",
+                  }}
+                >
+                  {row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}
+                </span>
+                <span
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 10,
-                    background: row.rank <= 3 ? "#1c1917" : "#18181b",
-                    borderRadius: 10,
-                    padding: "8px 12px",
-                    border: row.rank <= 3 ? "1.5px solid rgba(249,115,22,0.3)" : "1.5px solid #27272a",
+                    gap: 6,
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: 14,
+                    fontWeight: 700,
+                    color: "#e4e4e7",
+                    overflow: "hidden",
                   }}
                 >
                   <span
                     style={{
-                      width: 28,
-                      fontSize: row.rank <= 3 ? 18 : 13,
-                      fontWeight: 900,
-                      color:
-                        row.rank === 1
-                          ? "#fbbf24"
-                          : row.rank === 2
-                            ? "#d4d4d8"
-                            : row.rank === 3
-                              ? "#b45309"
-                              : "#71717a",
-                      textAlign: "center",
-                    }}
-                  >
-                    {row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}
-                  </span>
-                  <span
-                    style={{
-                      flex: 1,
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: "#e4e4e7",
                       overflow: "hidden",
                       textOverflow: "ellipsis",
                       whiteSpace: "nowrap",
@@ -167,31 +183,32 @@ export async function GET(
                   >
                     @{row.handle}
                   </span>
-                  <span style={{ fontSize: 14, fontWeight: 900, color: "#f97316" }}>
-                    {fmtTokens(row.tokens)}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div
-          style={{
-            marginTop: 24,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div style={{ fontSize: 15, color: "#52525b" }}>tokenrats.com/trending</div>
-          <div style={{ fontSize: 15, color: "#52525b" }}>
-            counts only — we can&apos;t read your prompts
+                  {row.twitterHandle && <TwitterMiniSvg />}
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 900, color: "#f97316" }}>
+                  {fmtTokens(row.tokens)}
+                </span>
+              </div>
+            ))}
           </div>
+        ))}
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          marginTop: 24,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ fontSize: 15, color: "#52525b" }}>tokenrats.com/trending</div>
+        <div style={{ fontSize: 15, color: "#52525b" }}>
+          counts only — we can&apos;t read your prompts
         </div>
       </div>
-    ),
+    </div>,
     {
       width: 1200,
       height: 630,
@@ -200,4 +217,23 @@ export async function GET(
 
   image.headers.set("Cache-Control", "public, max-age=300, s-maxage=600");
   return image;
+}
+
+/**
+ * v1.2 Track AC — compact X glyph rendered next to handles on the trending
+ * card. Trending rows are tight (10 per card) so we render just the icon as
+ * a verified-checkmark substitute rather than the full pill.
+ */
+function TwitterMiniSvg() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      width="12"
+      height="12"
+      style={{ color: "#71717a", flexShrink: 0 }}
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+    </svg>
+  );
 }

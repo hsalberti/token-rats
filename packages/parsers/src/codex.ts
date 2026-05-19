@@ -53,7 +53,7 @@
  * Prompts, completions, tool I/O, and instructions are never read.
  */
 
-import type { SessionRecord } from "@token-rats/contracts";
+import type { SessionRecord, SourcePlan } from "@token-rats/contracts";
 import { priceOf } from "@token-rats/pricing";
 import { computeDedupeKey } from "./hash.js";
 
@@ -64,9 +64,26 @@ interface SessionAcc {
   inTokens: number;
   outTokens: number;
   model: string;
+  /** Plan tier inferred from session_meta hints; defaults to `unknown`. */
+  sourcePlan: SourcePlan;
 }
 
-export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRecord[] {
+/**
+ * v1.2 Track AF — Codex's auth mode (ChatGPT-account OAuth vs raw OpenAI
+ * API key) shows up sparsely and inconsistently in the rollout JSONL. The
+ * strongest signal we can lift is `session_meta.payload.account_id` or a
+ * `chatgpt_account_id`, which only appears on OAuth sessions. Otherwise we
+ * accept a caller-provided `defaultPlan` (the CLI infers `'api'` when
+ * `OPENAI_API_KEY` is set). Without either, we emit `'unknown'`.
+ */
+export interface ParseCodexOptions {
+  defaultPlan?: SourcePlan;
+}
+
+export function parseCodex(
+  input: string | ArrayBuffer | Uint8Array,
+  opts: ParseCodexOptions = {},
+): SessionRecord[] {
   let text: string;
   if (typeof input === "string") {
     text = input;
@@ -109,6 +126,19 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
         acc.startedAt = metaTs;
       }
       if (metaTs > acc.endedAt) acc.endedAt = metaTs;
+      // v1.2 Track AF — strongest in-log auth signal: presence of a
+      // ChatGPT account id indicates OAuth (i.e. a Plus/Pro subscriber).
+      // Otherwise we leave the per-session default in place and the
+      // caller's `defaultPlan` (or `'unknown'`) wins below.
+      const accountId =
+        typeof payload["chatgpt_account_id"] === "string"
+          ? payload["chatgpt_account_id"]
+          : typeof payload["account_id"] === "string"
+            ? payload["account_id"]
+            : null;
+      if (accountId) {
+        acc.sourcePlan = "pro";
+      }
       continue;
     }
 
@@ -157,6 +187,11 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
       acc.outTokens,
     );
 
+    // v1.2 Track AF — fall back to the caller-provided default when we
+    // didn't pick up an in-log auth signal.
+    const sourcePlan: SourcePlan =
+      acc.sourcePlan !== "unknown" ? acc.sourcePlan : (opts.defaultPlan ?? "unknown");
+
     results.push({
       id: `codex:${acc.sessionId}`,
       source: "codex",
@@ -167,6 +202,7 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
       startedAt,
       endedAt,
       dedupeKey,
+      sourcePlan,
     });
   }
   return results;
@@ -182,6 +218,7 @@ function upsert(map: Map<string, SessionAcc>, sessionId: string): SessionAcc {
       inTokens: 0,
       outTokens: 0,
       model: "",
+      sourcePlan: "unknown",
     };
     map.set(sessionId, acc);
   }
