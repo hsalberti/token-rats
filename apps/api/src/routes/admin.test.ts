@@ -265,6 +265,41 @@ describe("GET /v1/admin/activity", () => {
     const apr20 = body.series.find((d) => d.day === "2026-04-20");
     expect(apr20?.activeUsers).toBe(0);
   });
+
+  it("clamps activity to days on or after each user's signup", async () => {
+    // Locks in the SQL shape so a future refactor can't silently drop
+    // the signup-day clamp and reintroduce the "pre-launch active
+    // users" bug. The CLI uploads local Claude Code / Cursor logs that
+    // can predate signup by months; without this clamp those sessions
+    // show up as platform activity on dates the user wasn't yet a user.
+    const queue: D1Queue = {
+      firsts: [
+        { handle: "owner" }, // isAdmin lookup
+        { n: 0 }, // 30d total
+      ],
+      alls: [{ results: [] }], // per-day
+      preparedSql: [],
+    };
+
+    const app = makeApp({
+      DB: makeD1(queue),
+      SESSION_SIGNING_KEY: SIGNING_KEY,
+      ADMIN_GITHUB_LOGIN: "owner",
+    });
+
+    const res = await app.fetch(await signedReq("/v1/admin/activity", "user-1"));
+    expect(res.status).toBe(200);
+
+    // The activity handler runs two SQL queries against daily_rollup
+    // (per-day + 30d total). Both must JOIN users and include the
+    // strftime clamp on u.created_at.
+    const dailyRollupSqls = queue.preparedSql.filter((s) => s.includes("FROM daily_rollup"));
+    expect(dailyRollupSqls).toHaveLength(2);
+    for (const sql of dailyRollupSqls) {
+      expect(sql).toContain("JOIN users u ON u.id = dr.user_id");
+      expect(sql).toContain("strftime('%Y-%m-%d', u.created_at / 1000, 'unixepoch')");
+    }
+  });
 });
 
 /* -------------------------------------------------------------------------- */
