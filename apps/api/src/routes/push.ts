@@ -100,26 +100,47 @@ push.post("/test", requireAuth, async (c) => {
 
   const vapidSubject = `mailto:noreply@${new URL(c.env.WEB_ORIGIN).hostname}`;
 
-  // sendWebPush currently returns { ok: false, reason: "encryption-not-implemented" }
-  // until aes128gcm payload encryption is wired in. We surface that to the
-  // caller instead of claiming success, so the settings UI can show "push
-  // not yet available" rather than a misleading green check.
+  // We attempt every subscription. 404/410 (subscription gone) → hard-delete
+  // the row in the same request so a "lost" device stops getting pinged.
+  // Other delivery failures are surfaced to the caller so the settings UI
+  // can show a real reason instead of a misleading success.
   let firstReason: string | undefined;
+  let firstStatus: number | undefined;
+  let anyOk = false;
   for (const sub of subs) {
-    const result = await sendWebPush(
+    const res = await sendWebPush(
       sub,
       payload,
       c.env.VAPID_PRIVATE_KEY,
       c.env.VAPID_PUBLIC_KEY,
       vapidSubject,
     );
-    if (result.ok) {
-      return c.json({ sent: true });
+    if (res.ok) {
+      anyOk = true;
+      continue;
     }
-    firstReason ??= result.reason;
+    if (res.reason === "gone") {
+      // Hard-delete the dead row. Best-effort — a failure here is non-fatal.
+      await c.env.DB.prepare(
+        "DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?",
+      )
+        .bind(userId, sub.endpoint)
+        .run()
+        .catch(() => undefined);
+    }
+    firstReason ??= res.reason;
+    if ("status" in res) firstStatus ??= res.status;
   }
 
-  return c.json({ sent: false, reason: firstReason ?? "delivery-failed" });
+  if (anyOk) {
+    return c.json({ sent: true });
+  }
+
+  return c.json({
+    sent: false,
+    reason: firstReason ?? "delivery-failed",
+    ...(firstStatus !== undefined ? { status: firstStatus } : {}),
+  });
 });
 
 export default push;

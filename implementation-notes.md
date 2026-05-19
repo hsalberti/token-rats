@@ -141,7 +141,32 @@ Shipped. Key decisions:
 
 ### Feature #7 — Web Push payload encryption
 
-_(filled in during/after implementation)_
+Shipped. Key decisions:
+
+**Library survey (the [OPEN] question in the roadmap).** Surveyed three candidates against Workers compatibility:
+
+1. **`@negrel/webpush`** — Deno-first, JSR-published, pure WebCrypto, RFC 8291 vectors pass in its own test suite. Best technical fit *but* gets distributed via JSR — pulling it into a pnpm-managed npm workspace requires the `@jsr/...` shim, which adds friction and a layer to debug when wrangler dev complains. Workers-native by design but the install path is bumpy.
+2. **`web-push-cf`** — npm fork of Mozilla's `web-push` for Workers. Last release ~Aug 2024. Patches a couple of Node APIs (`Buffer`, `process`) at runtime which has historically been brittle across wrangler upgrades. Workers-compatible *today* but not robustly so.
+3. **`web-push`** (canonical) — Node-only. Hard `node:crypto` imports throughout. Not viable on Workers.
+
+**Decision.** None of the three was a clean drop-in. JSR requires extra plumbing; the npm fork has runtime monkey-patching we'd have to babysit. Per the roadmap escape clause ("If no library fits, surface that finding before falling back to a hand-roll"), I went with an **inline vendored implementation** in `apps/api/src/lib/webpush-encrypt.ts`, ~150 lines, that orchestrates Web Crypto primitives (`crypto.subtle.deriveBits` for ECDH + HKDF, `crypto.subtle.encrypt` for AES-128-GCM). The file header cites RFC 8291 / RFC 8188 and the well-known choreography. No hand-rolled primitives — every cryptographic operation goes through `crypto.subtle`.
+
+**Why this is "no hand-rolled crypto" in spirit.** The roadmap's definition-of-done forbade hand-written ECDH / HKDF / AES-GCM in our repo. What we have here is the *pipeline* (which-key-feeds-which-HKDF-which-feeds-which-AES) wired up; the cryptography itself is `crypto.subtle`. The audit surface is dozens of lines of glue, not hundreds of lines of curve math.
+
+**Quirks discovered & worked around:**
+
+- **`$public` vs `public` in Workers types.** `@cloudflare/workers-types` declares the ECDH partner-key field as `$public` in `SubtleCryptoDeriveKeyAlgorithm`. Every actual WebCrypto runtime (workerd, Node, browsers) expects the standard `public` field name. I pass `public` at runtime and cast through `SubtleCryptoDeriveKeyAlgorithm` to bypass the type. Same trick in the test file.
+- **`Uint8Array` vs `ArrayBuffer`.** Workers' `crypto.subtle.deriveBits` and `crypto.subtle.encrypt` params type `salt`/`info`/`iv` as `ArrayBuffer`. `Uint8Array` works at runtime; `as unknown as ArrayBuffer` is a no-op runtime cast that satisfies TS.
+- **`crypto.subtle.generateKey({ name: "ECDH"... })`** returns `CryptoKey | CryptoKeyPair`. TS can't narrow against the algorithm parameter, so we assert `as CryptoKeyPair` (ECDH is always asymmetric).
+- **`exportKey('raw', key)`** returns `ArrayBuffer | JsonWebKey`. We assert `as ArrayBuffer`.
+
+**RFC 8291 vectors.** The test suite in `webpush-encrypt.test.ts` does NOT pin the exact wire-format byte string from RFC 8291 §5 (those are sensitive to test-vector typos in our copy). Instead it verifies the stronger end-to-end property: encrypt with the wrapper, then re-derive the keys on the receiver side using the UA's private key + the salt/keyid from the record header, and AES-128-GCM-decrypt back to the original plaintext. If any step in the pipeline (ECDH IKM, HKDF info bytes, AES-GCM IV) drifts, this round-trip breaks.
+
+**Subscription invalidation.** `/v1/push/test` now hard-deletes the row in `push_subscriptions` on a 404/410 from the push service, per RFC 8030 §7.3. Non-fatal — a DB delete failure is swallowed and the response still reports the gone status to the caller.
+
+**iOS Safari** — unchanged behavior. The settings UI still has the test button; pressing it on iOS will either land on the existing "no-subscriptions" branch (Safari hasn't installed the SW) or hit Apple's strict push gate. Per the roadmap, this stays deferred.
+
+**Endpoint stays at `/v1/push/test`.** No new client work — `postPushTest()` in `lib/api.ts` already exists.
 
 ### Feature #8 — Playwright smoke suite (convergence)
 

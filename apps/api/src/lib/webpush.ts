@@ -1,19 +1,20 @@
 /**
  * VAPID + Web Push sender for Cloudflare Workers.
  *
- * This module implements the Web Push Protocol (RFC 8030) with VAPID
- * (RFC 8292) authentication using the Web Crypto API available in
- * Cloudflare Workers. The payload is encrypted with the "aes128gcm"
- * content encoding (RFC 8188).
+ * This module is the thin orchestrator. The encryption choreography lives
+ * in `webpush-encrypt.ts`. We:
+ *   - parse the UA subscription,
+ *   - sign the VAPID JWT,
+ *   - encrypt the payload (`encryptAes128Gcm`),
+ *   - POST the record to the push service,
+ *   - signal 404/410 ("subscription gone") to the caller so the route can
+ *     delete the row.
  *
- * TODO: The full aes128gcm payload encryption (ECDH key agreement +
- * HKDF key derivation + AES-GCM encryption) is stubbed below — the
- * function logs the intent and returns true without actually sending a
- * push. Wire in the full crypto path (or use a library like `web-push`
- * compiled for Workers) before going to production.
- *
- * The VAPID JWT signing IS fully implemented using Web Crypto.
+ * VAPID JWT signing is local because it's two `crypto.subtle` calls (ES256
+ * over a fixed JWT shape) — not worth a separate module.
  */
+
+import { base64urlToUint8Array, encryptAes128Gcm, uint8ArrayToBase64url } from "./webpush-encrypt.js";
 
 export interface PushSubscriptionData {
   endpoint: string;
@@ -28,23 +29,8 @@ export interface PushPayload {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Base64url helpers                                                           */
+/* base64url JSON helper (small + local — VAPID JWT only)                     */
 /* -------------------------------------------------------------------------- */
-
-function base64urlToUint8Array(b64: string): Uint8Array {
-  const padding = "=".repeat((4 - (b64.length % 4)) % 4);
-  const base64 = (b64 + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const raw = atob(base64);
-  const arr = new Uint8Array(raw.length);
-  for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
-  return arr;
-}
-
-function uint8ArrayToBase64url(arr: Uint8Array): string {
-  let binary = "";
-  for (const byte of arr) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=/g, "");
-}
 
 function objectToBase64url(obj: unknown): string {
   const json = JSON.stringify(obj);
@@ -53,16 +39,9 @@ function objectToBase64url(obj: unknown): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/* VAPID JWT signing (fully implemented)                                      */
+/* VAPID JWT signing                                                           */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Build and sign a VAPID JWT for use in the Authorization header.
- *
- * @param audience  The push service origin (e.g. "https://fcm.googleapis.com")
- * @param subject   A mailto: or https: URL identifying the app operator
- * @param privateKeyB64url  Base64url-encoded raw 32-byte EC P-256 private key
- */
 async function buildVapidJwt(
   audience: string,
   subject: string,
@@ -80,7 +59,6 @@ async function buildVapidJwt(
   const signingInput = `${header}.${claims}`;
   const signingInputBytes = new TextEncoder().encode(signingInput);
 
-  // Import the private key
   const privateKeyBytes = base64urlToUint8Array(privateKeyB64url);
   const cryptoKey = await crypto.subtle.importKey(
     "raw",
@@ -90,7 +68,6 @@ async function buildVapidJwt(
     ["sign"],
   );
 
-  // Sign with ES256 (ECDSA + SHA-256)
   const signatureBuffer = await crypto.subtle.sign(
     { name: "ECDSA", hash: { name: "SHA-256" } },
     cryptoKey,
@@ -106,38 +83,109 @@ async function buildVapidJwt(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Send a push notification to a single subscription.
- *
- * TODO: The payload is NOT encrypted in this stub. Full aes128gcm
- * encryption requires:
- *   1. Generate an ephemeral P-256 key pair.
- *   2. ECDH with the client's p256dh public key → shared secret.
- *   3. HKDF-SHA-256 to derive the content-encryption and auth-info keys.
- *   4. AES-128-GCM encrypt the JSON payload with a random salt.
- *   5. Set Content-Encoding: aes128gcm and include the encrypted body.
- *
- * Until the encryption is wired in, this function sends the push
- * request WITHOUT a body (a "ping" notification). The service worker
- * will receive a push event with no data — it should fall back to a
- * generic notification copy. For full notification copy (title/body/url),
- * implement the encryption path above.
+ * Outcome of a single push delivery. `gone` is the signal /v1/push/test
+ * (and any other caller) uses to hard-delete the subscription row.
  */
-/** Stub result so callers can report honestly to the user. */
 export type SendWebPushResult =
   | { ok: true }
-  | { ok: false; reason: "encryption-not-implemented" | "delivery-failed" | "error" };
+  | { ok: false; reason: "gone"; status: 404 | 410 }
+  | { ok: false; reason: "delivery-failed"; status: number; bodySnippet: string }
+  | { ok: false; reason: "error"; message: string };
+
+const TTL_SECONDS = 60 * 60 * 24; // 24h — push service holds the message if UA is offline
+const URGENCY = "normal";
 
 export async function sendWebPush(
-  _subscription: PushSubscriptionData,
-  _payload: PushPayload,
-  _vapidPrivateKey: string,
-  _vapidPublicKey: string,
-  _vapidSubject: string,
+  subscription: PushSubscriptionData,
+  payload: PushPayload,
+  vapidPrivateKey: string,
+  vapidPublicKey: string,
+  vapidSubject: string,
 ): Promise<SendWebPushResult> {
-  // aes128gcm encryption is not implemented yet (see file header). Sending
-  // an unencrypted POST to the push service would result in event.data
-  // being null on the receiving SW, which is functionally the same as not
-  // delivering at all. Return a structured "not implemented" result so
-  // /v1/push/test can report honestly instead of claiming success.
-  return { ok: false, reason: "encryption-not-implemented" };
+  let endpoint: URL;
+  try {
+    endpoint = new URL(subscription.endpoint);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: "error",
+      message: `Invalid subscription endpoint: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  // Encrypt the payload.
+  let body: Uint8Array;
+  try {
+    const plaintext = new TextEncoder().encode(JSON.stringify(payload));
+    const record = await encryptAes128Gcm(plaintext, {
+      p256dh: subscription.p256dh,
+      auth: subscription.auth,
+    });
+    body = record.body;
+  } catch (err) {
+    return {
+      ok: false,
+      reason: "error",
+      message: `Encryption failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  // VAPID JWT.
+  let jwt: string;
+  try {
+    jwt = await buildVapidJwt(endpoint.origin, vapidSubject, vapidPrivateKey);
+  } catch (err) {
+    return {
+      ok: false,
+      reason: "error",
+      message: `VAPID JWT failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  const headers = new Headers({
+    Authorization: `vapid t=${jwt}, k=${vapidPublicKey}`,
+    "Content-Encoding": "aes128gcm",
+    "Content-Type": "application/octet-stream",
+    TTL: String(TTL_SECONDS),
+    Urgency: URGENCY,
+  });
+
+  let res: Response;
+  try {
+    res = await fetch(endpoint.toString(), {
+      method: "POST",
+      headers,
+      body,
+    });
+  } catch (err) {
+    return {
+      ok: false,
+      reason: "error",
+      message: `Push fetch failed: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  if (res.status === 201 || res.status === 202) {
+    return { ok: true };
+  }
+
+  if (res.status === 404 || res.status === 410) {
+    // RFC 8030 §7.3: "the push subscription is no longer valid". The caller
+    // hard-deletes the row.
+    return { ok: false, reason: "gone", status: res.status };
+  }
+
+  let bodySnippet = "";
+  try {
+    bodySnippet = (await res.text()).slice(0, 200);
+  } catch {
+    // ignore
+  }
+
+  return {
+    ok: false,
+    reason: "delivery-failed",
+    status: res.status,
+    bodySnippet,
+  };
 }
