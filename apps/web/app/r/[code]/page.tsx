@@ -2,6 +2,7 @@ import type { GroupStreak, Heatmap, HeatmapRange, RoomSummary } from "@token-rat
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { PrivacyFooter } from "../../../components/PrivacyFooter";
 import { ApiError, api } from "../../../lib/api";
 import { getCookieHeader, getSession } from "../../../lib/auth";
 import { RoomPublicView } from "./RoomPublicView";
@@ -103,6 +104,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
         groupStreak={data.groupStreak}
         cookieHeader={cookieHeader}
         currentUserId={session.id}
+        footer={<PrivacyFooter />}
       />
     );
   } catch (err) {
@@ -126,6 +128,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
               groupStreak={data.groupStreak}
               cookieHeader={cookieHeader}
               currentUserId={session.id}
+              footer={<PrivacyFooter />}
             />
           );
         } catch (joinErr) {
