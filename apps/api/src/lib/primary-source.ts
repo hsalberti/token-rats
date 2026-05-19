@@ -112,11 +112,7 @@ interface PrimarySourceD1 {
 /** Minimal KV surface — read/write/delete. */
 interface PrimarySourceKV {
   get(key: string): Promise<string | null>;
-  put(
-    key: string,
-    value: string,
-    opts?: { expirationTtl?: number },
-  ): Promise<void>;
+  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
   delete(key: string): Promise<void>;
 }
 
@@ -211,9 +207,7 @@ export async function getPrimarySourceMap(
 
   // De-dup the input — callers may pass repeated ids for repeated leaderboard rows.
   const uniqIds = Array.from(new Set(userIds));
-  const labels = await Promise.all(
-    uniqIds.map((id) => getPrimarySourceForUser(db, kv, id, nowMs)),
-  );
+  const labels = await Promise.all(uniqIds.map((id) => getPrimarySourceForUser(db, kv, id, nowMs)));
   for (let i = 0; i < uniqIds.length; i++) {
     out.set(uniqIds[i] as string, labels[i] ?? null);
   }

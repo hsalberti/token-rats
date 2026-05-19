@@ -5,7 +5,7 @@
  * returning null, single-source users, and the `unknown` plan fallback.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { computePrimarySource, formatPrimarySourceLabel } from "./primary-source.js";
 
 describe("formatPrimarySourceLabel", () => {
@@ -91,9 +91,9 @@ describe("computePrimarySource", () => {
   });
 
   it("returns the only source's label for a single-source user", () => {
-    expect(
-      computePrimarySource([{ source: "claude-code", sourcePlan: "max", cost: 1234 }]),
-    ).toBe("claude-max");
+    expect(computePrimarySource([{ source: "claude-code", sourcePlan: "max", cost: 1234 }])).toBe(
+      "claude-max",
+    );
   });
 
   it("falls back to bare source label when the dominant plan is unknown", () => {

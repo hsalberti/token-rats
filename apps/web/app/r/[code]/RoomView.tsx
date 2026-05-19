@@ -1,7 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { api, ApiError } from "../../../lib/api";
 import type {
   ActivityRow,
   ChallengeKind,
@@ -14,19 +12,21 @@ import type {
   RoomMember,
   StreakRow,
 } from "@token-rats/contracts";
-import { useRoomLive } from "../../../lib/use-room-live";
-import { Avatar } from "../../../components/ui/Avatar";
-import { RankBadge } from "../../../components/ui/RankBadge";
-import { Button } from "../../../components/ui/Button";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SourceBadges } from "../../../components/SourceBadge";
 import { PrimarySourcePill } from "../../../components/SourcePill";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
-import { StreakBadge } from "../../../components/room/StreakBadge";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
 import { ChallengesPanel } from "../../../components/room/ChallengesPanel";
 import { RenameRoomForm } from "../../../components/room/RenameRoomForm";
-import { RoomStatStrip } from "../../../components/room/RoomStatStrip";
 import { RoomHeatmap } from "../../../components/room/RoomHeatmap";
+import { RoomStatStrip } from "../../../components/room/RoomStatStrip";
+import { StreakBadge } from "../../../components/room/StreakBadge";
+import { Avatar } from "../../../components/ui/Avatar";
+import { Button } from "../../../components/ui/Button";
+import { RankBadge } from "../../../components/ui/RankBadge";
+import { ApiError, api } from "../../../lib/api";
+import { useRoomLive } from "../../../lib/use-room-live";
 
 interface Props {
   room: Room;

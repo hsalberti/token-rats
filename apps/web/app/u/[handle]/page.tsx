@@ -1,12 +1,12 @@
+import type { HeatmapResponse } from "@token-rats/contracts";
 import type { Metadata } from "next";
-import { getCookieHeader, getSession } from "../../../lib/auth";
-import { api, ApiError } from "../../../lib/api";
+import { ProfileHeatmap } from "../../../components/ProfileHeatmap";
+import { PrimarySourcePill, SourceTiles } from "../../../components/SourcePill";
+import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
-import { PrimarySourcePill, SourceTiles } from "../../../components/SourcePill";
-import { ProfileHeatmap } from "../../../components/ProfileHeatmap";
-import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
-import type { HeatmapResponse } from "@token-rats/contracts";
+import { ApiError, api } from "../../../lib/api";
+import { getCookieHeader, getSession } from "../../../lib/auth";
 
 export const runtime = "edge";
 

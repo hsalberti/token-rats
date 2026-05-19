@@ -43,6 +43,8 @@ export async function GET(
     tokens: number;
     costUsdCents: number;
     twitterHandle?: string | null;
+    /** v1.2 Track AF — kebab-case primary-source label or null. */
+    primarySource?: string | null;
   };
 
   let rows: Row[] = [];
@@ -54,6 +56,7 @@ export async function GET(
       tokens: r.tokens,
       costUsdCents: r.costUsdCents,
       twitterHandle: r.twitterHandle ?? null,
+      primarySource: r.primarySource ?? null,
     }));
   } catch {
     return new Response("Card unavailable", { status: 500 });
@@ -184,6 +187,7 @@ export async function GET(
                     @{row.handle}
                   </span>
                   {row.twitterHandle && <TwitterMiniSvg />}
+                  {row.primarySource && <PrimarySourceMiniSvg source={row.primarySource} />}
                 </span>
                 <span style={{ fontSize: 14, fontWeight: 900, color: "#f97316" }}>
                   {fmtTokens(row.tokens)}
@@ -235,5 +239,29 @@ function TwitterMiniSvg() {
     >
       <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
     </svg>
+  );
+}
+
+/** v1.2 Track AF — tiny primary-source pill for the trending OG card. */
+function PrimarySourceMiniSvg({ source }: { source: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        background: "#1c1917",
+        border: "1px solid rgba(249,115,22,0.45)",
+        borderRadius: 5,
+        padding: "2px 6px",
+        fontSize: 10,
+        fontWeight: 700,
+        color: "#fdba74",
+        fontFamily: "monospace",
+        letterSpacing: "-0.01em",
+        flexShrink: 0,
+      }}
+    >
+      {source}
+    </div>
   );
 }

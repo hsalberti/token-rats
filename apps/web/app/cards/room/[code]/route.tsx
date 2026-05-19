@@ -329,3 +329,26 @@ function TwitterPillSvg({ handle }: { handle: string }) {
     </div>
   );
 }
+
+/** v1.2 Track AF — primary-source pill (OG card variant). */
+function PrimarySourcePillSvg({ source }: { source: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        background: "#18181b",
+        border: "1.5px solid rgba(249,115,22,0.5)",
+        borderRadius: 8,
+        padding: "4px 10px",
+        fontSize: 14,
+        fontWeight: 700,
+        color: "#fdba74",
+        fontFamily: "monospace",
+        letterSpacing: "-0.01em",
+      }}
+    >
+      {source}
+    </div>
+  );
+}

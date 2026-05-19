@@ -9,13 +9,22 @@ import { api, ApiError } from "../../../../../lib/api";
 
 export const runtime = "edge";
 
-/** v1.2 Track AC — surface the verified X handle alongside the autobiography. */
-async function fetchVerifiedTwitterHandle(handle: string): Promise<string | null> {
+/**
+ * v1.2 Track AC + AF — fetch the profile once for the two read-side pills
+ * (verified X handle, kebab-case primary source). One fetch, two outputs.
+ */
+async function fetchPillContext(handle: string): Promise<{
+  twitter: string | null;
+  primarySource: string | null;
+}> {
   try {
     const resp = await api.getProfile(handle);
-    return resp.profile.twitterVerified ? (resp.profile.twitterHandle ?? null) : null;
+    return {
+      twitter: resp.profile.twitterVerified ? (resp.profile.twitterHandle ?? null) : null,
+      primarySource: resp.profile.primarySource ?? null,
+    };
   } catch {
-    return null;
+    return { twitter: null, primarySource: null };
   }
 }
 
@@ -54,8 +63,10 @@ export async function GET(
     return new Response("Card unavailable", { status: 500 });
   }
 
-  // v1.2 Track AC — best-effort fetch for the verified X handle.
-  const verifiedTwitterHandle = await fetchVerifiedTwitterHandle(handle);
+  // v1.2 Track AC + AF — best-effort fetch for both pills in one request.
+  const pillCtx = await fetchPillContext(handle);
+  const verifiedTwitterHandle = pillCtx.twitter;
+  const primarySource = pillCtx.primarySource;
 
   function fmtTokens(n: number) {
     if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
@@ -199,6 +210,25 @@ export async function GET(
               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
             </svg>
             <span>{`@${verifiedTwitterHandle}`}</span>
+          </div>
+        )}
+        {primarySource && (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              background: "#18181b",
+              border: "1.5px solid rgba(249,115,22,0.5)",
+              borderRadius: 9,
+              padding: "6px 12px",
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#fdba74",
+              fontFamily: "monospace",
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {primarySource}
           </div>
         )}
       </div>

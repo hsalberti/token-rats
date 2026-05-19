@@ -1,3 +1,4 @@
+import { HeatmapRangeDays } from "@token-rats/contracts";
 /**
  * GET /v1/u/:handle — public profile (auth optional).
  * GET /v1/u/:handle/autobiography — richer stats for the onboarding flow.
@@ -6,14 +7,13 @@
  * aggregated from daily_rollup.
  */
 import { Hono } from "hono";
-import { HeatmapRangeDays } from "@token-rats/contracts";
 import { z } from "zod";
 import type { Env } from "../env.js";
+import { notFound, validationError } from "../lib/errors.js";
+import { getPrimarySourceForUser } from "../lib/primary-source.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
-import { notFound, validationError } from "../lib/errors.js";
 import { buildHeatmapResponse } from "./heatmap.js";
-import { getPrimarySourceForUser } from "../lib/primary-source.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 

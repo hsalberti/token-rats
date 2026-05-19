@@ -6,9 +6,9 @@
  * `/trending` (deep-link route).
  */
 
-import { Avatar } from "@/components/ui/Avatar";
 import { PrimarySourcePill } from "@/components/SourcePill";
 import { TwitterHandlePill } from "@/components/TwitterHandlePill";
+import { Avatar } from "@/components/ui/Avatar";
 import { getTrending } from "@/lib/api";
 import { useState, useTransition } from "react";
 

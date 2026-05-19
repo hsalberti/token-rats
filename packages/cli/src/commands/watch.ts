@@ -199,7 +199,9 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
     // We use Function() to defeat the TypeScript module resolver so that the
     // package being absent at typecheck time doesn't cause a TS2307 error.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chokidar = (await (new Function("m", "return import(m)") as (m: string) => Promise<any>)("chokidar")) as {
+    const chokidar = (await (new Function("m", "return import(m)") as (m: string) => Promise<any>)(
+      "chokidar",
+    )) as {
       watch: (
         pattern: string,
         opts: Record<string, unknown>,

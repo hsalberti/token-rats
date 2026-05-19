@@ -8,8 +8,8 @@
  * always present. The final step shows the share CTA.
  */
 
-import { useEffect, useState } from "react";
 import type { AutobiographyStats } from "@token-rats/contracts";
+import { useEffect, useState } from "react";
 import { PrimarySourcePill } from "../SourcePill";
 import { TwitterHandlePill } from "../TwitterHandlePill";
 

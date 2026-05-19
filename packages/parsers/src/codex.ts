@@ -179,13 +179,7 @@ export function parseCodex(
 
     const model = acc.model.length > 0 ? acc.model : "unknown";
     const { costUsdCents } = priceOf(model, acc.inTokens, acc.outTokens);
-    const dedupeKey = computeDedupeKey(
-      "codex",
-      model,
-      startedAt,
-      acc.inTokens,
-      acc.outTokens,
-    );
+    const dedupeKey = computeDedupeKey("codex", model, startedAt, acc.inTokens, acc.outTokens);
 
     // v1.2 Track AF — fall back to the caller-provided default when we
     // didn't pick up an in-log auth signal.

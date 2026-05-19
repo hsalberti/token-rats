@@ -117,7 +117,6 @@ export function parseClaudeCode(
       if (!Number.isNaN(parsed)) timestamp = parsed;
     }
 
-
     // Upsert accumulator
     let acc = sessions.get(sessionId);
     if (!acc) {
