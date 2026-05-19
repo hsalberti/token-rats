@@ -24,7 +24,13 @@ interface TrendingRow {
 interface Props {
   initialRows: TrendingRow[];
   initialRange: Range;
-  generatedAt: number;
+  /**
+   * Pre-formatted "Updated …" label rendered by the server. We can't format
+   * the timestamp client-side with `toLocaleString(undefined, …)` — that
+   * resolves to `en-US` in the Cloudflare Worker but to the browser's locale
+   * (e.g. `pt-BR`) in the user's tab, which hydration-mismatches.
+   */
+  generatedAtLabel: string;
 }
 
 function fmtTokens(n: number) {
@@ -47,10 +53,10 @@ const RANGE_LABELS: Record<Range, string> = {
   "30d": "30 days",
 };
 
-export function TrendingClient({ initialRows, initialRange, generatedAt }: Props) {
+export function TrendingClient({ initialRows, initialRange, generatedAtLabel }: Props) {
   const [range, setRange] = useState<Range>(initialRange);
   const [rows, setRows] = useState<TrendingRow[]>(initialRows);
-  const [ts, setTs] = useState(generatedAt);
+  const [tsLabel, setTsLabel] = useState(generatedAtLabel);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
@@ -76,19 +82,21 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
       try {
         const data = await getTrending(next);
         setRows(data.rows);
-        setTs(data.generatedAt);
+        // Safe to call on the client — only the *initial* render must match the
+        // SSR string. After hydration, divergent locale formatting is fine.
+        setTsLabel(
+          new Date(data.generatedAt).toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+        );
       } catch {
         setError("Failed to load trending data. Please try again.");
       }
     });
   }
-
-  const generatedDate = new Date(ts).toLocaleString(undefined, {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
 
   return (
     <div className="space-y-6">
@@ -109,7 +117,7 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
             {RANGE_LABELS[r]}
           </button>
         ))}
-        <span className="ml-auto text-xs text-zinc-600">Updated {generatedDate}</span>
+        <span className="ml-auto text-xs text-zinc-600">Updated {tsLabel}</span>
       </div>
 
       {error && <p className="text-sm text-red-400">{error}</p>}

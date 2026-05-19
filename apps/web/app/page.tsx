@@ -108,6 +108,15 @@ export default async function HomePage({
   } catch {
     // Empty board on error — better than crashing the homepage.
   }
+  // Format server-side: `toLocaleString(undefined, …)` on the client resolves
+  // to the user's browser locale (e.g. pt-BR) while the Worker resolves it
+  // to en-US, which trips React's hydration-text check.
+  const generatedAtLabel = new Date(generatedAt).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -146,7 +155,11 @@ export default async function HomePage({
           <h2 className="text-2xl font-black tracking-tight">{t(locale, "landing.boardTitle")}</h2>
           <p className="mt-1 text-sm text-zinc-400">{t(locale, "landing.boardSub")}</p>
         </div>
-        <TrendingClient initialRows={rows} initialRange={range} generatedAt={generatedAt} />
+        <TrendingClient
+          initialRows={rows}
+          initialRange={range}
+          generatedAtLabel={generatedAtLabel}
+        />
       </main>
 
       {/* How it works — install snippet lives in step 01. */}

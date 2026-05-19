@@ -153,12 +153,22 @@ function YearView({ heatmap, title }: { heatmap: HeatmapData; title: string }) {
             const x = Y_ROW_LABEL_W + cell.col * (CELL + GAP);
             const y = Y_COL_LABEL_H + cell.row * (CELL + GAP);
             const fill = COLORS[bucket(cell.tokens, maxTokens)];
+            // React 19 hoists nested <title> elements to document <head>,
+            // leaving an empty SSR placeholder that hydration-mismatches.
+            // aria-label preserves the data for screen readers; the visual
+            // hover tooltip is gone but the heatmap still works.
             return (
-              <rect key={cell.day} x={x} y={y} width={CELL} height={CELL} rx={2} ry={2} fill={fill}>
-                <title>
-                  {cell.day} · {fmtTokens(cell.tokens)} tokens
-                </title>
-              </rect>
+              <rect
+                key={cell.day}
+                x={x}
+                y={y}
+                width={CELL}
+                height={CELL}
+                rx={2}
+                ry={2}
+                fill={fill}
+                aria-label={`${cell.day}: ${fmtTokens(cell.tokens)} tokens`}
+              />
             );
           })}
         </svg>
@@ -224,6 +234,7 @@ function ThirtyDayView({ heatmap, title }: { heatmap: HeatmapData; title: string
             const x = cell.col * (T_CELL + T_GAP);
             const y = cell.row * (T_CELL + T_GAP);
             const fill = COLORS[bucket(cell.tokens, maxTokens)];
+            // See 52-week view above for why we use aria-label instead of <title>.
             return (
               <rect
                 key={cell.day}
@@ -234,11 +245,8 @@ function ThirtyDayView({ heatmap, title }: { heatmap: HeatmapData; title: string
                 rx={4}
                 ry={4}
                 fill={fill}
-              >
-                <title>
-                  {cell.day} · {fmtTokens(cell.tokens)} tokens
-                </title>
-              </rect>
+                aria-label={`${cell.day}: ${fmtTokens(cell.tokens)} tokens`}
+              />
             );
           })}
         </svg>

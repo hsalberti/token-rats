@@ -406,7 +406,6 @@ function RatIcon() {
       className="h-6 w-6"
       aria-hidden="true"
     >
-      <title>Friends</title>
       <path d="M16 11a3 3 0 1 0-3-3" />
       <path d="M8 11a3 3 0 1 0-3-3" />
       <path d="M12 14a5 5 0 0 0-5 5h10a5 5 0 0 0-5-5z" />
@@ -429,7 +428,6 @@ function GlobeIcon() {
       className="h-6 w-6"
       aria-hidden="true"
     >
-      <title>Global</title>
       <circle cx="12" cy="12" r="9" />
       <path d="M3 12h18" />
       <path d="M12 3a14 14 0 0 1 0 18" />
