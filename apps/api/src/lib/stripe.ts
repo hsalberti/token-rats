@@ -25,14 +25,12 @@ function hexToBytes(hex: string): Uint8Array {
   if (len % 2 !== 0) throw new Error("Invalid hex string");
   const bytes = new Uint8Array(len / 2);
   for (let i = 0; i < len; i += 2) {
-    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
+    bytes[i / 2] = Number.parseInt(hex.slice(i, i + 2), 16);
   }
   return bytes;
 }
 
-export type VerifyStripeResult =
-  | { ok: true; timestamp: number }
-  | { ok: false; reason: string };
+export type VerifyStripeResult = { ok: true; timestamp: number } | { ok: false; reason: string };
 
 /**
  * Verify a Stripe webhook signature.
@@ -57,7 +55,7 @@ export async function verifyStripeSignature(
     const [key, value] = part.split("=", 2) as [string, string | undefined];
     if (!value) continue;
     if (key === "t") {
-      timestamp = parseInt(value, 10);
+      timestamp = Number.parseInt(value, 10);
     } else if (key === "v1") {
       v1Sigs.push(value);
     }

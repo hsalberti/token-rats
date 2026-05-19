@@ -1,3 +1,4 @@
+import { UploadSessionsRequest } from "@token-rats/contracts";
 /**
  * POST /v1/sessions — idempotent ingest of SessionRecord[].
  *
@@ -12,13 +13,12 @@
  * via RoomLiveHub Durable Objects (via ctx.waitUntil — does not affect latency).
  */
 import { Hono } from "hono";
-import { UploadSessionsRequest } from "@token-rats/contracts";
 import type { Env } from "../env.js";
+import { rateLimited, validationError } from "../lib/errors.js";
+import { recordSession } from "../lib/ingest.js";
+import { rateLimit } from "../lib/rate-limit.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validationError, rateLimited } from "../lib/errors.js";
-import { rateLimit } from "../lib/rate-limit.js";
-import { recordSession } from "../lib/ingest.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -75,7 +75,7 @@ async function fanoutToRooms(
     fanouts.push(
       stub
         .fetch(
-          new Request(`https://do/publish`, {
+          new Request("https://do/publish", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(sessionAddedEvent),
@@ -88,7 +88,7 @@ async function fanoutToRooms(
     fanouts.push(
       stub
         .fetch(
-          new Request(`https://do/publish`, {
+          new Request("https://do/publish", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(leaderboardUpdateEvent),
@@ -139,9 +139,7 @@ sessions.post("/", requireAuth, async (c) => {
     const totalTokens = newRecords.reduce((s, r) => s + r.inTokens + r.outTokens, 0);
     const totalCostUsdCents = newRecords.reduce((s, r) => s + r.costUsdCents, 0);
 
-    c.executionCtx.waitUntil(
-      fanoutToRooms(c.env, userId, totalTokens, totalCostUsdCents),
-    );
+    c.executionCtx.waitUntil(fanoutToRooms(c.env, userId, totalTokens, totalCostUsdCents));
   }
 
   return c.json({ accepted, duplicates });

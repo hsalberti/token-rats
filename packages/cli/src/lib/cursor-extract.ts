@@ -37,10 +37,7 @@ type DbFactory = () => DbInstance;
 async function tryNodeSqlite(dbPath: string): Promise<CursorRow[] | null> {
   // node:sqlite is experimental in Node 22; use a dynamic import so TypeScript
   // compiles fine on older @types/node versions that lack the module.
-  let DatabaseConstructor: new (
-    path: string,
-    opts?: Record<string, unknown>,
-  ) => DbInstance;
+  let DatabaseConstructor: new (path: string, opts?: Record<string, unknown>) => DbInstance;
 
   try {
     const mod = await import("node:sqlite");
@@ -105,10 +102,7 @@ async function trySqlJs(dbPath: string): Promise<CursorRow[] | null> {
 
 /** Attempt to read rows from the Cursor DB using better-sqlite3. */
 async function tryBetterSqlite3(dbPath: string): Promise<CursorRow[] | null> {
-  let Database: new (
-    path: string,
-    opts?: Record<string, unknown>,
-  ) => DbInstance;
+  let Database: new (path: string, opts?: Record<string, unknown>) => DbInstance;
 
   try {
     const mod = await import("better-sqlite3");
@@ -187,14 +181,14 @@ function normalizeRows(rows: unknown[]): CursorRow[] {
     if (typeof raw !== "object" || raw === null) continue;
     const r = raw as Record<string, unknown>;
 
-    const id = typeof r["id"] === "string" ? r["id"] : null;
+    const id = typeof r.id === "string" ? r.id : null;
     if (!id) continue;
 
-    const model = typeof r["model"] === "string" ? r["model"] : "unknown";
-    const promptTokens = toNonNegInt(r["promptTokens"] ?? r["prompt_tokens"]);
-    const completionTokens = toNonNegInt(r["completionTokens"] ?? r["completion_tokens"]);
-    const startedAt = toPositiveMs(r["startedAt"] ?? r["started_at"]);
-    const endedAt = toPositiveMs(r["endedAt"] ?? r["ended_at"]);
+    const model = typeof r.model === "string" ? r.model : "unknown";
+    const promptTokens = toNonNegInt(r.promptTokens ?? r.prompt_tokens);
+    const completionTokens = toNonNegInt(r.completionTokens ?? r.completion_tokens);
+    const startedAt = toPositiveMs(r.startedAt ?? r.started_at);
+    const endedAt = toPositiveMs(r.endedAt ?? r.ended_at);
 
     if (startedAt === null || endedAt === null) continue;
 
@@ -204,12 +198,12 @@ function normalizeRows(rows: unknown[]): CursorRow[] {
 }
 
 function toNonNegInt(v: unknown): number {
-  if (typeof v !== "number" || !isFinite(v)) return 0;
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
   return Math.max(0, Math.floor(v));
 }
 
 function toPositiveMs(v: unknown): number | null {
-  if (typeof v !== "number" || !isFinite(v) || v <= 0) return null;
+  if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return null;
   return v;
 }
 

@@ -85,22 +85,22 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
     const row = raw as Record<string, unknown>;
 
     // Validate required fields
-    const id = typeof row["id"] === "string" ? row["id"] : null;
+    const id = typeof row.id === "string" ? row.id : null;
     if (!id) continue;
 
-    const rawModel = typeof row["model"] === "string" ? row["model"] : "";
+    const rawModel = typeof row.model === "string" ? row.model : "";
     const model = rawModel.length > 0 ? (CURSOR_MODEL_MAP[rawModel] ?? rawModel) : "unknown";
 
-    const inTokens = toNonNegInt(row["promptTokens"]);
-    const outTokens = toNonNegInt(row["completionTokens"]);
+    const inTokens = toNonNegInt(row.promptTokens);
+    const outTokens = toNonNegInt(row.completionTokens);
 
     const startedAt =
-      typeof row["startedAt"] === "number" && isFinite(row["startedAt"]) && row["startedAt"] > 0
-        ? row["startedAt"]
+      typeof row.startedAt === "number" && Number.isFinite(row.startedAt) && row.startedAt > 0
+        ? row.startedAt
         : null;
     const endedAt =
-      typeof row["endedAt"] === "number" && isFinite(row["endedAt"]) && row["endedAt"] > 0
-        ? row["endedAt"]
+      typeof row.endedAt === "number" && Number.isFinite(row.endedAt) && row.endedAt > 0
+        ? row.endedAt
         : null;
 
     // Both timestamps must be present
@@ -128,6 +128,6 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
 
 /** Coerce an unknown value to a non-negative integer, defaulting to 0. */
 function toNonNegInt(v: unknown): number {
-  if (typeof v !== "number" || !isFinite(v)) return 0;
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
   return Math.max(0, Math.floor(v));
 }

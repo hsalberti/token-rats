@@ -60,10 +60,7 @@ export function SourceTile({ source, tokens, costUsdCents, sessions }: SourceTil
               className="h-5 w-5"
             />
           ) : (
-            <span
-              aria-hidden
-              className="text-xs font-bold uppercase text-zinc-400"
-            >
+            <span aria-hidden className="text-xs font-bold uppercase text-zinc-400">
               {name.slice(0, 1)}
             </span>
           )}
@@ -91,9 +88,7 @@ export function SourceTiles({ sources }: SourceTilesProps) {
   if (sources.length === 0) return null;
   return (
     <div className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
-        By source
-      </h2>
+      <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">By source</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sources.map((s) => (
           <SourceTile key={s.source} {...s} />

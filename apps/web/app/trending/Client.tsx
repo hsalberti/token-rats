@@ -5,9 +5,9 @@
  * when the user switches ranges.
  */
 
-import { useState, useTransition } from "react";
-import { getTrending } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
+import { getTrending } from "@/lib/api";
+import { useState, useTransition } from "react";
 
 type Range = "today" | "7d" | "30d";
 
@@ -90,9 +90,7 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
             className={[
               "rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-150",
               "disabled:opacity-50 disabled:cursor-not-allowed",
-              range === r
-                ? "bg-rat-500 text-white"
-                : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+              range === r ? "bg-rat-500 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
             ].join(" ")}
           >
             {RANGE_LABELS[r]}
@@ -101,9 +99,7 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
         <span className="ml-auto text-xs text-zinc-600">Updated {generatedDate}</span>
       </div>
 
-      {error && (
-        <p className="text-sm text-red-400">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       {/* Leaderboard */}
       {rows.length === 0 ? (

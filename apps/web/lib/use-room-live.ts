@@ -8,12 +8,12 @@
 
 "use client";
 
-import { useEffect, useRef } from "react";
 import type { LiveEvent } from "@token-rats/contracts";
 import { LiveEvent as LiveEventSchema } from "@token-rats/contracts";
-import { API_URL } from "./api";
 import { ENDPOINTS } from "@token-rats/contracts";
 import type { RoomCode } from "@token-rats/contracts";
+import { useEffect, useRef } from "react";
+import { API_URL } from "./api";
 
 export type LiveEventHandler = (event: LiveEvent) => void;
 

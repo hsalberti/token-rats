@@ -23,6 +23,7 @@ export function CopyButton({ text, label = "Copy", className = "" }: CopyButtonP
 
   return (
     <button
+      type="button"
       onClick={handleCopy}
       className={[
         "rounded px-2 py-1 text-xs font-semibold transition-colors",

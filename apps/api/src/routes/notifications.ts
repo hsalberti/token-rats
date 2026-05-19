@@ -1,3 +1,4 @@
+import type { NotificationPrefs } from "@token-rats/contracts";
 /**
  * Notification preference routes:
  *   GET  /v1/notifications/preferences  — get the calling user's prefs
@@ -5,11 +6,10 @@
  */
 import { Hono } from "hono";
 import { z } from "zod";
-import type { NotificationPrefs } from "@token-rats/contracts";
 import type { Env } from "../env.js";
+import { validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validationError } from "../lib/errors.js";
 
 /** Inline schema (mirrors UpsertNotificationPrefsRequest in contracts). */
 const UpsertPrefsBody = z

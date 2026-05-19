@@ -9,21 +9,28 @@
 
 import { Hono } from "hono";
 import { setCookie } from "hono/cookie";
+import { z } from "zod";
 import type { Env } from "../env.js";
-import type { AuthVariables } from "../middleware/auth.js";
-import { requireAuth } from "../middleware/auth.js";
 import {
-  signToken,
-  randomBase64url,
-  randomVerificationCode,
+  SESSION_COOKIE,
   TOKEN_TTL_CLI,
   TOKEN_TTL_WEB,
-  SESSION_COOKIE,
   cookieDomainFor,
+  randomBase64url,
+  randomVerificationCode,
+  signToken,
 } from "../lib/auth.js";
-import { validationError, authRequired, notFound, gone, internalError, rateLimited } from "../lib/errors.js";
+import {
+  authRequired,
+  gone,
+  internalError,
+  notFound,
+  rateLimited,
+  validationError,
+} from "../lib/errors.js";
 import { rateLimit } from "../lib/rate-limit.js";
-import { z } from "zod";
+import type { AuthVariables } from "../middleware/auth.js";
+import { requireAuth } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -95,7 +102,7 @@ auth.get("/github/callback", async (c) => {
       error?: string;
     };
     if (!tokenData.access_token) {
-      return c.text("GitHub OAuth failed: " + (tokenData.error ?? "unknown"), 400);
+      return c.text(`GitHub OAuth failed: ${tokenData.error ?? "unknown"}`, 400);
     }
     accessToken = tokenData.access_token;
   } catch {
@@ -178,8 +185,7 @@ auth.get("/github/callback", async (c) => {
 
 auth.post("/cli/exchange", async (c) => {
   // Rate limit: 5 requests/min per IP — prevents flooding KV with device codes.
-  const ip =
-    c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
+  const ip = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
   const rl = await rateLimit(c.env.CACHE, `cli-exchange:${ip}`, 5);
   if (!rl.allowed) return rateLimited(c);
 

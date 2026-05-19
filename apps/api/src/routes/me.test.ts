@@ -1,10 +1,10 @@
+import { PatchMeRequest } from "@token-rats/contracts";
 /**
  * Unit tests for the PATCH /v1/me validation schema (PatchMeRequest).
  *
  * These test the Zod schema in isolation — no network, no D1.
  */
-import { describe, it, expect } from "vitest";
-import { PatchMeRequest } from "@token-rats/contracts";
+import { describe, expect, it } from "vitest";
 
 describe("PatchMeRequest validation", () => {
   it("accepts an empty object (no-op patch)", () => {

@@ -158,7 +158,7 @@ async function main(): Promise<void> {
 
     default:
       console.error(`\x1b[31mUnknown command: ${command}\x1b[0m`);
-      console.error(`Run \x1b[1mtoken-rats help\x1b[0m for a list of commands.`);
+      console.error("Run \x1b[1mtoken-rats help\x1b[0m for a list of commands.");
       process.exit(1);
   }
 }
