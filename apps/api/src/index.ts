@@ -23,7 +23,7 @@ import sessionsRoutes from "./routes/sessions.js";
 import streaksRoutes from "./routes/streaks.js";
 import stripeWebhookRoutes from "./routes/stripe-webhook.js";
 import trendingRoutes from "./routes/trending.js";
-import { runWeeklyDigests } from "./scheduled.js";
+import { runScheduled } from "./scheduled.js";
 
 const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
@@ -139,7 +139,7 @@ export { RoomLiveHub } from "./lib/room-live-hub.js";
 
 export default {
   fetch: app.fetch.bind(app),
-  async scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(runWeeklyDigests(env));
+  async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(runScheduled(event, env));
   },
 };

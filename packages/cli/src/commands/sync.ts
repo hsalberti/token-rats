@@ -9,7 +9,6 @@
 import * as fs from "node:fs";
 import type { SessionRecord } from "@token-rats/contracts";
 import { computeDedupeKey, parseClaudeCode, parseCodex, parseCursor } from "@token-rats/parsers";
-import { priceOf } from "@token-rats/pricing";
 import { ApiClient, ApiError } from "../lib/api.js";
 import { loadToken } from "../lib/auth-store.js";
 import { extractCursorGenerations } from "../lib/cursor-extract.js";
@@ -36,7 +35,8 @@ function chunk<T>(arr: T[], size: number): T[][] {
 /**
  * Fold any SessionRecords that share the same `id` into one — summing tokens,
  * taking the earliest startedAt / latest endedAt, and the model from whichever
- * record ended last. Cost and dedupeKey are recomputed from the merged totals.
+ * record ended last. `dedupeKey` is recomputed from the merged totals; cost is
+ * left at 0 (server is authoritative — see apps/api/src/lib/pricing.ts).
  */
 function mergeBySessionId(records: SessionRecord[]): SessionRecord[] {
   const byId = new Map<string, SessionRecord>();
@@ -55,8 +55,7 @@ function mergeBySessionId(records: SessionRecord[]): SessionRecord[] {
     }
   }
   for (const rec of byId.values()) {
-    const { costUsdCents } = priceOf(rec.model, rec.inTokens, rec.outTokens);
-    rec.costUsdCents = costUsdCents;
+    rec.costUsdCents = 0;
     rec.dedupeKey = computeDedupeKey(
       rec.source,
       rec.model,

@@ -33,7 +33,6 @@
   "devDependencies": {
     "@token-rats/contracts": "workspace:*",
     "@token-rats/parsers": "workspace:*",
-    "@token-rats/pricing": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "22.10.2",
     "@types/sql.js": "^1.4.11",

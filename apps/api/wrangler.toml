@@ -30,7 +30,10 @@ tag = "v2"
 new_sqlite_classes = ["RoomLiveHub"]
 
 [triggers]
-crons = ["0 16 * * 1"]   # Mondays 16:00 UTC — weekly digest
+crons = [
+  "0 16 * * 1",  # Mondays 16:00 UTC — weekly digest (lib/digest.ts via scheduled.ts)
+  "0 4 * * *",   # Daily 04:00 UTC — refresh model catalog + price snapshots (lib/price-refresh.ts)
+]
 
 [vars]
 WEB_ORIGIN = "https://tokenrats.com"

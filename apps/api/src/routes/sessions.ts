@@ -15,7 +15,8 @@ import { UploadSessionsRequest } from "@token-rats/contracts";
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { rateLimited, validationError } from "../lib/errors.js";
-import { recordSession } from "../lib/ingest.js";
+import { recordSession, toUtcDay } from "../lib/ingest.js";
+import { priceOf } from "../lib/pricing.js";
 import { rateLimit } from "../lib/rate-limit.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -126,8 +127,26 @@ sessions.post("/", requireAuth, async (c) => {
     return c.json({ accepted: 0, duplicates: 0 });
   }
 
-  // Persist each record via the shared helper
-  const results = await Promise.all(records.map((r) => recordSession(c.env, userId, r)));
+  // Recompute cost server-side from the D1 price catalog (lib/pricing.ts).
+  // The CLI sends a best-effort `costUsdCents` based on its bundled price
+  // table, but the server is authoritative — historical sessions get billed
+  // at their actual-day snapshot. Empty token records skip the lookup.
+  const pricedRecords = await Promise.all(
+    records.map(async (r) => {
+      if (r.inTokens + r.outTokens === 0) return { ...r, costUsdCents: 0 };
+      const { costUsdCents } = await priceOf(
+        c.env,
+        r.model,
+        toUtcDay(r.startedAt),
+        r.inTokens,
+        r.outTokens,
+      );
+      return { ...r, costUsdCents };
+    }),
+  );
+
+  // Persist each priced record via the shared helper.
+  const results = await Promise.all(pricedRecords.map((r) => recordSession(c.env, userId, r)));
 
   const accepted = results.filter((r) => r.inserted).length;
   const duplicates = records.length - accepted;
@@ -135,7 +154,7 @@ sessions.post("/", requireAuth, async (c) => {
   // Fan out live events for any newly inserted sessions — fire-and-forget via
   // waitUntil so ingest response latency is unaffected.
   if (accepted > 0) {
-    const newRecords = records.filter((_, i) => results[i]?.inserted);
+    const newRecords = pricedRecords.filter((_, i) => results[i]?.inserted);
     const totalTokens = newRecords.reduce((s, r) => s + r.inTokens + r.outTokens, 0);
     const totalCostUsdCents = newRecords.reduce((s, r) => s + r.costUsdCents, 0);
 

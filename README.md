@@ -32,7 +32,6 @@ apps/
   web/          Next.js 15 PWA — rooms, profiles, orgs, share cards, dashboard
 packages/
   contracts/    Zod schemas + TS types shared across web/api/cli (load-bearing)
-  pricing/      model → $/MTok catalog + priceOf() helper
   parsers/      pure parsers: Claude Code + Cursor logs → SessionRecord[]
   cli/          `npx token-rats` — login, sync, watch, install-cursor, whoami, logout
 infra/

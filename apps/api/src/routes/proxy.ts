@@ -13,12 +13,12 @@
  * TransformStream that only inspects SSE usage events).
  */
 
-import { priceOf } from "@token-rats/pricing";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
 import { authRequired, validationError } from "../lib/errors.js";
-import { recordSession } from "../lib/ingest.js";
+import { recordSession, toUtcDay } from "../lib/ingest.js";
+import { priceOf } from "../lib/pricing.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { extractUserId, requireAuth } from "../middleware/auth.js";
 
@@ -246,12 +246,18 @@ proxy.post("/anthropic/v1/messages", async (c) => {
     // after the stream closes (via a promise chain on the pipe).
     const pipePromise = upstream.body
       .pipeTo(writable)
-      .then(() => {
+      .then(async () => {
         if (acc.input_tokens > 0 || acc.output_tokens > 0) {
           const endedAt = Date.now();
-          const { costUsdCents } = priceOf(acc.model, acc.input_tokens, acc.output_tokens);
           const sessionId = crypto.randomUUID();
           const dedupeKey = `proxy:${userId}:${sessionId}`;
+          const { costUsdCents } = await priceOf(
+            c.env,
+            acc.model,
+            toUtcDay(startedAt),
+            acc.input_tokens,
+            acc.output_tokens,
+          );
 
           return recordSession(c.env, userId, {
             id: sessionId,
@@ -307,24 +313,27 @@ proxy.post("/anthropic/v1/messages", async (c) => {
 
   if (inTokens > 0 || outTokens > 0) {
     const now = Date.now();
-    const { costUsdCents } = priceOf(model, inTokens, outTokens);
     const sessionId = crypto.randomUUID();
 
-    // Fire-and-forget — don't let DB errors affect the response
     c.executionCtx?.waitUntil(
-      recordSession(c.env, userId, {
-        id: sessionId,
-        source: "claude-code",
-        model,
-        inTokens,
-        outTokens,
-        costUsdCents,
-        startedAt: now,
-        endedAt: now,
-        dedupeKey: `proxy:${userId}:${sessionId}`,
-      }).catch((err) => {
-        console.error("[proxy] non-stream recordSession failed", { userId, err });
-      }),
+      (async () => {
+        const { costUsdCents } = await priceOf(c.env, model, toUtcDay(now), inTokens, outTokens);
+        try {
+          await recordSession(c.env, userId, {
+            id: sessionId,
+            source: "claude-code",
+            model,
+            inTokens,
+            outTokens,
+            costUsdCents,
+            startedAt: now,
+            endedAt: now,
+            dedupeKey: `proxy:${userId}:${sessionId}`,
+          });
+        } catch (err) {
+          console.error("[proxy] non-stream recordSession failed", { userId, err });
+        }
+      })(),
     );
   }
 

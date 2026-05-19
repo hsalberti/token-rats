@@ -47,20 +47,6 @@ const ESTIMATES: Record<string, { inTokens: number; outTokens: number; model: st
   // "tab" deliberately omitted — see file header.
 };
 
-/**
- * Cost rate, hard-pinned to claude-3-5-sonnet pricing so all users see the
- * same dollar estimate for the same request count. Source: prices.json at the
- * time of writing — $3/MTok input, $15/MTok output.
- */
-const INPUT_USD_PER_MTOK = 3;
-const OUTPUT_USD_PER_MTOK = 15;
-
-function estimatedCostCents(inTokens: number, outTokens: number): number {
-  const dollars =
-    (inTokens / 1_000_000) * INPUT_USD_PER_MTOK + (outTokens / 1_000_000) * OUTPUT_USD_PER_MTOK;
-  return Math.round(dollars * 100);
-}
-
 /** Raw row shape as exported from Cursor's per-workspace sqlite caches. */
 interface CursorRow {
   id: string;
@@ -106,7 +92,11 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
     if (!estimate) continue; // skip unsupported types (e.g. "tab")
 
     const { inTokens, outTokens, model } = estimate;
-    const costUsdCents = estimatedCostCents(inTokens, outTokens);
+    // Cost is stamped server-side from the D1 price catalog (see
+    // apps/api/src/lib/pricing.ts); the `cursor-composer` row in the catalog
+    // is pinned to claude-3-5-sonnet's rates for consistency with the
+    // historical estimate this parser used to compute inline.
+    const costUsdCents = 0;
     const dedupeKey = computeDedupeKey("cursor", model, unixMs, inTokens, outTokens);
 
     results.push({
