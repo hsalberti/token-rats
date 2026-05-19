@@ -11,8 +11,8 @@
  * Sends PATCH /v1/me on save.
  */
 
-import { useState } from "react";
 import { patchMe } from "@/lib/api";
+import { useState } from "react";
 
 interface Props {
   handle: string;
@@ -164,9 +164,7 @@ export function ProfileSettingsClient({
             className="flex-1 bg-transparent px-0 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none disabled:opacity-50"
           />
         </div>
-        <p className="text-xs text-zinc-600">
-          Displayed as a link on your public profile.
-        </p>
+        <p className="text-xs text-zinc-600">Displayed as a link on your public profile.</p>
       </section>
 
       {/* Actions */}
@@ -179,9 +177,7 @@ export function ProfileSettingsClient({
           {saving ? "Saving..." : "Save changes"}
         </button>
 
-        {saveStatus === "saved" && (
-          <p className="text-sm text-green-400">Saved!</p>
-        )}
+        {saveStatus === "saved" && <p className="text-sm text-green-400">Saved!</p>}
         {saveStatus === "error" && (
           <p className="text-sm text-red-400">Failed to save. Please try again.</p>
         )}

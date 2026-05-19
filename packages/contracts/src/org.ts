@@ -76,9 +76,9 @@ export const OrgSpendByDay = z.object({
 export type OrgSpendByDay = z.infer<typeof OrgSpendByDay>;
 
 export const OrgDashboard = z.object({
-  spendByUser: z.array(OrgSpendByUser),  // top 50
+  spendByUser: z.array(OrgSpendByUser), // top 50
   spendByModel: z.array(OrgSpendByModel),
-  spendByDay: z.array(OrgSpendByDay),   // last 30d
+  spendByDay: z.array(OrgSpendByDay), // last 30d
 });
 export type OrgDashboard = z.infer<typeof OrgDashboard>;
 

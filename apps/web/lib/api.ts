@@ -8,8 +8,14 @@
  */
 
 import type {
+  AcceptOrgInviteResponse,
   CreateChallengeRequest,
   CreateChallengeResponse,
+  CreateOrgInviteRequest,
+  CreateOrgInviteResponse,
+  // Phase 3 Track O — Org plan
+  CreateOrgRequest,
+  CreateOrgResponse,
   CreateRoomRequest,
   CreateRoomResponse,
   GetActivityResponse,
@@ -19,6 +25,8 @@ import type {
   GetLeaderboardResponse,
   GetMeResponse,
   GetMyRoomsResponse,
+  GetOrgDashboardResponse,
+  GetOrgResponse,
   GetProfileResponse,
   GetRoomResponse,
   GetStreaksResponse,
@@ -29,22 +37,14 @@ import type {
   NotificationPrefsResponse,
   PatchMeRequest,
   PatchMeResponse,
-  ReportAbuseRequest,
-  ReportAbuseResponse,
   RenameRoomRequest,
   RenameRoomResponse,
+  ReportAbuseRequest,
+  ReportAbuseResponse,
   RoomCode,
   UploadSessionsRequest,
   UploadSessionsResponse,
   UpsertNotificationPrefsRequest,
-  // Phase 3 Track O — Org plan
-  CreateOrgRequest,
-  CreateOrgResponse,
-  GetOrgResponse,
-  CreateOrgInviteRequest,
-  CreateOrgInviteResponse,
-  AcceptOrgInviteResponse,
-  GetOrgDashboardResponse,
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
 
@@ -190,10 +190,7 @@ export async function getMyRooms(cookieHeader?: string): Promise<GetMyRoomsRespo
 }
 
 /** Leave a room by code. */
-export async function leaveRoom(
-  code: RoomCode,
-  cookieHeader?: string,
-): Promise<LeaveRoomResponse> {
+export async function leaveRoom(code: RoomCode, cookieHeader?: string): Promise<LeaveRoomResponse> {
   return request<LeaveRoomResponse>(ENDPOINTS.leaveRoom(code), {
     method: "POST",
     cookieHeader,
@@ -439,9 +436,7 @@ export async function setProxyAnthropicKey(
 }
 
 /** Delete the current user's stored Anthropic API key. */
-export async function deleteProxyAnthropicKey(
-  cookieHeader?: string,
-): Promise<{ stored: boolean }> {
+export async function deleteProxyAnthropicKey(cookieHeader?: string): Promise<{ stored: boolean }> {
   return request<{ stored: boolean }>(ENDPOINTS.proxyAnthropicKey, {
     method: "DELETE",
     cookieHeader,

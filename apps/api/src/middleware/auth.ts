@@ -9,9 +9,9 @@
 
 import type { Context, Next } from "hono";
 import { getCookie } from "hono/cookie";
-import { verifyToken, SESSION_COOKIE } from "../lib/auth.js";
-import { authRequired } from "../lib/errors.js";
 import type { Env } from "../env.js";
+import { SESSION_COOKIE, verifyToken } from "../lib/auth.js";
+import { authRequired } from "../lib/errors.js";
 
 export type AuthVariables = {
   userId: string;
@@ -54,6 +54,7 @@ export async function extractUserId(
  * Middleware that populates c.var.userId if a token is present, but does NOT
  * reject the request (useful for auth-optional endpoints).
  */
+// biome-ignore lint/suspicious/noConfusingVoidType: Hono middleware contract — `next()` returns Promise<void>.
 export async function optionalAuth(c: HonoCtx, next: Next): Promise<Response | void> {
   const userId = await extractUserId(c);
   if (userId) c.set("userId", userId);
@@ -63,6 +64,7 @@ export async function optionalAuth(c: HonoCtx, next: Next): Promise<Response | v
 /**
  * Middleware that rejects with 401 if no valid token is present.
  */
+// biome-ignore lint/suspicious/noConfusingVoidType: Hono middleware contract — `next()` returns Promise<void>.
 export async function requireAuth(c: HonoCtx, next: Next): Promise<Response | void> {
   const userId = await extractUserId(c);
   if (!userId) return authRequired(c);
