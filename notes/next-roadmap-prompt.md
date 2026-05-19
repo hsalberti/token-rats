@@ -1,5 +1,7 @@
 # Prompt — "Interview me for the v1.1 roadmap"
 
+> **Historical.** Kept for reference. This bootstrap workflow is being superseded by the `/ship-phase` skill. The file paths referenced below (`testing-first-roadmap.md`, `roadmap-v1.1.md`, etc.) are stale post-reorg — see `apps/web/app/changelog/_archive/` for archived roadmaps and `notes/` for sibling docs.
+
 Paste the block below into a fresh agent session (e.g. `claude` in the repo root, or an Agent call). It sets the agent up to read the current state, form an independent opinion of the gaps, and interview you with focused questions before drafting `roadmap-v1.1.md`.
 
 ---

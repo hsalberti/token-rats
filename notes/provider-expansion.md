@@ -1,10 +1,10 @@
 # Token Rats — Provider expansion delta
 
-Append-only delta on [`roadmap.md`](./roadmap.md) for the **provider-selection** sub-effort (Codex parser, three-option picker, per-source tiles, "Other" picker tree). Phases, track letters, and definitions-of-done in the v1.0 roadmap stay as they are.
+Append-only delta on [`roadmap.md`](../roadmap.md) for the **provider-selection** sub-effort (Codex parser, three-option picker, per-source tiles, "Other" picker tree). Phases, track letters, and definitions-of-done in the v1.0 roadmap stay as they are.
 
-This is a *parallel* effort to [`roadmap-v1.1.md`](./roadmap-v1.1.md) (the Phase 4 "sharpen the edge" push). v1.1 reuses some of the same track letters (`P`, `Q`) for entirely different work; the letters in *this* doc always refer to the **base v1.0** track names.
+This is a *parallel* effort to [`v1.1-sharpen-the-edge.md`](../apps/web/app/changelog/_archive/v1.1-sharpen-the-edge.md) (the Phase 4 "sharpen the edge" push). v1.1 reuses some of the same track letters (`P`, `Q`) for entirely different work; the letters in *this* doc always refer to the **base v1.0** track names.
 
-Reading order: `roadmap.md` for the overall plan → this file for the provider-expansion deltas → `research/` for the upstream-product analysis that motivates them.
+Reading order: `../roadmap.md` for the overall plan → this file for the provider-expansion deltas → `../research/` for the upstream-product analysis that motivates them.
 
 ---
 

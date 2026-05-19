@@ -1,6 +1,6 @@
 # Token Rats — Roadmap v1.2
 
-> **Created: 2026-05-19.** Sister doc to `complete-roadmaps/roadmap-v1.0.md` (shipped) and `complete-roadmaps/roadmap-v1.1.md` (closed; partial ship, see header). The provider-expansion sub-effort still lives in `roadmap-providers.md`.
+> **Created: 2026-05-19.** Sister doc to `apps/web/app/changelog/_archive/v1.0-launch-build.md` (shipped) and `apps/web/app/changelog/_archive/v1.1-sharpen-the-edge.md` (closed; partial ship, see header). The provider-expansion sub-effort lives in `notes/provider-expansion.md`.
 
 ## Frame (read before picking up a track)
 
@@ -325,5 +325,5 @@ You said: *ship fast, ride the wave, scale, visibility, especially the org-waitl
 - **iOS push** — still known-broken in Safari. Document, don't chase.
 - **Reviving the paid org plan publicly** — gated on student-org cohort feedback + D7 retention. Soft-create captures intent in the meantime.
 - **Taskbar v2 (linux, native installers, code-signed Windows)** — v1.2 ships brew + winget unsigned. Sign + Linux in v1.3.
-- **VS Code extension as a source** — still deferred; Cursor cache covers most of the surface. Provider expansion lives in `roadmap-providers.md`.
+- **VS Code extension as a source** — still deferred; Cursor cache covers most of the surface. Provider expansion lives in `notes/provider-expansion.md`.
 - **Anti-cheat / verification** — not the bottleneck. Skip until a non-trivial public surface gets gamed.
