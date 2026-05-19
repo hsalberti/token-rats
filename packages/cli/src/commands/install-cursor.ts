@@ -18,9 +18,7 @@ export interface InstallCursorOptions {
   packageManager?: string;
 }
 
-export async function installCursorCommand(
-  opts: InstallCursorOptions = {},
-): Promise<void> {
+export async function installCursorCommand(opts: InstallCursorOptions = {}): Promise<void> {
   const pm = opts.packageManager ?? "npm";
 
   console.log("\x1b[1mtoken-rats install-cursor\x1b[0m");
@@ -50,8 +48,7 @@ export async function installCursorCommand(
   }
 
   console.error(
-    `\n\x1b[31mInstall failed (exit ${exitCode}). Cursor still works via sql.js — ` +
-      `no action required.\x1b[0m`,
+    `\n\x1b[31mInstall failed (exit ${exitCode}). Cursor still works via sql.js — no action required.\x1b[0m`,
   );
   process.exit(exitCode);
 }

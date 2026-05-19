@@ -54,7 +54,9 @@ async function tryNodeSqlite(dbPath: string): Promise<CursorRow[] | null> {
 /** Attempt to read rows from the Cursor DB using sql.js (pure-WASM SQLite). */
 async function trySqlJs(dbPath: string): Promise<CursorRow[] | null> {
   let initSqlJs: (config?: Record<string, unknown>) => Promise<{
-    Database: new (data?: Uint8Array) => {
+    Database: new (
+      data?: Uint8Array,
+    ) => {
       exec: (sql: string) => Array<{ columns: string[]; values: unknown[][] }>;
       close: () => void;
     };
