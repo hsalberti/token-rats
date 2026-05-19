@@ -24,6 +24,16 @@ export const metadata: Metadata = {
     description: "Gym rats for token tracking with friends.",
   },
   manifest: "/manifest.webmanifest",
+  icons: {
+    // Served from /public so Cloudflare Pages doesn't classify them as
+    // dynamic edge routes (PNGs can't export `runtime = "edge"`).
+    icon: [
+      { url: "/icon.png", type: "image/png" },
+      { url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" },
+      { url: "/icons/icon-512.png", type: "image/png", sizes: "512x512" },
+    ],
+    apple: "/apple-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
