@@ -10,8 +10,8 @@
  * Playwright's `webServer` boots this before the Next dev server.
  */
 
-import { createServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import { createServer } from "node:http";
 
 const PORT = Number(process.env.MOCK_API_PORT ?? 8787);
 
@@ -68,8 +68,26 @@ async function writeFetchResponse(response, res) {
   }
 }
 
+const CORS_HEADERS = {
+  "access-control-allow-origin": "*",
+  "access-control-allow-credentials": "true",
+  "access-control-allow-methods": "GET,POST,PATCH,DELETE,OPTIONS",
+  "access-control-allow-headers": "content-type,cookie,authorization",
+  "access-control-expose-headers": "set-cookie",
+};
+
 const server = createServer(async (req, res) => {
   try {
+    const origin = req.headers.origin;
+    const corsExtra = origin
+      ? { ...CORS_HEADERS, "access-control-allow-origin": origin }
+      : CORS_HEADERS;
+    // Preflight.
+    if (req.method === "OPTIONS") {
+      res.writeHead(204, corsExtra);
+      res.end();
+      return;
+    }
     const fetchRequest = await toFetchRequest(req);
     let matched = null;
     for (const handler of handlers) {
@@ -80,13 +98,17 @@ const server = createServer(async (req, res) => {
       }
     }
     if (matched) {
+      // Merge CORS headers into the response.
+      for (const [k, v] of Object.entries(corsExtra)) {
+        matched.headers.set(k, v);
+      }
       await writeFetchResponse(matched, res);
     } else {
-      res.writeHead(404, { "content-type": "application/json" });
+      res.writeHead(404, { "content-type": "application/json", ...corsExtra });
       res.end(JSON.stringify({ error: "not-mocked", path: req.url }));
     }
   } catch (err) {
-    res.writeHead(500, { "content-type": "application/json" });
+    res.writeHead(500, { "content-type": "application/json", ...CORS_HEADERS });
     res.end(JSON.stringify({ error: String(err) }));
   }
 });

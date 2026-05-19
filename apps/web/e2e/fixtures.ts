@@ -16,7 +16,7 @@
 import { test as base } from "@playwright/test";
 
 interface Fixtures {
-  signedIn: void;
+  signedIn: undefined;
 }
 
 export const test = base.extend<Fixtures>({
@@ -33,7 +33,7 @@ export const test = base.extend<Fixtures>({
           sameSite: "Lax",
         },
       ]);
-      await use();
+      await use(undefined);
     },
     { auto: false },
   ],

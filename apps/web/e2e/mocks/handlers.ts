@@ -303,10 +303,13 @@ export const handlers = [
     });
   }),
 
-  http.get("*/v1/rooms/:code/heatmap", ({ params, request }) => {
+  // Room heatmap uses /v1/heatmap?scope=room&id=...&days=...
+  http.get("*/v1/heatmap", ({ request }) => {
     const url = new URL(request.url);
-    const rangeDays = Number(url.searchParams.get("rangeDays") ?? 60);
-    return HttpResponse.json(makeHeatmap("room", String(params.code), rangeDays >= 364 ? 364 : 60));
+    const scope = (url.searchParams.get("scope") ?? "user") as "user" | "room";
+    const id = url.searchParams.get("id") ?? "unknown";
+    const days = Number(url.searchParams.get("days") ?? 60);
+    return HttpResponse.json(makeHeatmap(scope, id, days >= 364 ? 364 : 60));
   }),
 
   http.get("*/v1/rooms/:code/activity", () => {
@@ -347,10 +350,8 @@ export const handlers = [
 
   http.get("*/v1/u/:handle/heatmap", ({ params, request }) => {
     const url = new URL(request.url);
-    const rangeDays = Number(url.searchParams.get("rangeDays") ?? 60);
-    return HttpResponse.json(
-      makeHeatmap("user", String(params.handle), rangeDays >= 364 ? 364 : 60),
-    );
+    const days = Number(url.searchParams.get("days") ?? 60);
+    return HttpResponse.json(makeHeatmap("user", String(params.handle), days >= 364 ? 364 : 60));
   }),
 
   http.get("*/v1/u/:handle/autobiography", ({ params }) => {
@@ -433,12 +434,18 @@ export const handlers = [
   // Public groups — Track AE (country-filtered)
   // -------------------------------------------------------------------------
   http.get("*/v1/groups", ({ request }) => {
-    // The Worker reads cf-ipcountry from the request. We do the same.
-    const country = request.headers.get("cf-ipcountry");
+    // The Worker reads cf-ipcountry from the request. In tests the header
+    // may arrive directly (browser-initiated fetches) or via the
+    // `tr_country_test=<ISO>` cookie (server-component fetches where Next
+    // forwards only cookies).
+    const headerCountry = request.headers.get("cf-ipcountry");
+    const cookie = request.headers.get("cookie") ?? "";
+    const cookieMatch = cookie.match(/tr_country_test=([A-Z]{2})/);
+    const country = headerCountry ?? cookieMatch?.[1] ?? null;
     const all = [ROOM_BR, ROOM_US];
     const groups = country ? all.filter((r) => r.country === country) : [];
     return HttpResponse.json({
-      viewerCountry: country ?? null,
+      viewerCountry: country,
       groups: groups.map((g) => ({
         code: g.code,
         name: g.name,
