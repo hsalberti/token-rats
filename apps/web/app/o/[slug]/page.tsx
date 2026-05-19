@@ -36,6 +36,13 @@ export default async function OrgOverviewPage({ params }: Props) {
 
   const { org, members } = membership;
 
+  // v1.2 Track AA — pending orgs don't have a real dashboard yet. The founder
+  // is the only one who can see them at all (API enforces this); send them to
+  // the dedicated pending page so they don't see a half-real "Free plan" row.
+  if (org.status === "pending") {
+    redirect(`/o/${slug}/pending`);
+  }
+
   return (
     <div className="min-h-screen bg-zinc-950">
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
@@ -57,17 +64,14 @@ export default async function OrgOverviewPage({ params }: Props) {
             <h1 className="text-3xl font-black tracking-tight">{org.name}</h1>
             <p className="mt-1 text-sm text-zinc-500">
               {org.slug ? `tokenrats.com/o/${org.slug}` : ""} &middot;{" "}
-              <span
-                className={
-                  org.plan === "pro"
-                    ? "font-semibold text-rat-400"
-                    : "text-zinc-500"
-                }
-              >
+              <span className={org.plan === "pro" ? "font-semibold text-rat-400" : "text-zinc-500"}>
                 {org.plan === "pro" ? "Pro" : "Free"} plan
               </span>
               {org.seatCount > 0 && (
-                <> &middot; {org.seatCount} seat{org.seatCount !== 1 ? "s" : ""}</>
+                <>
+                  {" "}
+                  &middot; {org.seatCount} seat{org.seatCount !== 1 ? "s" : ""}
+                </>
               )}
             </p>
           </div>
@@ -132,9 +136,7 @@ export default async function OrgOverviewPage({ params }: Props) {
           >
             <span className="text-2xl">📊</span>
             <span className="font-bold">Spend dashboard</span>
-            <span className="text-sm text-zinc-500">
-              Burn by person, model, and day
-            </span>
+            <span className="text-sm text-zinc-500">Burn by person, model, and day</span>
           </a>
           {(membership.role === "owner" || membership.role === "admin") && (
             <a

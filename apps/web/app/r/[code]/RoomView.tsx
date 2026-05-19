@@ -181,10 +181,7 @@ export function RoomView({
     if (tab === "challenges" && !challengesLoaded) {
       setChallengesLoading(true);
       api
-        .getRoomChallenges(
-          room.code as Parameters<typeof api.getRoomChallenges>[0],
-          cookieHeader,
-        )
+        .getRoomChallenges(room.code as Parameters<typeof api.getRoomChallenges>[0], cookieHeader)
         .then((data) => {
           setActiveChallenges(data.active);
           setPastChallenges(data.past);
@@ -371,9 +368,7 @@ export function RoomView({
         )}
 
         {/* Tab: Activity */}
-        {activeTab === "activity" && (
-          <ActivityFeed activity={activity} loading={activityLoading} />
-        )}
+        {activeTab === "activity" && <ActivityFeed activity={activity} loading={activityLoading} />}
 
         {/* Tab: Challenges */}
         {activeTab === "challenges" && (
@@ -453,9 +448,7 @@ function LeaderboardTable({
             <RankBadge rank={row.rank} />
             <div className="flex min-w-0 items-center gap-2">
               <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
-              <span className="truncate font-semibold group-hover:text-rat-400">
-                @{row.handle}
-              </span>
+              <span className="truncate font-semibold group-hover:text-rat-400">@{row.handle}</span>
               {isCurrentUser && (
                 <span className="rounded-md bg-rat-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rat-400">
                   you

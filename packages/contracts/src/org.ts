@@ -137,6 +137,8 @@ export type ApproveOrgResponse = z.infer<typeof ApproveOrgResponse>;
 export const GetOrgResponse = z.object({
   org: Org,
   members: z.array(OrgMember),
+  /** v1.2 Track AA — only set when the org is `pending` and the caller is the founder. */
+  waitlistPosition: z.number().int().positive().optional(),
 });
 export type GetOrgResponse = z.infer<typeof GetOrgResponse>;
 

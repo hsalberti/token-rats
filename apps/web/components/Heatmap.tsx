@@ -104,9 +104,7 @@ export function Heatmap({ cells, from: _from, to, rangeDays, className = "" }: H
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
-          Activity
-        </h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">Activity</h2>
         <p className="font-mono text-xs text-zinc-500">
           last {rangeDays} days · max day {fmtTokens(maxTokens)} tokens
         </p>
@@ -169,11 +167,7 @@ export function Heatmap({ cells, from: _from, to, rangeDays, className = "" }: H
         <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
           <span>Less</span>
           {COLORS.map((c) => (
-            <span
-              key={c}
-              className="inline-block h-3 w-3 rounded-sm"
-              style={{ background: c }}
-            />
+            <span key={c} className="inline-block h-3 w-3 rounded-sm" style={{ background: c }} />
           ))}
           <span>More</span>
         </div>

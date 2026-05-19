@@ -1,4 +1,3 @@
-import type { GroupStreak } from "@token-rats/contracts";
 /**
  * GET /v1/rooms/:code/group-streak
  *
@@ -11,6 +10,7 @@ import type { GroupStreak } from "@token-rats/contracts";
  *
  * Cached in KV under `gs:{code}` with a 60s TTL.
  */
+import type { GroupStreak } from "@token-rats/contracts";
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { notFound } from "../lib/errors.js";

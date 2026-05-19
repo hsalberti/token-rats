@@ -5,8 +5,8 @@
  */
 "use client";
 
-import { useEffect, useState } from "react";
 import type { HeatmapResponse } from "@token-rats/contracts";
+import { useEffect, useState } from "react";
 import { api } from "../../lib/api";
 import { Heatmap } from "../Heatmap";
 

@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 
 // Tauri expects a fixed port and doesn't tolerate fallbacks.
 // See: https://v2.tauri.app/start/frontend/vite/
-const host = process.env["TAURI_DEV_HOST"];
+const host = process.env.TAURI_DEV_HOST;
 
 export default defineConfig({
   plugins: [react()],
@@ -28,8 +28,8 @@ export default defineConfig({
   // Build target compatible with Tauri's webview (recent Safari / Chromium).
   build: {
     target: ["es2022", "chrome105", "safari15"],
-    minify: !process.env["TAURI_DEBUG"] ? "esbuild" : false,
-    sourcemap: !!process.env["TAURI_DEBUG"],
+    minify: !process.env.TAURI_DEBUG ? "esbuild" : false,
+    sourcemap: !!process.env.TAURI_DEBUG,
   },
   envPrefix: ["VITE_", "TAURI_"],
 });

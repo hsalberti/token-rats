@@ -31,7 +31,7 @@ export class ApiClient {
   private token: string | null;
 
   constructor(opts: ApiClientOptions = {}) {
-    const envUrl = (import.meta.env["VITE_API_URL"] as string | undefined) ?? undefined;
+    const envUrl = (import.meta.env.VITE_API_URL as string | undefined) ?? undefined;
     this.apiUrl = (opts.apiUrl ?? envUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
     this.token = opts.token ?? null;
   }

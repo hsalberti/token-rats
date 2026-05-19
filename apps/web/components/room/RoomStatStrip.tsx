@@ -15,12 +15,8 @@
  */
 "use client";
 
+import type { GroupStreak, LeaderboardRange, RoomSummary } from "@token-rats/contracts";
 import { useEffect, useState } from "react";
-import type {
-  GroupStreak,
-  LeaderboardRange,
-  RoomSummary,
-} from "@token-rats/contracts";
 import { api } from "../../lib/api";
 
 interface Props {
@@ -118,11 +114,7 @@ export function RoomStatStrip({ code, range }: Props) {
         <StatCard
           label="Active streak"
           value={streak ? `${streak.activeStreakDays}d` : "—"}
-          hint={
-            streak
-              ? `${streak.unanimousActiveStreakDays}d unanimous`
-              : undefined
-          }
+          hint={streak ? `${streak.unanimousActiveStreakDays}d unanimous` : undefined}
         />
       </div>
 
@@ -175,9 +167,7 @@ function PillRow({
 }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-        {label}
-      </span>
+      <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{label}</span>
       <div className="flex flex-wrap gap-1.5">{children}</div>
     </div>
   );

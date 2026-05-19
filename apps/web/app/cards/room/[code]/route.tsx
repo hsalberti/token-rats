@@ -15,6 +15,10 @@ export async function GET(
   type TopRow = { rank: number; handle: string; tokens: number; costUsdCents: number };
   let top3: TopRow[] = [];
 
+  // v1.2 Track Y — fetch the 60d room heatmap to render as a strip.
+  // Best-effort; if the user isn't a member or fetch fails, we omit it.
+  let heatmapCells: { tokens: number; level: number }[] = [];
+
   try {
     const [roomData, boardData] = await Promise.all([
       api.getRoom(code as Parameters<typeof api.getRoom>[0]),
@@ -34,6 +38,14 @@ export async function GET(
     // 401/403 (member-only room) and 5xx — return 500 so crawlers retry
     // instead of caching an empty podium that says "No data yet".
     return new Response("Card unavailable", { status: 500 });
+  }
+
+  // Member-gated; will 404 to non-members and we'll silently skip.
+  try {
+    const hm = await api.getRoomHeatmap(code, 60);
+    heatmapCells = hm.cells.map((c) => ({ tokens: c.tokens, level: c.level }));
+  } catch {
+    heatmapCells = [];
   }
 
   function fmtTokens(n: number) {
@@ -57,174 +69,211 @@ export async function GET(
   const medalLabels = ["👑 #1", "🥈 #2", "🥉 #3"];
 
   const image = new ImageResponse(
-    (
+    <div
+      style={{
+        width: 1200,
+        height: 630,
+        background: "#09090b",
+        display: "flex",
+        flexDirection: "column",
+        padding: "52px 60px",
+        fontFamily: "system-ui, sans-serif",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Subtle orange glow top-right */}
       <div
         style={{
-          width: 1200,
-          height: 630,
-          background: "#09090b",
-          display: "flex",
-          flexDirection: "column",
-          padding: "52px 60px",
-          fontFamily: "system-ui, sans-serif",
-          position: "relative",
-          overflow: "hidden",
+          position: "absolute",
+          top: -100,
+          right: -100,
+          width: 450,
+          height: 450,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(249,115,22,0.14) 0%, transparent 65%)",
         }}
-      >
-        {/* Subtle orange glow top-right */}
+      />
+
+      {/* Brand bar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
         <div
           style={{
-            position: "absolute",
-            top: -100,
-            right: -100,
-            width: 450,
-            height: 450,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(249,115,22,0.14) 0%, transparent 65%)",
-          }}
-        />
-
-        {/* Brand bar */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
-          <div
-            style={{
-              fontSize: 22,
-              fontWeight: 900,
-              color: "#f97316",
-              letterSpacing: "-0.03em",
-            }}
-          >
-            Token Rats
-          </div>
-          <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
-          <div style={{ fontSize: 14, color: "#52525b" }}>7-day leaderboard</div>
-        </div>
-
-        {/* Room name */}
-        <div
-          style={{
-            fontSize: 58,
+            fontSize: 22,
             fontWeight: 900,
-            color: "#f4f4f5",
-            letterSpacing: "-0.04em",
-            lineHeight: 1.05,
-            marginBottom: 32,
+            color: "#f97316",
+            letterSpacing: "-0.03em",
           }}
         >
-          {roomName}
+          Token Rats
         </div>
+        <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
+        <div style={{ fontSize: 14, color: "#52525b" }}>7-day leaderboard</div>
+      </div>
 
-        {/* Leaderboard — podium layout */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
-          {top3.length === 0 ? (
+      {/* Room name */}
+      <div
+        style={{
+          fontSize: 58,
+          fontWeight: 900,
+          color: "#f4f4f5",
+          letterSpacing: "-0.04em",
+          lineHeight: 1.05,
+          marginBottom: 32,
+        }}
+      >
+        {roomName}
+      </div>
+
+      {/* Leaderboard — podium layout */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+        {top3.length === 0 ? (
+          <div
+            style={{
+              color: "#52525b",
+              fontSize: 22,
+              background: "#18181b",
+              border: "1.5px solid #27272a",
+              borderRadius: 16,
+              padding: "24px 28px",
+            }}
+          >
+            No data yet — sync to climb the board!
+          </div>
+        ) : (
+          top3.map((row, i) => (
             <div
+              key={row.handle}
               style={{
-                color: "#52525b",
-                fontSize: 22,
-                background: "#18181b",
-                border: "1.5px solid #27272a",
+                display: "flex",
+                alignItems: "stretch",
+                background: i === 0 ? "#1a1408" : "#18181b",
                 borderRadius: 16,
-                padding: "24px 28px",
+                border: `1.5px solid ${medalBorder[i] ?? "#27272a"}`,
+                overflow: "hidden",
               }}
             >
-              No data yet — sync to climb the board!
-            </div>
-          ) : (
-            top3.map((row, i) => (
+              {/* Medal accent bar */}
               <div
-                key={row.handle}
                 style={{
+                  width: 5,
+                  background: medalColors[i] ?? "#3f3f46",
+                  flexShrink: 0,
+                }}
+              />
+
+              {/* Content */}
+              <div
+                style={{
+                  padding: i === 0 ? "22px 24px" : "16px 24px",
                   display: "flex",
-                  alignItems: "stretch",
-                  background: i === 0 ? "#1a1408" : "#18181b",
-                  borderRadius: 16,
-                  border: `1.5px solid ${medalBorder[i] ?? "#27272a"}`,
-                  overflow: "hidden",
+                  alignItems: "center",
+                  gap: 16,
+                  flex: 1,
+                  background: i === 0 ? medalBg[i] : "transparent",
                 }}
               >
-                {/* Medal accent bar */}
                 <div
                   style={{
-                    width: 5,
-                    background: medalColors[i] ?? "#3f3f46",
-                    flexShrink: 0,
+                    fontSize: i === 0 ? 20 : 16,
+                    fontWeight: 900,
+                    color: medalColors[i] ?? "#a1a1aa",
+                    minWidth: 52,
                   }}
-                />
+                >
+                  {medalLabels[i] ?? `#${row.rank}`}
+                </div>
 
-                {/* Content */}
+                {/* Handle */}
                 <div
                   style={{
-                    padding: i === 0 ? "22px 24px" : "16px 24px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 16,
+                    fontSize: i === 0 ? 30 : 24,
+                    fontWeight: 800,
+                    color: i === 0 ? "#fbbf24" : "#f4f4f5",
                     flex: 1,
-                    background: i === 0 ? medalBg[i] : "transparent",
+                    letterSpacing: "-0.02em",
+                  }}
+                >
+                  {`@${row.handle}`}
+                </div>
+
+                {/* Token count + cost */}
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "flex-end",
+                    gap: 2,
                   }}
                 >
                   <div
                     style={{
-                      fontSize: i === 0 ? 20 : 16,
+                      fontSize: i === 0 ? 32 : 26,
                       fontWeight: 900,
-                      color: medalColors[i] ?? "#a1a1aa",
-                      minWidth: 52,
-                    }}
-                  >
-                    {medalLabels[i] ?? `#${row.rank}`}
-                  </div>
-
-                  {/* Handle */}
-                  <div
-                    style={{
-                      fontSize: i === 0 ? 30 : 24,
-                      fontWeight: 800,
-                      color: i === 0 ? "#fbbf24" : "#f4f4f5",
-                      flex: 1,
+                      color: i === 0 ? "#f97316" : "#f4f4f5",
+                      fontVariantNumeric: "tabular-nums",
                       letterSpacing: "-0.02em",
                     }}
                   >
-                    {`@${row.handle}`}
+                    {fmtTokens(row.tokens)}
                   </div>
-
-                  {/* Token count + cost */}
-                  <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2 }}>
-                    <div
-                      style={{
-                        fontSize: i === 0 ? 32 : 26,
-                        fontWeight: 900,
-                        color: i === 0 ? "#f97316" : "#f4f4f5",
-                        fontVariantNumeric: "tabular-nums",
-                        letterSpacing: "-0.02em",
-                      }}
-                    >
-                      {fmtTokens(row.tokens)}
-                    </div>
-                    <div style={{ fontSize: 14, color: "#71717a" }}>
-                      {fmtCost(row.costUsdCents)}
-                    </div>
-                  </div>
+                  <div style={{ fontSize: 14, color: "#71717a" }}>{fmtCost(row.costUsdCents)}</div>
                 </div>
               </div>
-            ))
-          )}
-        </div>
+            </div>
+          ))
+        )}
+      </div>
 
-        {/* Footer */}
-        <div
-          style={{
-            marginTop: 28,
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-          }}
-        >
-          <div style={{ fontSize: 16, color: "#52525b" }}>{`tokenrats.com/r/${code}`}</div>
-          <div style={{ fontSize: 16, color: "#52525b" }}>
-            counts only — we can&apos;t read your prompts
+      {/* v1.2 Track Y — 60d room activity strip */}
+      {heatmapCells.length > 0 && (
+        <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 6 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#71717a",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            Last 60 days
+          </div>
+          <div style={{ display: "flex", gap: 2 }}>
+            {heatmapCells.map((c, i) => {
+              const palette = ["#27272a", "#7c2d12", "#9a3412", "#c2410c", "#f97316"];
+              const fill = palette[c.level] ?? palette[0];
+              return (
+                <div
+                  key={i}
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: 3,
+                    background: fill,
+                  }}
+                />
+              );
+            })}
           </div>
         </div>
+      )}
+
+      {/* Footer */}
+      <div
+        style={{
+          marginTop: 20,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ fontSize: 16, color: "#52525b" }}>{`tokenrats.com/r/${code}`}</div>
+        <div style={{ fontSize: 16, color: "#52525b" }}>
+          counts only — we can&apos;t read your prompts
+        </div>
       </div>
-    ),
+    </div>,
     {
       width: 1200,
       height: 630,
