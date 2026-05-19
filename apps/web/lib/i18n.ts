@@ -58,9 +58,9 @@ const EN = {
 
   /* Landing */
   "landing.tagline":
-    "Strava for AI token burn. Auto-sync your Claude Code & Cursor logs. Flex the burn.",
+    "Strava for AI token burn. Auto-sync your Claude Code or Codex logs. Compete with friends and token-maxx your way to the top of the leaderboards.",
   "landing.signin": "Sign in with GitHub",
-  "landing.boardTitle": "Today’s top burners",
+  "landing.boardTitle": "Global Token Consumption Leaderboard",
   "landing.boardSub": "Live global leaderboard of public Token Rats. Opt-in only.",
   "landing.howItWorks": "How it works",
   "landing.step1.title": "Install",
@@ -170,9 +170,9 @@ const PT_BR: Record<keyof typeof EN, string> = {
 
   /* Landing — keep "Strava", "Flex the burn", "Token Rats" intact */
   "landing.tagline":
-    "Strava da queima de tokens de IA. Sincroniza seus logs do Claude Code & Cursor. Flex the burn.",
+    "Strava da queima de tokens de IA. Sincroniza seus logs do Claude Code ou Codex. Compita com amigos e token-maxx até o topo dos rankings.",
   "landing.signin": "Entrar com GitHub",
-  "landing.boardTitle": "Os queimadores do dia",
+  "landing.boardTitle": "Ranking Global de Consumo de Tokens",
   "landing.boardSub": "Ranking global ao vivo dos Token Rats públicos. Só com opt-in.",
   "landing.howItWorks": "Como funciona",
   "landing.step1.title": "Instalar",

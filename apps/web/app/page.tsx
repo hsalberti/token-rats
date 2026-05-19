@@ -32,24 +32,24 @@ function startUrlWithRef(ref: string | null): string {
 }
 
 export const metadata: Metadata = {
-  title: "Token Rats — today's top burners",
+  title: "Token Rats — Global Token Consumption Leaderboard",
   description:
-    "Live leaderboard of public token burners on Claude Code and Cursor. Auto-sync, then flex.",
+    "Live global leaderboard of public Claude Code + Codex token burn. Auto-sync, then token-maxx.",
   openGraph: {
-    title: "Token Rats — today's top burners",
+    title: "Token Rats — Global Token Consumption Leaderboard",
     description: "Live global leaderboard of who's burning the most AI tokens.",
     images: [
       {
         url: "/cards/trending/7d",
         width: 1200,
         height: 630,
-        alt: "Token Rats — top public token burners",
+        alt: "Token Rats — Global Token Consumption Leaderboard",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Token Rats — today's top burners",
+    title: "Token Rats — Global Token Consumption Leaderboard",
     description: "Live global leaderboard of who's burning the most AI tokens.",
     images: ["/cards/trending/7d"],
   },
