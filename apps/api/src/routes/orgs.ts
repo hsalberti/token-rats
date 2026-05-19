@@ -1,8 +1,10 @@
 /**
- * Org routes — Phase 3 Track O
+ * Org routes — Phase 3 Track O + v1.2 Track AA (soft-create / student tier)
  *
- *  POST  /v1/orgs                      – create org (auth required)
- *  GET   /v1/orgs/:slug                – org details (member-only)
+ *  POST  /v1/orgs                      – create org (auth required; soft-create as `pending`)
+ *  GET   /v1/orgs/:slug                – org details
+ *                                          - active orgs: member-gated
+ *                                          - pending orgs: founder-only (everyone else 404)
  *  POST  /v1/orgs/:slug/invites        – create invite (admin/owner only)
  *  POST  /v1/orgs/:slug/accept         – accept invite (auth required)
  *  GET   /v1/orgs/:slug/dashboard      – aggregate spend stats (member-only)
@@ -10,32 +12,15 @@
 
 import { Hono } from "hono";
 import { z } from "zod";
+import {
+  CreateOrgInviteRequest as CreateOrgInviteRequestSchema,
+  CreateOrgRequest as CreateOrgRequestSchema,
+} from "@token-rats/contracts";
 import type { Env } from "../env.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validationError, notFound, forbidden } from "../lib/errors.js";
 import { MONTH_MS } from "../lib/time.js";
-
-/* ---- inline Zod schemas to avoid the type-only re-export collision in api.ts ---- */
-
-const CreateOrgRequestSchema = z.object({
-  name: z.string().min(1).max(64),
-  slug: z
-    .string()
-    .min(3)
-    .max(48)
-    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase letters, numbers, and hyphens only"),
-  githubOrgLogin: z.string().optional(),
-});
-
-const CreateOrgInviteRequestSchema = z
-  .object({
-    email: z.string().email().optional(),
-    githubLogin: z.string().optional(),
-  })
-  .refine((d) => d.email || d.githubLogin, {
-    message: "Either email or githubLogin is required",
-  });
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -43,11 +28,7 @@ const orgs = new Hono<HonoEnv>();
 
 /* ------------------------------------------------------------------ helpers */
 
-/** Lookup an org by slug. Returns null if not found. */
-async function getOrgBySlug(
-  db: D1Database,
-  slug: string,
-): Promise<{
+type OrgRow = {
   id: string;
   name: string;
   slug: string | null;
@@ -55,22 +36,18 @@ async function getOrgBySlug(
   seat_count: number;
   github_org_login: string | null;
   created_at: number;
-} | null> {
+  status: string;
+};
+
+/** Lookup an org by slug. Returns null if not found. */
+async function getOrgBySlug(db: D1Database, slug: string): Promise<OrgRow | null> {
   return db
     .prepare(
-      `SELECT id, name, slug, plan, seat_count, github_org_login, created_at
+      `SELECT id, name, slug, plan, seat_count, github_org_login, created_at, status
        FROM orgs WHERE slug = ?`,
     )
     .bind(slug)
-    .first<{
-      id: string;
-      name: string;
-      slug: string | null;
-      plan: string;
-      seat_count: number;
-      github_org_login: string | null;
-      created_at: number;
-    }>();
+    .first<OrgRow>();
 }
 
 /** Check that userId is a member of orgId; returns their role or null. */
@@ -86,12 +63,43 @@ async function getMembership(
   return row?.role ?? null;
 }
 
+/** Resolve the caller's email + handle (for waitlist auto-insert / founder lookups). */
+async function getCallerIdentity(
+  db: D1Database,
+  userId: string,
+): Promise<{ email: string; handle: string } | null> {
+  const row = await db
+    .prepare("SELECT handle, email FROM users WHERE id = ?")
+    .bind(userId)
+    .first<{ handle: string; email: string | null }>();
+  if (!row) return null;
+  // `users.email` may be null until Track AB's OAuth scope upgrade backfills it.
+  // Fall back to GitHub's deterministic noreply address so the (topic, email)
+  // uniqueness key on `waitlists` stays meaningful.
+  const email = row.email ?? `${row.handle}@users.noreply.github.com`;
+  return { email, handle: row.handle };
+}
+
+/** Map a raw orgs row to the contract shape. */
+function serializeOrg(row: OrgRow) {
+  return {
+    id: row.id,
+    name: row.name,
+    slug: row.slug,
+    plan: row.plan as "free" | "pro" | "student",
+    seatCount: row.seat_count,
+    githubOrgLogin: row.github_org_login,
+    createdAt: row.created_at,
+    status: (row.status === "pending" ? "pending" : "active") as "active" | "pending",
+  };
+}
+
 /* ------------------------------------------------------------------ POST /v1/orgs */
 
 orgs.post("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
-  let body: ReturnType<typeof CreateOrgRequestSchema.parse>;
+  let body: z.infer<typeof CreateOrgRequestSchema>;
   try {
     const raw: unknown = await c.req.json();
     body = CreateOrgRequestSchema.parse(raw);
@@ -99,31 +107,102 @@ orgs.post("/", requireAuth, async (c) => {
     return validationError(c, e instanceof Error ? e.message : e);
   }
 
-  // Check slug uniqueness
+  const caller = await getCallerIdentity(c.env.DB, userId);
+  if (!caller) return notFound(c, "User not found");
+
+  // Slug uniqueness — check across both active and pending orgs.
   const slugConflict = await c.env.DB.prepare(
-    "SELECT id FROM orgs WHERE slug = ?",
+    "SELECT id, status FROM orgs WHERE slug = ?",
   )
     .bind(body.slug)
-    .first<{ id: string }>();
+    .first<{ id: string; status: string }>();
 
+  // Idempotent re-submit: if the caller already owns a *pending* org at this
+  // slug, return the existing org + the original waitlist position instead of
+  // erroring. Any other conflict (someone else's slug, or an active org) is a
+  // hard error so we don't leak existence — just say "slug is taken".
   if (slugConflict) {
+    if (slugConflict.status === "pending") {
+      const role = await getMembership(c.env.DB, slugConflict.id, userId);
+      if (role === "owner") {
+        const existingOrg = await c.env.DB.prepare(
+          `SELECT id, name, slug, plan, seat_count, github_org_login, created_at, status
+           FROM orgs WHERE id = ?`,
+        )
+          .bind(slugConflict.id)
+          .first<OrgRow>();
+
+        // Position = 1-indexed rank of the caller's waitlist row within topic='orgs',
+        // ordered by created_at ASC (FIFO). Returns the *original* slot, not a new one.
+        const positionRow = await c.env.DB.prepare(
+          `SELECT COUNT(*) AS pos FROM waitlists
+           WHERE topic = 'orgs' AND created_at <= (
+             SELECT created_at FROM waitlists WHERE topic = 'orgs' AND email = ?
+           )`,
+        )
+          .bind(caller.email)
+          .first<{ pos: number }>();
+
+        if (existingOrg) {
+          return c.json(
+            {
+              org: serializeOrg(existingOrg),
+              waitlistPosition: positionRow?.pos ?? 1,
+            },
+            200,
+          );
+        }
+      }
+    }
     return validationError(c, "Slug is already taken");
   }
 
   const id = crypto.randomUUID();
   const now = Date.now();
+  const plan = body.student ? "student" : "free";
 
-  // TODO: create stripe.com customer here, store stripe_customer_id
-
+  // Soft-create: every new org is `pending` until an admin approves it.
+  // Org row + owner membership in one batch — same as the active flow.
   await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO orgs (id, name, slug, plan, seat_count, github_org_login, created_at)
-       VALUES (?, ?, ?, 'free', 0, ?, ?)`,
-    ).bind(id, body.name, body.slug, body.githubOrgLogin ?? null, now),
+      `INSERT INTO orgs (id, name, slug, plan, seat_count, github_org_login, created_at, status)
+       VALUES (?, ?, ?, ?, 0, ?, ?, 'pending')`,
+    ).bind(id, body.name, body.slug, plan, body.githubOrgLogin ?? null, now),
     c.env.DB.prepare(
       `INSERT INTO org_members (org_id, user_id, role) VALUES (?, ?, 'owner')`,
     ).bind(id, userId),
   ]);
+
+  // Mirror into the waitlists table so the admin queue is a single read of
+  // `topic='orgs'` regardless of which surface ingested the row.
+  const payload = JSON.stringify({
+    slug: body.slug,
+    name: body.name,
+    plan,
+    ...(body.university ? { university: body.university } : {}),
+    ...(body.note ? { note: body.note } : {}),
+  });
+
+  // Idempotent on (topic, email). If the caller already has a row in
+  // topic='orgs' (e.g. they re-submitted with a *different* slug after
+  // hitting the slug-taken branch above) we leave the original row intact
+  // and just compute their existing position.
+  await c.env.DB.prepare(
+    `INSERT INTO waitlists (id, topic, email, github_login, payload_json, created_at)
+     VALUES (?, 'orgs', ?, ?, ?, ?)
+     ON CONFLICT(topic, email) DO NOTHING`,
+  )
+    .bind(crypto.randomUUID(), caller.email, caller.handle, payload, now)
+    .run();
+
+  const positionRow = await c.env.DB.prepare(
+    `SELECT COUNT(*) AS pos FROM waitlists
+     WHERE topic = 'orgs' AND created_at <= (
+       SELECT created_at FROM waitlists WHERE topic = 'orgs' AND email = ?
+     )`,
+  )
+    .bind(caller.email)
+    .first<{ pos: number }>();
 
   return c.json(
     {
@@ -131,11 +210,13 @@ orgs.post("/", requireAuth, async (c) => {
         id,
         name: body.name,
         slug: body.slug,
-        plan: "free" as const,
+        plan,
         seatCount: 0,
         githubOrgLogin: body.githubOrgLogin ?? null,
         createdAt: now,
+        status: "pending" as const,
       },
+      waitlistPosition: positionRow?.pos ?? 1,
     },
     201,
   );
@@ -151,7 +232,15 @@ orgs.get("/:slug", requireAuth, async (c) => {
   if (!org) return notFound(c, "Org not found");
 
   const role = await getMembership(c.env.DB, org.id, userId);
-  if (!role) return forbidden(c, "You are not a member of this org");
+
+  // Pending orgs are visible to the founder only — to anyone else we 404 so
+  // we don't leak existence of reserved slugs (and so the dashboard doesn't
+  // render a half-real org).
+  if (org.status === "pending") {
+    if (role !== "owner") return notFound(c, "Org not found");
+  } else {
+    if (!role) return forbidden(c, "You are not a member of this org");
+  }
 
   const membersResult = await c.env.DB.prepare(
     `SELECT om.user_id, om.role, u.handle, u.avatar_url
@@ -176,15 +265,7 @@ orgs.get("/:slug", requireAuth, async (c) => {
   }));
 
   return c.json({
-    org: {
-      id: org.id,
-      name: org.name,
-      slug: org.slug,
-      plan: org.plan,
-      seatCount: org.seat_count,
-      githubOrgLogin: org.github_org_login,
-      createdAt: org.created_at,
-    },
+    org: serializeOrg(org),
     members,
   });
 });
@@ -195,7 +276,7 @@ orgs.post("/:slug/invites", requireAuth, async (c) => {
   const userId = c.var.userId;
   const slug = c.req.param("slug");
 
-  let body: ReturnType<typeof CreateOrgInviteRequestSchema.parse>;
+  let body: z.infer<typeof CreateOrgInviteRequestSchema>;
   try {
     const raw: unknown = await c.req.json();
     body = CreateOrgInviteRequestSchema.parse(raw);

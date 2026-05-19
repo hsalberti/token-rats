@@ -2,12 +2,13 @@
 
 /**
  * TrendingClient — handles the range toggle and re-fetches data client-side
- * when the user switches ranges.
+ * when the user switches ranges. Used by both `/` (signed-out homepage) and
+ * `/trending` (deep-link route).
  */
 
-import { useState, useTransition } from "react";
-import { getTrending } from "@/lib/api";
 import { Avatar } from "@/components/ui/Avatar";
+import { getTrending } from "@/lib/api";
+import { useState, useTransition } from "react";
 
 type Range = "today" | "7d" | "30d";
 
@@ -90,9 +91,7 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
             className={[
               "rounded-lg px-4 py-2 text-sm font-semibold transition-colors duration-150",
               "disabled:opacity-50 disabled:cursor-not-allowed",
-              range === r
-                ? "bg-rat-500 text-white"
-                : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
+              range === r ? "bg-rat-500 text-white" : "bg-zinc-800 text-zinc-300 hover:bg-zinc-700",
             ].join(" ")}
           >
             {RANGE_LABELS[r]}
@@ -101,9 +100,7 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
         <span className="ml-auto text-xs text-zinc-600">Updated {generatedDate}</span>
       </div>
 
-      {error && (
-        <p className="text-sm text-red-400">{error}</p>
-      )}
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       {/* Leaderboard */}
       {rows.length === 0 ? (
@@ -120,11 +117,11 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
       ) : (
         <ol className="space-y-2">
           {rows.map((row) => (
-            <li key={row.userId}>
+            <li key={row.userId} className="relative">
               <a
                 href={`/u/${row.handle}`}
                 className={[
-                  "flex items-center gap-4 rounded-xl border px-4 py-3",
+                  "flex items-center gap-4 rounded-xl border px-4 py-3 pr-12",
                   "transition-colors duration-150 hover:border-zinc-700",
                   row.rank <= 3
                     ? "border-rat-800/60 bg-rat-900/10"
@@ -161,6 +158,8 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
                   <p className="text-xs text-zinc-500 font-mono">{fmtCost(row.costUsdCents)}</p>
                 </div>
               </a>
+              {/* Share-link mini-CTA — every row is shareable. */}
+              <ShareRowButton handle={row.handle} />
             </li>
           ))}
         </ol>
@@ -172,5 +171,62 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Tiny share icon that copies a deep-link to the row's public profile.
+ * `/trending` already filters non-public users, so every visible row has a
+ * profile at `/u/<handle>`.
+ */
+function ShareRowButton({ handle }: { handle: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copyLink(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    const url =
+      typeof window !== "undefined" ? `${window.location.origin}/u/${handle}` : `/u/${handle}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      // ignore clipboard failures
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={copyLink}
+      aria-label={`Copy link to @${handle}'s profile`}
+      title={copied ? "Copied!" : "Copy profile link"}
+      className={[
+        "absolute right-3 top-1/2 -translate-y-1/2 z-10",
+        "flex h-7 w-7 items-center justify-center rounded-md",
+        "text-zinc-500 hover:text-zinc-100 hover:bg-zinc-800",
+        "transition-colors duration-150",
+        copied ? "text-green-400" : "",
+      ].join(" ")}
+    >
+      {copied ? (
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+          <path
+            fillRule="evenodd"
+            d="M16.704 5.296a1 1 0 010 1.408l-7.5 7.5a1 1 0 01-1.408 0l-3.5-3.5a1 1 0 011.408-1.408L8.5 12.092l6.796-6.796a1 1 0 011.408 0z"
+            clipRule="evenodd"
+          />
+        </svg>
+      ) : (
+        <svg viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4" aria-hidden="true">
+          <path
+            fillRule="evenodd"
+            d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z"
+            clipRule="evenodd"
+          />
+        </svg>
+      )}
+    </button>
   );
 }

@@ -1,9 +1,15 @@
 /**
  * /trending — global leaderboard of public users.
  * Server-rendered; range is passed as a searchParam.
+ *
+ * Track Z: `/` is now the canonical signed-out home and renders the same
+ * `<TrendingClient />`. We keep `/trending` alive as a deep-link target with
+ * its own OG card + meta description (no hero, no footer CTA) instead of
+ * 301-ing to `/`, so shared trending links + the existing OG card route keep
+ * working.
  */
-import type { Metadata } from "next";
 import { getTrending } from "@/lib/api";
+import type { Metadata } from "next";
 import { TrendingClient } from "./Client";
 
 export const runtime = "edge";
@@ -23,7 +29,9 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     openGraph: {
       title: `Trending Token Rats`,
       description: `Top public token burners for ${rangeLabel}.`,
-      images: [{ url: cardUrl, width: 1200, height: 630, alt: `Token Rats Trending — ${rangeLabel}` }],
+      images: [
+        { url: cardUrl, width: 1200, height: 630, alt: `Token Rats Trending — ${rangeLabel}` },
+      ],
     },
     twitter: {
       card: "summary_large_image",
@@ -81,9 +89,7 @@ export default async function TrendingPage({ searchParams }: Props) {
       <main className="mx-auto max-w-3xl px-6 py-12">
         <div className="mb-8">
           <h1 className="text-3xl font-black tracking-tight mb-2">Trending Rats</h1>
-          <p className="text-zinc-400">
-            Global leaderboard of public token burners. Opt-in only.
-          </p>
+          <p className="text-zinc-400">Global leaderboard of public token burners. Opt-in only.</p>
         </div>
 
         <TrendingClient initialRows={rows} initialRange={range} generatedAt={generatedAt} />

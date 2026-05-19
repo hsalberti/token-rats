@@ -5,9 +5,12 @@ import type { AuthVariables } from "./middleware/auth.js";
 import abuseRoutes from "./routes/abuse.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
+import groupStreakRoutes from "./routes/group-streak.js";
+import heatmapRoutes from "./routes/heatmap.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
 import liveRoutes from "./routes/live.js";
 import meRoutes from "./routes/me.js";
+import roomSummaryRoutes from "./routes/room-summary.js";
 import notificationsRoutes from "./routes/notifications.js";
 import orgsRoutes from "./routes/orgs.js";
 import profilesRoutes from "./routes/profiles.js";
@@ -73,6 +76,14 @@ app.route("/v1/rooms", leaderboardRoutes);
 app.route("/v1/rooms", streaksRoutes);
 app.route("/v1/rooms", challengesRoutes);
 app.route("/v1/rooms", liveRoutes);
+app.route("/v1/rooms", roomSummaryRoutes);
+app.route("/v1/rooms", groupStreakRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Generalized heatmap (v1.2 Track Y)                                          */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1", heatmapRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Profiles                                                                    */

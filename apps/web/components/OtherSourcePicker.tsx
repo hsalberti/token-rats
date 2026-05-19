@@ -35,18 +35,54 @@ interface Provider {
 
 const PROVIDERS: Record<Branch, Provider[]> = {
   ide: [
-    { id: "cursor", label: "Cursor", icon: "cursor", auth: "Cursor sqlite cache (opt-in)", costMode: "paid" },
-    { id: "antigravity", label: "Antigravity", icon: "antigravity", auth: "API key", costMode: "paid" },
-    { id: "other-ide", label: "Other IDE", icon: null, auth: "API key or local config", costMode: "paid" },
+    {
+      id: "cursor",
+      label: "Cursor",
+      icon: "cursor",
+      auth: "Cursor sqlite cache (opt-in)",
+      costMode: "paid",
+    },
+    {
+      id: "antigravity",
+      label: "Antigravity",
+      icon: "antigravity",
+      auth: "API key",
+      costMode: "paid",
+    },
+    {
+      id: "other-ide",
+      label: "Other IDE",
+      icon: null,
+      auth: "API key or local config",
+      costMode: "paid",
+    },
   ],
   api: [
     { id: "openai", label: "OpenAI", icon: "codex", auth: "API key or OAuth", costMode: "paid" },
-    { id: "anthropic", label: "Anthropic", icon: "claude", auth: "API key or OAuth", costMode: "paid" },
-    { id: "openrouter", label: "OpenRouter", icon: "openrouter", auth: "API key", costMode: "paid" },
+    {
+      id: "anthropic",
+      label: "Anthropic",
+      icon: "claude",
+      auth: "API key or OAuth",
+      costMode: "paid",
+    },
+    {
+      id: "openrouter",
+      label: "OpenRouter",
+      icon: "openrouter",
+      auth: "API key",
+      costMode: "paid",
+    },
     { id: "other-api", label: "Other API", icon: null, auth: "API key", costMode: "paid" },
   ],
   oss: [
-    { id: "ollama", label: "Ollama", icon: "ollama", auth: "Localhost API + history", costMode: "free" },
+    {
+      id: "ollama",
+      label: "Ollama",
+      icon: "ollama",
+      auth: "Localhost API + history",
+      costMode: "free",
+    },
     { id: "vllm", label: "vLLM", icon: null, auth: "Localhost API", costMode: "free" },
     { id: "llamacpp", label: "llama.cpp", icon: null, auth: "Local log file", costMode: "free" },
     { id: "lmstudio", label: "LM Studio", icon: null, auth: "Localhost API", costMode: "free" },
@@ -76,7 +112,11 @@ export function OtherSourcePicker() {
   return (
     <div className="space-y-4">
       {/* Branch tabs */}
-      <div role="tablist" aria-label="Other source category" className="flex gap-1 rounded-lg border border-zinc-800 bg-zinc-950 p-1">
+      <div
+        role="tablist"
+        aria-label="Other source category"
+        className="flex gap-1 rounded-lg border border-zinc-800 bg-zinc-950 p-1"
+      >
         {(Object.keys(BRANCH_LABELS) as Branch[]).map((b) => {
           const isActive = branch === b;
           return (
@@ -90,9 +130,7 @@ export function OtherSourcePicker() {
               }}
               className={
                 "flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors " +
-                (isActive
-                  ? "bg-zinc-800 text-rat-400"
-                  : "text-zinc-400 hover:text-zinc-200")
+                (isActive ? "bg-zinc-800 text-rat-400" : "text-zinc-400 hover:text-zinc-200")
               }
             >
               {BRANCH_LABELS[b]}
@@ -142,9 +180,7 @@ export function OtherSourcePicker() {
       {/* Selected provider detail */}
       {active && (
         <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 px-5 py-4">
-          <p className="text-sm font-semibold text-zinc-200">
-            {active.label} — coming soon
-          </p>
+          <p className="text-sm font-semibold text-zinc-200">{active.label} — coming soon</p>
           <p className="mt-1 text-xs text-zinc-500">
             Usage source: <span className="font-mono">{active.auth}</span>.
             {active.costMode === "free"
@@ -159,9 +195,9 @@ export function OtherSourcePicker() {
 
       {/* Trademark disclaimer — required wherever any of these logos render. */}
       <p className="text-[11px] leading-relaxed text-zinc-600">
-        Token Rats is an independent tool, not affiliated with Anthropic, OpenAI, Cursor,
-        Google, OpenRouter, Ollama, or any other provider listed above. Logos are used
-        for identification only.
+        Token Rats is an independent tool, not affiliated with Anthropic, OpenAI, Cursor, Google,
+        OpenRouter, Ollama, or any other provider listed above. Logos are used for identification
+        only.
       </p>
     </div>
   );

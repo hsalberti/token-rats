@@ -1,18 +1,11 @@
 /**
- * Email sending stub for Token Rats.
+ * Email sending — calls Resend's REST API.
  *
- * TODO: Wire in Resend or Postmark here at deploy time.
- * Resend example:
- *   import { Resend } from "resend";
- *   const resend = new Resend(env.RESEND_API_KEY);
- *   await resend.emails.send({ from: "noreply@tokenrats.com", to, subject, html });
+ * When `EMAIL_PROVIDER_API_KEY` is unset we fall back to a console-log stub so
+ * `pnpm dev`, `vitest`, and `wrangler dev` keep working without secrets.
  *
- * Postmark example:
- *   const res = await fetch("https://api.postmarkapp.com/email", {
- *     method: "POST",
- *     headers: { "X-Postmark-Server-Token": env.POSTMARK_API_TOKEN, "Content-Type": "application/json" },
- *     body: JSON.stringify({ From: "noreply@tokenrats.com", To: to, Subject: subject, HtmlBody: html, TextBody: text }),
- *   });
+ * Sender is hardcoded as a constant; move it to a Worker var when we need
+ * per-environment override (staging vs prod).
  */
 
 export interface EmailMessage {
@@ -28,16 +21,59 @@ export interface SendEmailResult {
   error?: string;
 }
 
+/** Default sender. Must be a verified Resend domain. */
+export const DEFAULT_FROM = "Token Rats <digest@tokenrats.com>";
+
+interface ResendResponse {
+  id?: string;
+  message?: string;
+  name?: string;
+}
+
 /**
- * Stub email sender. Logs the intent and returns ok: true.
- * Replace the body of this function with a real email provider call.
+ * Send an email via Resend. Falls back to a logging stub when the key is unset.
  */
-export async function sendEmail(message: EmailMessage): Promise<SendEmailResult> {
-  console.log("[email] Would send email:", {
-    to: message.to,
-    subject: message.subject,
-    textPreview: message.text.slice(0, 100),
-  });
-  // TODO: wire Resend/Postmark here at deploy time.
-  return { ok: true, id: `stub-${Date.now()}` };
+export async function sendEmail(
+  message: EmailMessage,
+  apiKey: string | undefined,
+): Promise<SendEmailResult> {
+  if (!apiKey) {
+    console.log("[email] (stub) Would send:", {
+      to: message.to,
+      subject: message.subject,
+      textPreview: message.text.slice(0, 100),
+    });
+    return { ok: true, id: `stub-${Date.now()}` };
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: DEFAULT_FROM,
+        to: message.to,
+        subject: message.subject,
+        html: message.html,
+        text: message.text,
+      }),
+    });
+
+    const data = (await res.json().catch(() => ({}))) as ResendResponse;
+
+    if (!res.ok || !data.id) {
+      const error = data.message ?? `Resend HTTP ${res.status}`;
+      console.warn("[email] Resend failed:", error);
+      return { ok: false, error };
+    }
+
+    return { ok: true, id: data.id };
+  } catch (err) {
+    const error = err instanceof Error ? err.message : String(err);
+    console.warn("[email] Resend threw:", error);
+    return { ok: false, error };
+  }
 }

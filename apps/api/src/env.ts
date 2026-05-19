@@ -19,4 +19,16 @@ export type Env = {
   STRIPE_SECRET_KEY: string;
   /** Stripe webhook signing secret (whsec_*). Used to verify incoming webhook signatures. */
   STRIPE_WEBHOOK_SECRET: string;
+  /**
+   * v1.2 Track AA — comma-separated GitHub handles that may hit `/v1/admin/*`.
+   * Set via wrangler vars (non-secret) for prod / `.dev.vars` for local dev.
+   * Falls back to a single bootstrap handle below if unset (local-only safety net).
+   */
+  ADMIN_HANDLES?: string;
+  /**
+   * v1.2 Track AB — Resend API key (`wrangler secret put EMAIL_PROVIDER_API_KEY`).
+   * When unset, `lib/email.ts` falls back to the console-log stub so local dev
+   * and CI keep working without a secret.
+   */
+  EMAIL_PROVIDER_API_KEY?: string;
 };

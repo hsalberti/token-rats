@@ -6,10 +6,13 @@
  * aggregated from daily_rollup.
  */
 import { Hono } from "hono";
+import { HeatmapRangeDays } from "@token-rats/contracts";
+import { z } from "zod";
 import type { Env } from "../env.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
-import { notFound } from "../lib/errors.js";
+import { notFound, validationError } from "../lib/errors.js";
+import { buildHeatmapResponse } from "./heatmap.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -276,15 +279,27 @@ function weekStart(yyyy_mm_dd: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/* GET /v1/u/:handle/heatmap                                                  */
+/* GET /v1/u/:handle/heatmap?days=60|364                                       */
 /* -------------------------------------------------------------------------- */
-/* Returns the last 364 days of `(day, tokens, sessions)` for the calendar    */
-/* heatmap on the public profile. Same visibility gates as the main profile.  */
-/* Missing days are omitted; the client fills zeros. ~1KB payload max.        */
+/* v1.2 Track Y — re-shaped to return the canonical HeatmapResponse with      */
+/* quartile-binned levels for consistency with the new /v1/heatmap route.     */
+/* Defaults to 60 days (the new product default); 364 for the 52w toggle.     */
 /* -------------------------------------------------------------------------- */
+
+const ProfileHeatmapQuery = z.object({
+  days: z.coerce.number().pipe(HeatmapRangeDays).default(60),
+});
 
 profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
   const handle = c.req.param("handle");
+
+  let parsed: { days: 60 | 364 };
+  try {
+    const raw = Object.fromEntries(new URL(c.req.url).searchParams.entries());
+    parsed = ProfileHeatmapQuery.parse(raw) as { days: 60 | 364 };
+  } catch (e) {
+    return validationError(c, e instanceof Error ? e.message : e);
+  }
 
   const user = await c.env.DB.prepare(
     "SELECT id, public_profile FROM users WHERE handle = ?",
@@ -302,38 +317,19 @@ profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
     return notFound(c, "This profile is private");
   }
 
-  // 53 weeks × 7 days = 371; use 364 (52 × 7) so the column count is exactly
-  // a year and the start aligns to a Monday after the client's bucket math.
-  const today = new Date();
-  const from = new Date(today);
-  from.setUTCDate(from.getUTCDate() - 363);
-  const fromDay = from.toISOString().slice(0, 10);
+  const cacheKey = `hm:user:${handle}:${parsed.days}`;
+  const cached = await c.env.CACHE.get(cacheKey);
+  if (cached) return c.json(JSON.parse(cached));
 
-  const result = await c.env.DB.prepare(
-    `SELECT day,
-            SUM(tokens)   AS tokens,
-            SUM(sessions) AS sessions
-       FROM daily_rollup
-      WHERE user_id = ? AND day >= ?
-      GROUP BY day
-      ORDER BY day`,
-  )
-    .bind(user.id, fromDay)
-    .all<{ day: string; tokens: number; sessions: number }>();
-
-  const days = (result.results ?? []).map((r) => ({
-    day: r.day,
-    tokens: r.tokens,
-    sessions: r.sessions,
-  }));
-
-  return c.json({
-    heatmap: {
-      from: fromDay,
-      to: today.toISOString().slice(0, 10),
-      days,
-    },
-  });
+  const response = await buildHeatmapResponse(
+    c.env,
+    "user",
+    user.id,
+    handle,
+    parsed.days,
+  );
+  await c.env.CACHE.put(cacheKey, JSON.stringify(response), { expirationTtl: 60 });
+  return c.json(response);
 });
 
 export default profiles;
