@@ -53,7 +53,6 @@
  */
 
 import type { SessionRecord } from "@token-rats/contracts";
-import { priceOf } from "@token-rats/pricing";
 import { computeDedupeKey } from "./hash.js";
 
 /** Mutable accumulator for one session during parsing. */
@@ -167,7 +166,12 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     if (startedAt <= 0 || endedAt <= 0) continue;
 
     const model = acc.model.length > 0 ? acc.model : "unknown";
-    const { costUsdCents } = priceOf(model, acc.inTokens, acc.outTokens);
+
+    // costUsdCents is intentionally 0 — the server is authoritative for cost
+    // (see apps/api/src/lib/pricing.ts). Sending 0 keeps the wire format
+    // compatible with the SessionRecord schema; the server overwrites at
+    // ingest time using the D1 price catalog.
+    const costUsdCents = 0;
 
     const dedupeKey = computeDedupeKey(
       "claude-code",

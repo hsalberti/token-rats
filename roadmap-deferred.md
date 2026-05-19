@@ -220,3 +220,131 @@ can't audit; doing it after open-sourcing means the install / build
 flow can be public from day one. Also a ~2-week task on its own — best
 to land after the smaller features that the user wants in front of the
 audience.
+
+## Price-source expansion beyond OpenRouter
+
+**Problem.** The daily price-refresh cron (`apps/api/src/lib/price-refresh.ts`)
+pulls from a single source — OpenRouter `/api/v1/models` — which covers ~300
+chat-completion models across ~60 providers. That's most of the surface, but
+not all of it. Providers OpenRouter doesn't carry today (or carries with
+materially stale prices) include audio specialists (ElevenLabs, Hume), media
+generators (fal.ai, Stability), and some Chinese labs that gate pricing behind
+console auth (Tencent Hunyuan, ByteDance Doubao). The `GET
+/v1/admin/prices/needs-source` endpoint surfaces these as `source='session-inferred'`
+or `is_active=1 AND no snapshot` rows the moment a user actually bills against them.
+
+**Goal.** Add a per-provider direct fetcher for each source the
+`needs-source` dashboard flags as priority. Snapshots from those fetchers
+write to the same `model_price_snapshots` table with `source='<provider>-api'`,
+slotting transparently into the existing carry-forward lookup.
+
+**Scope to revisit (per provider):**
+
+- **Anthropic direct (`/v1/models`).** Public, requires `ANTHROPIC_API_KEY`
+  (already a Worker secret). Returns IDs + display names but **not pricing** —
+  so the v1 use is catalog-only (mark models as `is_active=1` even when
+  OpenRouter drops them). Pricing still has to come from OpenRouter or a
+  manual seed.
+- **OpenAI direct (`/v1/models`).** Same shape — catalog without pricing.
+  Adds value if OpenRouter starts lagging on day-of-launch models.
+- **ElevenLabs + Hume.** Public docs pages, no JSON pricing endpoint
+  observed. Would need a GH Actions cron that scrapes via Claude /
+  /update-models, posts to `POST /v1/admin/prices/sync` (new endpoint —
+  doesn't exist yet) with the parsed rows. Adds a second runtime, so this
+  is the heaviest path.
+- **fal.ai / Stability.** Per-call pricing (per image / per audio second),
+  not per-MTok. Schema would need to grow a `price_basis` column
+  (`per_mtok` | `per_image` | `per_audio_second` | `per_request`) before
+  these can land. v1 schema only supports per-MTok.
+- **Tencent Hunyuan, ByteDance Doubao, Z.AI GLM.** Pricing pages exist on
+  the Chinese provider consoles but require account login. Lowest priority
+  — re-evaluate only if a real user bills against one of these.
+
+**Why deferred.** OpenRouter coverage is good enough for everyone in the
+"vibe coder on Mac / Linux" persona (Claude, OpenAI, Codex, plus the
+random Mistral / DeepSeek user). The `needs-source` admin endpoint is the
+trigger — when a real user bills against a model we can't price, the row
+shows up in the dashboard and the corresponding fetcher becomes priority.
+Until then this is engineering effort against hypothetical demand.
+
+## Cache-aware pricing rates in price snapshots
+
+**Problem.** `model_price_snapshots` has two price columns:
+`input_per_mtok` and `output_per_mtok`. But Anthropic actually charges
+**three** rates on cache-enabled requests: base input (full price),
+cache-read input (10% of base), and cache-write input (125% of base — the
+"5-minute" tier; the "1-hour" tier is 200%, but the proxy doesn't
+distinguish). OpenAI's `cached_input_tokens` field carries the same
+problem in mirror form. The server-side cost stamper at
+`apps/api/src/lib/pricing.ts` currently bills `inTokens` at the base rate
+and ignores the separately-tracked `cache_read_tokens` /
+`cache_write_tokens` columns on `sessions` — which means heavy-cache
+sessions get over-billed (cache reads should be ~10× cheaper).
+
+**Goal.** Snapshot table grows `cache_read_per_mtok` and
+`cache_write_per_mtok` columns (both nullable — only Anthropic models
+publish them in v1). The cost stamper splits the cost calc into four
+components: base input + cache-read input + cache-write input + output.
+
+**Scope to revisit:**
+
+- **Migration.** Add the two columns to `model_price_snapshots` with
+  default `NULL`. Backfill is no-op (NULL means "fall back to
+  `input_per_mtok` for all input flavors", preserving today's behavior).
+- **OpenRouter parser.** OpenRouter's `pricing` block already carries
+  `input_cache_read` and `input_cache_write` for Anthropic — read those
+  into the new columns.
+- **Cost stamper.** Bill `cache_read_tokens * cache_read_per_mtok` +
+  `cache_write_tokens * cache_write_per_mtok` + `(inTokens -
+  cache_read_tokens - cache_write_tokens) * input_per_mtok` + `outTokens
+  * output_per_mtok`. Fall back to base `input_per_mtok` when the cache
+  columns are null.
+- **Recompute admin endpoint.** Re-stamp historical sessions —
+  `POST /v1/admin/prices/recompute` already exists; just runs again.
+
+**Why deferred.** Today's cost calc is *consistent* — every session is
+billed the same way against the same table — so leaderboards are fair
+even if absolute dollar values are off by 5-15% for heavy-cache users.
+The recompute endpoint means we can fix history in one batch when this
+ships. Anthropic's cache pricing is also still flagged "preview" in some
+places, and the rate ratios (10% / 125% / 200%) have already changed
+once in 2025 — locking the column semantics is worth waiting on until
+the upstream is stable.
+
+## Admin UI for model catalog + price recompute
+
+**Problem.** Three new admin endpoints ship without a UI:
+`POST /v1/admin/prices/refresh` (run the daily cron on demand),
+`GET /v1/admin/prices/needs-source` (the "guide roadmap" surface — models
+billed against without a price source), and
+`POST /v1/admin/prices/recompute` (re-stamp history after a price fix).
+Today the only way to consume them is `curl` or `wrangler d1 execute`.
+That works for the soft-launch (the user is the only admin), but a real
+ops loop wants this in `/admin`.
+
+**Goal.** A "Pricing" panel on `/admin` that:
+
+- Shows the `needs-source` list with provider + last_seen_day + a
+  "promote to roadmap" button that copies a pre-filled
+  `roadmap-deferred.md` snippet to clipboard.
+- Has a "Refresh now" button that calls `POST /v1/admin/prices/refresh`
+  and shows the resulting `RefreshResult` (fetched / upserts /
+  deactivated / errors).
+- Has a "Recompute history" button gated behind a confirmation modal,
+  with a dry-run preview that calls `?dryRun=true` first and reports
+  `{ total, processed, changed, centsDelta }` before the real run.
+
+**Scope to revisit:**
+
+- New tab in `apps/web/app/admin/AdminClient.tsx` alongside Signups /
+  Activity / Referrers / Orgs.
+- New `apps/web/lib/api.ts` helpers wrapping the three endpoints.
+- The `needs-source` rows could optionally link to a "Last 10 sessions
+  with this model" view for context — defer unless the dashboard is
+  noisy enough to need triage tools.
+
+**Why deferred.** The endpoints are fully functional via `curl`, the
+user is the only admin today, and the cron runs daily so the catalog
+self-heals. UI work pays off when (a) admin gets handed off to someone
+else, or (b) the `needs-source` list grows past ~10 rows and triage
+needs to be tracked. Neither is true yet.

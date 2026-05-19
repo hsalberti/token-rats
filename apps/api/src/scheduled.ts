@@ -1,42 +1,63 @@
 /**
  * Scheduled handler for Token Rats Worker.
  *
- * Wire into apps/api/src/index.ts:
+ * Wired into apps/api/src/index.ts via the default export:
  *
- *   import { runWeeklyDigests } from "./scheduled.js";
+ *   async scheduled(event, env, ctx) {
+ *     ctx.waitUntil(runScheduled(event, env));
+ *   }
  *
- *   // At the bottom of index.ts, replace `export default app;` with:
- *   export default {
- *     fetch: app.fetch.bind(app),
- *     async scheduled(event: ScheduledEvent, env: Env, ctx: ExecutionContext) {
- *       ctx.waitUntil(runWeeklyDigests(env));
- *     },
- *   };
- *
- * The cron is declared in wrangler.toml:
- *   [triggers]
- *   crons = ["0 16 * * 1"]   # Mondays 16:00 UTC
+ * Multiple crons share this dispatcher — `event.cron` (the literal cron
+ * expression from wrangler.toml) selects which handler runs. New crons added
+ * to `[triggers].crons` need a matching case below.
  */
 
 import type { Env } from "./env.js";
+import { refreshPrices } from "./lib/price-refresh.js";
+
+const WEEKLY_DIGEST_CRON = "0 16 * * 1";
+const DAILY_PRICE_REFRESH_CRON = "0 4 * * *";
 
 /**
  * Weekly digest cron handler.
  *
- * Currently a no-op: the `users` table has no real email column (the
- * previous implementation sent to `${user.handle}@example.com` via a stub
- * sendEmail that always returned ok, which logged success but delivered
- * nothing). Until the email column + a real ESP integration land, this
- * function is intentionally inert so the cron doesn't burn subrequests
- * pretending to work.
- *
- * To re-enable, restore the previous loop here and ensure:
- *   - `users.email` column exists (new migration).
- *   - `sendEmail` actually talks to an email provider.
- *   - The per-user loop is replaced by a Cloudflare Queues fan-out
- *     (the sequential `await sendEmail` will not scale past ~hundreds
- *     of users within the cron CPU/subrequest budget).
+ * Currently a no-op: the digest email path needs a working ESP and a fan-out
+ * via Cloudflare Queues before it's worth re-enabling. Logged so crons that
+ * fire while the function is still inert show up in tail.
  */
-export async function runWeeklyDigests(_env: Env): Promise<void> {
+async function runWeeklyDigests(_env: Env): Promise<void> {
   console.warn("[scheduled] runWeeklyDigests: no-op — email delivery not wired up");
+}
+
+/** Refresh the D1 model catalog + price snapshots from OpenRouter. */
+async function runDailyPriceRefresh(env: Env): Promise<void> {
+  const t0 = Date.now();
+  try {
+    const result = await refreshPrices(env);
+    const dt = Date.now() - t0;
+    console.log("[scheduled] price refresh complete", {
+      ms: dt,
+      fetched: result.fetched,
+      upserts: result.upserts,
+      snapshots: result.snapshots,
+      deactivated: result.deactivated,
+      errors: result.errors,
+    });
+  } catch (err) {
+    console.error("[scheduled] price refresh failed", err);
+  }
+}
+
+/** Cron dispatcher. Called by the Worker's `scheduled` handler. */
+export async function runScheduled(event: ScheduledEvent, env: Env): Promise<void> {
+  switch (event.cron) {
+    case WEEKLY_DIGEST_CRON:
+      await runWeeklyDigests(env);
+      return;
+    case DAILY_PRICE_REFRESH_CRON:
+      await runDailyPriceRefresh(env);
+      return;
+    default:
+      console.warn("[scheduled] unhandled cron", { cron: event.cron });
+  }
 }

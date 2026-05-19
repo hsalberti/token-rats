@@ -13,8 +13,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@token-rats/contracts": "workspace:*",
-    "@token-rats/pricing": "workspace:*"
+    "@token-rats/contracts": "workspace:*"
   },
   "devDependencies": {
     "typescript": "5.7.2",

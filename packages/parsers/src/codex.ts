@@ -60,7 +60,6 @@
  */
 
 import type { SessionRecord } from "@token-rats/contracts";
-import { priceOf } from "@token-rats/pricing";
 import { computeDedupeKey } from "./hash.js";
 
 interface SessionAcc {
@@ -158,7 +157,10 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
     if (startedAt <= 0 || endedAt <= 0) continue;
 
     const model = acc.model.length > 0 ? acc.model : "unknown";
-    const { costUsdCents } = priceOf(model, acc.inTokens, acc.outTokens);
+
+    // costUsdCents is intentionally 0 — the server is authoritative for cost
+    // (see apps/api/src/lib/pricing.ts). The server overwrites at ingest.
+    const costUsdCents = 0;
     const dedupeKey = computeDedupeKey("codex", model, startedAt, acc.inTokens, acc.outTokens);
 
     results.push({

@@ -170,10 +170,11 @@ describe("parseCursor", () => {
       expect(rec.outTokens).toBe(2_000);
     });
 
-    it("estimates cost at claude-3-5-sonnet rates ($3 in / $15 out per MTok)", () => {
-      // 10000/1e6 * 3 = $0.03  +  2000/1e6 * 15 = $0.03  → $0.06 → 6 cents
+    it("leaves cost at 0 — server stamps it from the D1 price catalog", () => {
+      // Cost computation moved into apps/api/src/lib/pricing.ts; the parser
+      // intentionally emits 0 and the server overwrites at ingest time.
       const rec = records[0]!;
-      expect(rec.costUsdCents).toBe(6);
+      expect(rec.costUsdCents).toBe(0);
     });
   });
 
