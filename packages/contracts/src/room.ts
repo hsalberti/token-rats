@@ -8,6 +8,13 @@ export const RoomCode = z
   .regex(/^[a-z0-9-]+$/);
 export type RoomCode = z.infer<typeof RoomCode>;
 
+/** v1.2 Track AE — ISO 3166-1 alpha-2 country code (e.g. `BR`, `US`). */
+export const CountryCode = z
+  .string()
+  .length(2)
+  .regex(/^[A-Z]{2}$/);
+export type CountryCode = z.infer<typeof CountryCode>;
+
 export const Room = z.object({
   id: z.string(),
   code: RoomCode,
@@ -15,6 +22,10 @@ export const Room = z.object({
   ownerId: z.string(),
   orgId: z.string().nullable(),
   createdAt: z.number().int().positive(),
+  /** v1.2 Track AE — discoverable in `/groups` if true. */
+  isPublic: z.boolean().optional(),
+  /** v1.2 Track AE — required when isPublic = true. */
+  country: CountryCode.nullable().optional(),
 });
 export type Room = z.infer<typeof Room>;
 

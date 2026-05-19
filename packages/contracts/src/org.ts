@@ -4,8 +4,12 @@ import { z } from "zod";
 /* Org plan                                                                    */
 /* -------------------------------------------------------------------------- */
 
-export const OrgPlan = z.enum(["free", "pro"]);
+export const OrgPlan = z.enum(["free", "pro", "student"]);
 export type OrgPlan = z.infer<typeof OrgPlan>;
+
+/** v1.2 Track AA — `pending` orgs are reserved but not yet usable. */
+export const OrgStatus = z.enum(["active", "pending"]);
+export type OrgStatus = z.infer<typeof OrgStatus>;
 
 export const OrgMemberRole = z.enum(["owner", "admin", "member"]);
 export type OrgMemberRole = z.infer<typeof OrgMemberRole>;
@@ -26,6 +30,8 @@ export const Org = z.object({
   seatCount: z.number().int().nonnegative(),
   githubOrgLogin: z.string().nullable(),
   createdAt: z.number().int().positive(),
+  /** v1.2 Track AA — defaults to `active` for orgs created before this column landed. */
+  status: OrgStatus.default("active"),
 });
 export type Org = z.infer<typeof Org>;
 
@@ -76,9 +82,9 @@ export const OrgSpendByDay = z.object({
 export type OrgSpendByDay = z.infer<typeof OrgSpendByDay>;
 
 export const OrgDashboard = z.object({
-  spendByUser: z.array(OrgSpendByUser),  // top 50
+  spendByUser: z.array(OrgSpendByUser), // top 50
   spendByModel: z.array(OrgSpendByModel),
-  spendByDay: z.array(OrgSpendByDay),   // last 30d
+  spendByDay: z.array(OrgSpendByDay), // last 30d
 });
 export type OrgDashboard = z.infer<typeof OrgDashboard>;
 
@@ -90,11 +96,43 @@ export const CreateOrgRequest = z.object({
   name: z.string().min(1).max(64),
   slug: OrgSlug,
   githubOrgLogin: z.string().optional(),
+  /** v1.2 Track AA — when true, the org is created with plan='student' and status='pending'. */
+  student: z.boolean().optional(),
+  /** v1.2 Track AA — free-text university or org context, persisted to waitlists payload. */
+  university: z.string().max(200).optional(),
+  /** v1.2 Track AA — free-text "why us" note, persisted to waitlists payload. */
+  note: z.string().max(500).optional(),
 });
 export type CreateOrgRequest = z.infer<typeof CreateOrgRequest>;
 
-export const CreateOrgResponse = z.object({ org: Org });
+export const CreateOrgResponse = z.object({
+  org: Org,
+  /** v1.2 Track AA — present when status='pending'; 1-indexed queue position at insert time. */
+  waitlistPosition: z.number().int().positive().optional(),
+});
 export type CreateOrgResponse = z.infer<typeof CreateOrgResponse>;
+
+/** v1.2 Track AA — admin queue listing. */
+export const PendingOrgRow = z.object({
+  org: Org,
+  founderHandle: z.string(),
+  university: z.string().nullable(),
+  note: z.string().nullable(),
+  createdAt: z.number().int().positive(),
+});
+export type PendingOrgRow = z.infer<typeof PendingOrgRow>;
+
+export const PendingOrgsResponse = z.object({ pending: z.array(PendingOrgRow) });
+export type PendingOrgsResponse = z.infer<typeof PendingOrgsResponse>;
+
+export const ApproveOrgRequest = z.object({
+  /** Optional override of the plan tier at approval time. */
+  plan: OrgPlan.optional(),
+});
+export type ApproveOrgRequest = z.infer<typeof ApproveOrgRequest>;
+
+export const ApproveOrgResponse = z.object({ org: Org });
+export type ApproveOrgResponse = z.infer<typeof ApproveOrgResponse>;
 
 export const GetOrgResponse = z.object({
   org: Org,

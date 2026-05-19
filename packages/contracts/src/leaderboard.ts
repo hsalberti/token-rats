@@ -20,6 +20,14 @@ export const LeaderboardRow = z.object({
   sessions: z.number().int().nonnegative(),
   /** Up to 2 dominant sources by token volume, descending. May be empty. */
   topSources: z.array(SourceBreakdownEntry).max(2).default([]),
+  /**
+   * v1.2 Track AF — kebab-case "primary source" label (e.g. `claude-max`,
+   * `cursor-ide`, `codex-api`) when the user's last-30d cost share for one
+   * source-plan combination is ≥50%. Otherwise null.
+   */
+  primarySource: z.string().nullable().optional(),
+  /** v1.2 Track AC — verified Twitter/X handle (without @), or null. */
+  twitterHandle: z.string().nullable().optional(),
 });
 export type LeaderboardRow = z.infer<typeof LeaderboardRow>;
 

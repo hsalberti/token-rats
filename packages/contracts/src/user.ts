@@ -7,7 +7,13 @@ export const User = z.object({
   /** Present only when the caller is the user themselves or the user is public. */
   bio: z.string().max(200).nullable().optional(),
   twitterHandle: z.string().max(50).nullable().optional(),
+  /** v1.2 Track AC — true if the Twitter handle was verified via OAuth. */
+  twitterVerified: z.boolean().optional(),
   publicProfile: z.boolean().optional(),
+  /** v1.2 Track AB — primary verified GitHub email; only on `Me`, never public. */
+  email: z.string().email().nullable().optional(),
+  /** v1.2 Track AF — see LeaderboardRow.primarySource. */
+  primarySource: z.string().nullable().optional(),
 });
 export type User = z.infer<typeof User>;
 
