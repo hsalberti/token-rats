@@ -1,250 +1,237 @@
 /**
- * Extracts Cursor AI request rows from the Cursor sqlite cache.
+ * Extracts Cursor AI generation events from the per-workspace SQLite caches.
  *
- * Driver chain, in order — first one that succeeds wins:
+ * Cursor stores AI activity per-workspace under the key `aiService.generations`
+ * in each `workspaceStorage/*\/state.vscdb`. The legacy global key `aiRequests`
+ * doesn't exist in current Cursor builds. **Crucially, Cursor does not store
+ * token counts on disk** — only `{ unixMs, generationUUID, type, textDescription }`.
+ * We drop `textDescription` on read (mission.md privacy rule); the parser
+ * estimates tokens from the request type.
+ *
+ * Driver chain — first one that succeeds wins:
  *   1. `node:sqlite`     (built into Node ≥22.5, zero install cost)
  *   2. `sql.js`          (WebAssembly SQLite, bundled in the published CLI)
  *   3. `better-sqlite3`  (native C++ addon, opt-in via `token-rats install-cursor`)
  *
- * sql.js is the lean default: pure JS install, no compile step, works on any
- * Node version we support. better-sqlite3 is roughly 5-10× faster on large
- * Cursor DBs but requires a platform-specific native build, so it's gated
- * behind an explicit install step.
- *
- * Output rows match the shape parseCursor() expects:
- *   { id, model, promptTokens, completionTokens, startedAt, endedAt }
+ * Output rows match the shape parseCursor() now expects:
+ *   { id, type, unixMs }
  */
 
+import { existsSync, readdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { join } from "node:path";
 
+/** Minimal row exported per Cursor generation event. */
 export interface CursorRow {
+  /** Cursor's generationUUID — used as the dedup key. */
   id: string;
-  model: string;
-  promptTokens: number;
-  completionTokens: number;
-  startedAt: number;
-  endedAt: number;
+  /** "composer" | "tab" | other Cursor-internal type. */
+  type: string;
+  /** Event timestamp (ms epoch). */
+  unixMs: number;
 }
 
+/** Generic SQLite-driver shape used by readAllGenerations. */
 type DbInstance = {
-  prepare: (sql: string) => { all: () => unknown[] };
+  exec: (sql: string) => Array<{ columns: string[]; values: unknown[][] }>;
   close: () => void;
 };
 
-type DbFactory = () => DbInstance;
+/** Returns the directory containing per-workspace state.vscdb files. */
+export function cursorWorkspaceStorageDir(): string {
+  const home = homedir();
+  const rel = join("Cursor", "User", "workspaceStorage");
+  if (process.platform === "darwin") {
+    return join(home, "Library", "Application Support", rel);
+  }
+  if (process.platform === "win32") {
+    const appData = process.env["APPDATA"] ?? join(home, "AppData", "Roaming");
+    return join(appData, rel);
+  }
+  const xdgConfig = process.env["XDG_CONFIG_HOME"] ?? join(home, ".config");
+  return join(xdgConfig, rel);
+}
 
-/** Attempt to read rows from the Cursor DB using node:sqlite (Node ≥22). */
-async function tryNodeSqlite(dbPath: string): Promise<CursorRow[] | null> {
-  // node:sqlite is experimental in Node 22; use a dynamic import so TypeScript
-  // compiles fine on older @types/node versions that lack the module.
-  let DatabaseConstructor: new (
-    path: string,
-    opts?: Record<string, unknown>,
-  ) => DbInstance;
+/** Lists every state.vscdb file under the workspace storage dir. */
+function discoverWorkspaceDbs(): string[] {
+  const root = cursorWorkspaceStorageDir();
+  if (!existsSync(root)) return [];
 
+  const out: string[] = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const candidate = join(root, entry.name, "state.vscdb");
+    if (existsSync(candidate)) out.push(candidate);
+  }
+  return out;
+}
+
+/** Open a Cursor DB with the first driver that works. Returns null if none do. */
+async function openDb(dbPath: string): Promise<DbInstance | null> {
+  // 1. node:sqlite (Node ≥22.5)
   try {
     const mod = await import("node:sqlite");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    DatabaseConstructor = (mod as any).DatabaseSync;
-    if (!DatabaseConstructor) return null;
+    const DatabaseSync = (mod as any).DatabaseSync;
+    if (DatabaseSync) {
+      const db = new DatabaseSync(dbPath, { readOnly: true });
+      // node:sqlite uses prepare/all rather than exec(). Wrap to match.
+      return {
+        exec: (sql: string) => {
+          const stmt = db.prepare(sql);
+          const rows = stmt.all() as Array<Record<string, unknown>>;
+          if (rows.length === 0) return [];
+          const columns = Object.keys(rows[0]!);
+          return [
+            {
+              columns,
+              values: rows.map((r) => columns.map((c) => r[c])),
+            },
+          ];
+        },
+        close: () => db.close(),
+      };
+    }
   } catch {
-    return null;
+    // fall through
   }
 
-  return readWithDb(() => new DatabaseConstructor(dbPath, { readOnly: true }));
-}
-
-/** Attempt to read rows from the Cursor DB using sql.js (pure-WASM SQLite). */
-async function trySqlJs(dbPath: string): Promise<CursorRow[] | null> {
-  let initSqlJs: (config?: Record<string, unknown>) => Promise<{
-    Database: new (data?: Uint8Array) => {
-      exec: (sql: string) => Array<{ columns: string[]; values: unknown[][] }>;
-      close: () => void;
-    };
-  }>;
-
+  // 2. sql.js (bundled WASM)
   try {
-    const mod = await import("sql.js");
-    // sql.js's CJS default export is the init function.
+    const sqlJs = await import("sql.js");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    initSqlJs = ((mod as any).default ?? mod) as typeof initSqlJs;
+    const initSqlJs = ((sqlJs as any).default ?? sqlJs) as (
+      cfg?: Record<string, unknown>,
+    ) => Promise<{
+      Database: new (data?: Uint8Array) => DbInstance;
+    }>;
+    const SQL = await initSqlJs();
+    const bytes = await readFile(dbPath);
+    return new SQL.Database(new Uint8Array(bytes));
   } catch {
-    return null;
+    // fall through
   }
 
-  let SQL: Awaited<ReturnType<typeof initSqlJs>>;
-  let fileBytes: Buffer;
-  try {
-    SQL = await initSqlJs();
-    fileBytes = await readFile(dbPath);
-  } catch {
-    return null;
-  }
-
-  // Wrap sql.js's exec()-based API to match the DbInstance shape used by readWithDb.
-  const sqlDb = new SQL.Database(new Uint8Array(fileBytes));
-  const adapter: DbInstance = {
-    prepare: (sql: string) => ({
-      all: () => {
-        const results = sqlDb.exec(sql);
-        if (results.length === 0) return [];
-        const { columns, values } = results[0]!;
-        return values.map((row) => {
-          const obj: Record<string, unknown> = {};
-          for (let i = 0; i < columns.length; i++) {
-            obj[columns[i]!] = row[i];
-          }
-          return obj;
-        });
-      },
-    }),
-    close: () => sqlDb.close(),
-  };
-  return readWithDb(() => adapter);
-}
-
-/** Attempt to read rows from the Cursor DB using better-sqlite3. */
-async function tryBetterSqlite3(dbPath: string): Promise<CursorRow[] | null> {
-  let Database: new (
-    path: string,
-    opts?: Record<string, unknown>,
-  ) => DbInstance;
-
+  // 3. better-sqlite3 (opt-in)
   try {
     const mod = await import("better-sqlite3");
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    Database = (mod as any).default ?? (mod as any);
+    const Database = (mod as any).default ?? mod;
+    const db = new Database(dbPath, { readonly: true, fileMustExist: true });
+    return {
+      exec: (sql: string) => {
+        const stmt = db.prepare(sql);
+        const rows = stmt.all() as Array<Record<string, unknown>>;
+        if (rows.length === 0) return [];
+        const columns = Object.keys(rows[0]!);
+        return [
+          {
+            columns,
+            values: rows.map((r) => columns.map((c) => r[c])),
+          },
+        ];
+      },
+      close: () => db.close(),
+    };
   } catch {
     return null;
   }
-
-  return readWithDb(() => new Database(dbPath, { readonly: true, fileMustExist: true }));
 }
 
-function readWithDb(factory: DbFactory): CursorRow[] | null {
-  let db: DbInstance | null = null;
+/** Pull aiService.generations rows from a single workspace DB. */
+async function readGenerationsFromDb(dbPath: string): Promise<CursorRow[]> {
+  const db = await openDb(dbPath);
+  if (!db) return [];
+
   try {
-    db = factory();
-    const rows = tryItemTable(db) ?? tryDirectTable(db) ?? [];
-    return rows;
+    const res = db.exec(`SELECT value FROM ItemTable WHERE key = 'aiService.generations'`);
+    if (res.length === 0 || res[0]!.values.length === 0) return [];
+
+    const raw = res[0]!.values[0]![0];
+    if (typeof raw !== "string") return [];
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+    if (!Array.isArray(parsed)) return [];
+
+    const out: CursorRow[] = [];
+    for (const item of parsed) {
+      if (typeof item !== "object" || item === null) continue;
+      const r = item as Record<string, unknown>;
+      const id = typeof r["generationUUID"] === "string" ? r["generationUUID"] : null;
+      const type = typeof r["type"] === "string" ? r["type"] : null;
+      const unixMs =
+        typeof r["unixMs"] === "number" && isFinite(r["unixMs"]) && r["unixMs"] > 0
+          ? r["unixMs"]
+          : null;
+      // Deliberately ignore `textDescription` — that's prompt content.
+      if (!id || !type || unixMs === null) continue;
+      out.push({ id, type, unixMs });
+    }
+    return out;
   } catch {
-    return null;
+    return [];
   } finally {
     try {
-      db?.close();
+      db.close();
     } catch {
       // ignore
     }
   }
 }
 
-/** Try to read from Cursor's ItemTable (primary known schema). */
-function tryItemTable(db: DbInstance): CursorRow[] | null {
-  try {
-    const stmt = db.prepare("SELECT value FROM ItemTable WHERE key = 'aiRequests'");
-    const rows = stmt.all() as Array<{ value: string }>;
-    if (rows.length === 0) return null;
-
-    const raw = rows[0]?.value;
-    if (typeof raw !== "string") return null;
-
-    let parsed: unknown;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return null;
-    }
-
-    if (!Array.isArray(parsed)) return null;
-    return normalizeRows(parsed);
-  } catch {
-    return null;
-  }
-}
-
-/** Try to read from a direct requests table (alternative schema). */
-function tryDirectTable(db: DbInstance): CursorRow[] | null {
-  try {
-    const stmt = db.prepare(
-      `SELECT id, model,
-              prompt_tokens as promptTokens, completion_tokens as completionTokens,
-              started_at as startedAt, ended_at as endedAt
-       FROM cursor_requests
-       ORDER BY started_at DESC
-       LIMIT 50000`,
-    );
-    const rows = stmt.all() as unknown[];
-    return normalizeRows(rows);
-  } catch {
-    return null;
-  }
-}
-
-/** Normalise raw JSON rows into typed CursorRow objects, skipping invalids. */
-function normalizeRows(rows: unknown[]): CursorRow[] {
-  const results: CursorRow[] = [];
-  for (const raw of rows) {
-    if (typeof raw !== "object" || raw === null) continue;
-    const r = raw as Record<string, unknown>;
-
-    const id = typeof r["id"] === "string" ? r["id"] : null;
-    if (!id) continue;
-
-    const model = typeof r["model"] === "string" ? r["model"] : "unknown";
-    const promptTokens = toNonNegInt(r["promptTokens"] ?? r["prompt_tokens"]);
-    const completionTokens = toNonNegInt(r["completionTokens"] ?? r["completion_tokens"]);
-    const startedAt = toPositiveMs(r["startedAt"] ?? r["started_at"]);
-    const endedAt = toPositiveMs(r["endedAt"] ?? r["ended_at"]);
-
-    if (startedAt === null || endedAt === null) continue;
-
-    results.push({ id, model, promptTokens, completionTokens, startedAt, endedAt });
-  }
-  return results;
-}
-
-function toNonNegInt(v: unknown): number {
-  if (typeof v !== "number" || !isFinite(v)) return 0;
-  return Math.max(0, Math.floor(v));
-}
-
-function toPositiveMs(v: unknown): number | null {
-  if (typeof v !== "number" || !isFinite(v) || v <= 0) return null;
-  return v;
-}
-
 /**
- * Extract CursorRow[] from a sqlite DB file.
- * Returns an empty array + reason string if the DB cannot be read.
+ * Discover every workspace DB, read `aiService.generations` from each, and
+ * return a deduped flat list (one row per unique generationUUID).
  */
-export async function readCursorDb(
-  dbPath: string,
-): Promise<{ rows: CursorRow[]; skipped: string | null }> {
-  // 1. node:sqlite — built into Node ≥22.5, fastest path with zero install cost.
-  const fromNodeSqlite = await tryNodeSqlite(dbPath);
-  if (fromNodeSqlite !== null) {
-    return { rows: fromNodeSqlite, skipped: null };
+export async function extractCursorGenerations(): Promise<{
+  rows: CursorRow[];
+  skipped: string | null;
+  dbCount: number;
+}> {
+  const dbPaths = discoverWorkspaceDbs();
+  if (dbPaths.length === 0) {
+    return {
+      rows: [],
+      skipped: null,
+      dbCount: 0,
+    };
   }
 
-  // 2. sql.js — WebAssembly SQLite, bundled with the published CLI.
-  //    This is the default path on Node <22.5.
-  const fromSqlJs = await trySqlJs(dbPath);
-  if (fromSqlJs !== null) {
-    return { rows: fromSqlJs, skipped: null };
+  const seen = new Set<string>();
+  const rows: CursorRow[] = [];
+
+  let openFailures = 0;
+  for (const p of dbPaths) {
+    let perDb: CursorRow[] = [];
+    try {
+      perDb = await readGenerationsFromDb(p);
+    } catch {
+      openFailures++;
+      continue;
+    }
+    for (const r of perDb) {
+      if (seen.has(r.id)) continue;
+      seen.add(r.id);
+      rows.push(r);
+    }
   }
 
-  // 3. better-sqlite3 — native C++ addon, only present if the user explicitly
-  //    installed it via `token-rats install-cursor`. Faster than sql.js on
-  //    very large Cursor DBs.
-  const fromBetter = await tryBetterSqlite3(dbPath);
-  if (fromBetter !== null) {
-    return { rows: fromBetter, skipped: null };
+  // If every DB failed to open, surface a friendly hint.
+  if (rows.length === 0 && openFailures === dbPaths.length) {
+    return {
+      rows: [],
+      dbCount: dbPaths.length,
+      skipped:
+        "Could not open any Cursor workspace DB (sqlite drivers unavailable). " +
+        "Run `npx token-rats install-cursor` for native speed, or upgrade to Node ≥22.5.",
+    };
   }
 
-  return {
-    rows: [],
-    skipped:
-      "Could not open Cursor DB (sqlite drivers unavailable). " +
-      "Run `npx token-rats install-cursor` for native speed, or upgrade to Node ≥22.5.",
-  };
+  return { rows, dbCount: dbPaths.length, skipped: null };
 }

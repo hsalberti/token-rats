@@ -1,6 +1,6 @@
 {
   "name": "token-rats",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Sync your Claude Code + Cursor token usage to your Token Rats leaderboard.",
   "license": "UNLICENSED",
   "type": "module",

@@ -134,65 +134,52 @@ describe("parseCursor", () => {
   const input = readFixture("cursor-sample.json");
   const records = parseCursor(input);
 
-  it("returns one record per row (3 records)", () => {
-    expect(records).toHaveLength(3);
-  });
-
-  it("source is cursor for all records", () => {
+  it("emits one record per composer generation, skipping other types", () => {
+    // Fixture: 2× composer, 1× tab, 1× unknown — only the composers should survive
+    expect(records).toHaveLength(2);
     expect(records.every((r) => r.source === "cursor")).toBe(true);
   });
 
   it("ids are prefixed with cursor:", () => {
     expect(records.map((r) => r.id).sort()).toEqual([
-      "cursor:cursor-req-001",
-      "cursor:cursor-req-002",
-      "cursor:cursor-req-003",
+      "cursor:cursor-gen-001",
+      "cursor:cursor-gen-002",
     ]);
   });
 
-  describe("model name mapping", () => {
-    it("maps claude-3.5-sonnet → claude-3-5-sonnet-20241022", () => {
-      const rec = records.find((r) => r.id === "cursor:cursor-req-001")!;
-      expect(rec.model).toBe("claude-3-5-sonnet-20241022");
-    });
-
-    it("leaves known canonical model names unchanged (gpt-4o)", () => {
-      const rec = records.find((r) => r.id === "cursor:cursor-req-002")!;
-      expect(rec.model).toBe("gpt-4o");
-    });
-
-    it("passes unknown model through unchanged", () => {
-      const rec = records.find((r) => r.id === "cursor:cursor-req-003")!;
-      expect(rec.model).toBe("some-totally-unknown-model");
-    });
-
-    it("sets costUsdCents to 0 for unknown model", () => {
-      const rec = records.find((r) => r.id === "cursor:cursor-req-003")!;
-      expect(rec.costUsdCents).toBe(0);
-    });
+  it("tags model as cursor-composer", () => {
+    expect(records.every((r) => r.model === "cursor-composer")).toBe(true);
   });
 
-  describe("token counts", () => {
-    it("maps promptTokens → inTokens", () => {
-      const rec = records.find((r) => r.id === "cursor:cursor-req-001")!;
-      expect(rec.inTokens).toBe(1200);
+  describe("token + cost estimation", () => {
+    it("estimates 10k input / 2k output per composer generation", () => {
+      const rec = records[0]!;
+      expect(rec.inTokens).toBe(10_000);
+      expect(rec.outTokens).toBe(2_000);
     });
 
-    it("maps completionTokens → outTokens", () => {
-      const rec = records.find((r) => r.id === "cursor:cursor-req-001")!;
-      expect(rec.outTokens).toBe(450);
+    it("estimates cost at claude-3-5-sonnet rates ($3 in / $15 out per MTok)", () => {
+      // 10000/1e6 * 3 = $0.03  +  2000/1e6 * 15 = $0.03  → $0.06 → 6 cents
+      const rec = records[0]!;
+      expect(rec.costUsdCents).toBe(6);
     });
   });
 
   describe("timestamps", () => {
-    it("preserves startedAt", () => {
-      const rec = records.find((r) => r.id === "cursor:cursor-req-001")!;
+    it("sets startedAt and endedAt to unixMs", () => {
+      const rec = records.find((r) => r.id === "cursor:cursor-gen-001")!;
       expect(rec.startedAt).toBe(1700005000000);
+      expect(rec.endedAt).toBe(1700005000000);
+    });
+  });
+
+  describe("filtering", () => {
+    it("skips tab events (autocomplete is excluded by design)", () => {
+      expect(records.some((r) => r.id === "cursor:cursor-gen-003")).toBe(false);
     });
 
-    it("preserves endedAt", () => {
-      const rec = records.find((r) => r.id === "cursor:cursor-req-001")!;
-      expect(rec.endedAt).toBe(1700005004500);
+    it("skips unknown types (forward-compatible)", () => {
+      expect(records.some((r) => r.id === "cursor:cursor-gen-004")).toBe(false);
     });
   });
 
@@ -213,6 +200,19 @@ describe("parseCursor", () => {
 
   it("returns empty array for JSON non-array (object)", () => {
     expect(parseCursor('{"id": "x"}')).toHaveLength(0);
+  });
+
+  it("ignores rows missing required fields", () => {
+    const r = parseCursor(
+      JSON.stringify([
+        { type: "composer", unixMs: 1700000000000 }, // no id
+        { id: "x", unixMs: 1700000000000 }, // no type
+        { id: "y", type: "composer" }, // no unixMs
+        { id: "z", type: "composer", unixMs: 1700000000000 }, // valid
+      ]),
+    );
+    expect(r).toHaveLength(1);
+    expect(r[0]!.id).toBe("cursor:z");
   });
 });
 
