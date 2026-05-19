@@ -1,10 +1,12 @@
 "use client";
 
 import type { ReferralStats } from "@token-rats/contracts";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 interface Props {
   initial: ReferralStats;
+  /** Pre-computed on the server so SSR + client renders match. */
+  origin: string;
 }
 
 function fmtDate(ms: number): string {
@@ -15,14 +17,27 @@ function fmtDate(ms: number): string {
   });
 }
 
-export function ReferralsClient({ initial }: Props) {
+/**
+ * Invite blurb shared from /settings/referrals. Same `[TR🔶🐭]` brand mark +
+ * URL-on-its-own-line layout as the room "Share recap" copy so the two
+ * messages read like they came out of the same mouth.
+ */
+function buildReferralShareText(link: string): string {
+  return [
+    "[TR🔶🐭] Come burn tokens with me",
+    "",
+    "Auto-tracked Claude Code + Cursor leaderboard with your crew.",
+    "",
+    link,
+  ].join("\n");
+}
+
+export function ReferralsClient({ initial, origin }: Props) {
   const { code, count, recent } = initial;
   const [copied, setCopied] = useState(false);
+  const [shared, setShared] = useState(false);
 
-  const link = useMemo(() => {
-    if (typeof window === "undefined") return `/?ref=${code}`;
-    return `${window.location.origin}/?ref=${code}`;
-  }, [code]);
+  const link = `${origin}/?ref=${code}`;
 
   async function copyLink() {
     try {
@@ -31,6 +46,25 @@ export function ReferralsClient({ initial }: Props) {
       setTimeout(() => setCopied(false), 1500);
     } catch {
       // Ignore — the input is still selectable.
+    }
+  }
+
+  async function shareInvite() {
+    const text = buildReferralShareText(link);
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        if (err instanceof Error && err.name === "AbortError") return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setShared(true);
+      setTimeout(() => setShared(false), 1500);
+    } catch {
+      // Ignore — fall back silently.
     }
   }
 
@@ -64,9 +98,18 @@ export function ReferralsClient({ initial }: Props) {
             {copied ? "Copied" : "Copy"}
           </button>
         </div>
-        <p className="text-xs text-zinc-500">
-          Code: <span className="font-mono text-zinc-300">{code}</span>
-        </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={shareInvite}
+            className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm font-semibold text-zinc-200 hover:border-orange-700 hover:text-orange-400 transition-colors"
+          >
+            {shared ? "Copied invite" : "Share with a message"}
+          </button>
+          <p className="text-xs text-zinc-500">
+            Code: <span className="font-mono text-zinc-300">{code}</span>
+          </p>
+        </div>
       </section>
 
       <section className="space-y-3">
