@@ -217,6 +217,7 @@ export const ENDPOINTS = {
   profileHeatmap: (handle: string) => `/v1/u/${handle}/heatmap`,
   authGithubStart: "/v1/auth/github/start",
   authGithubCallback: "/v1/auth/github/callback",
+  authLogout: "/v1/auth/logout",
   authCliExchange: "/v1/auth/cli/exchange",
   authCliPoll: "/v1/auth/cli/poll",
   // Phase 2 Track G+H

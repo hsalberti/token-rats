@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { InstallBlock } from "../components/InstallBlock";
 import { Avatar } from "../components/ui/Avatar";
 import { RankBadge } from "../components/ui/RankBadge";
@@ -48,8 +47,9 @@ export default async function HomePage({
 }: {
   searchParams: Promise<{ ref?: string | string[] }>;
 }) {
+  // Signed-in visitors are *not* bounced — the marketing page is a first-class
+  // destination for both states. The CTAs below adapt instead.
   const user = await getSession();
-  if (user) redirect("/app");
 
   const params = await searchParams;
   const ref = pickRef(params.ref);
@@ -62,12 +62,22 @@ export default async function HomePage({
         <span className="text-xl font-black tracking-tight">
           Token <span className="text-rat-500">Rats</span>
         </span>
-        <a
-          href={startUrl}
-          className="rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rat-600 active:bg-rat-700"
-        >
-          Sign in with GitHub
-        </a>
+        {user ? (
+          <a
+            href="/app"
+            className="inline-flex items-center gap-2 rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rat-600 active:bg-rat-700"
+          >
+            <Avatar src={user.avatarUrl} handle={user.handle} size="xs" />
+            Open dashboard →
+          </a>
+        ) : (
+          <a
+            href={startUrl}
+            className="rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rat-600 active:bg-rat-700"
+          >
+            Sign in with GitHub
+          </a>
+        )}
       </nav>
 
       {/* Hero */}
@@ -90,13 +100,22 @@ export default async function HomePage({
           <InstallBlock />
         </div>
 
-        <a
-          href={startUrl}
-          className="inline-flex items-center gap-2 rounded-xl bg-rat-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-rat-900/50 transition-colors hover:bg-rat-600 active:bg-rat-700"
-        >
-          <GitHubIcon />
-          Sign in with GitHub
-        </a>
+        {user ? (
+          <a
+            href="/app"
+            className="inline-flex items-center gap-2 rounded-xl bg-rat-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-rat-900/50 transition-colors hover:bg-rat-600 active:bg-rat-700"
+          >
+            Open dashboard →
+          </a>
+        ) : (
+          <a
+            href={startUrl}
+            className="inline-flex items-center gap-2 rounded-xl bg-rat-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-rat-900/50 transition-colors hover:bg-rat-600 active:bg-rat-700"
+          >
+            <GitHubIcon />
+            Sign in with GitHub
+          </a>
+        )}
         <p className="mt-3 text-sm text-zinc-500">Free forever for individuals.</p>
       </section>
 

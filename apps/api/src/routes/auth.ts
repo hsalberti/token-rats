@@ -8,7 +8,7 @@
  */
 
 import { Hono } from "hono";
-import { setCookie } from "hono/cookie";
+import { deleteCookie, setCookie } from "hono/cookie";
 import { z } from "zod";
 import type { Env } from "../env.js";
 import {
@@ -36,7 +36,7 @@ import {
   referrerIdForCode,
 } from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
-import { requireAuth } from "../middleware/auth.js";
+import { extractUserId, requireAuth } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -215,6 +215,46 @@ auth.get("/github/callback", async (c) => {
   });
 
   return c.redirect(`${c.env.WEB_ORIGIN}/app`, 302);
+});
+
+/* -------------------------------------------------------------------------- */
+/* POST /v1/auth/logout                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Allow POST only — GET would be triggered by image tags, link prefetchers,
+ * and browser link scanners, silently logging users out.
+ *
+ * Tolerant of a missing/invalid cookie: always clears, never 401s. Otherwise a
+ * user stuck with a malformed cookie has no path back to a clean state.
+ *
+ * Returns 303 with Location → WEB_ORIGIN so a plain `<form method=POST>`
+ * works without JS; fetch callers just check `res.ok`.
+ */
+auth.post("/logout", async (c) => {
+  const userId = await extractUserId(c);
+
+  if (userId) {
+    // Best-effort cleanup so a "lost" device stops getting push pings.
+    // Failure is non-fatal — the cookie clear below is the real logout.
+    try {
+      await c.env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ?").bind(userId).run();
+    } catch {
+      // ignore
+    }
+  }
+
+  // Cookie was set with Domain=<apex> so it's visible to both web + api.
+  // Deleting must use the same Domain or the browser keeps a parallel cookie.
+  const domain = cookieDomainFor(c.env.WEB_ORIGIN);
+  deleteCookie(c, SESSION_COOKIE, {
+    path: "/",
+    secure: true,
+    sameSite: "Lax",
+    ...(domain && { domain }),
+  });
+
+  return c.redirect(`${c.env.WEB_ORIGIN}/`, 303);
 });
 
 /* -------------------------------------------------------------------------- */
