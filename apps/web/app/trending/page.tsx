@@ -13,6 +13,7 @@ import { UserMenu } from "../../components/UserMenu";
 import { Wordmark } from "../../components/ui/Wordmark.js";
 import { getTrending } from "../../lib/api";
 import { getSession } from "../../lib/auth";
+import { getServerLocale } from "../../lib/server-locale";
 import { TrendingClient } from "./Client";
 
 export const runtime = "edge";
@@ -38,6 +39,7 @@ export default async function TrendingPage({
     permanentRedirect("/");
   }
 
+  const locale = await getServerLocale();
   const params = (await searchParams) ?? {};
   const range = validateRange(params.range);
 
@@ -58,7 +60,7 @@ export default async function TrendingPage({
           <a href="/app">
             <Wordmark size="md" />
           </a>
-          <UserMenu user={user} />
+          <UserMenu user={user} locale={locale} />
         </div>
       </header>
 

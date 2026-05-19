@@ -8,9 +8,12 @@
  *
  * Default OS is "mac" when detection fails — that's our most common
  * "I don't have Node" miss in practice.
+ *
+ * Help link slots in next to the Node hint and opens an X DM to @tokenratsx.
  */
 
 import { useEffect, useState } from "react";
+import { type Locale, t } from "../lib/i18n";
 import { CopyButton } from "./CopyButton";
 
 type OS = "mac" | "windows" | "linux";
@@ -30,7 +33,11 @@ function detectOS(): OS {
   return "mac";
 }
 
-export function NodeInstallHint() {
+interface Props {
+  locale?: Locale;
+}
+
+export function NodeInstallHint({ locale = "en" }: Props) {
   const [visible, setVisible] = useState(false);
   const [os, setOs] = useState<OS>("mac");
 
@@ -49,27 +56,31 @@ export function NodeInstallHint() {
     <div className="mt-3 rounded-lg border border-zinc-800 bg-zinc-950/50 px-4 py-3 text-xs text-zinc-400">
       <div className="flex items-center justify-between gap-3">
         <p>
-          Don&apos;t have Node? <span className="text-zinc-500">{primary.label}:</span>
+          {t(locale, "node.dontHaveNode")} <span className="text-zinc-500">{primary.label}:</span>
         </p>
         <a
           href="https://x.com/tokenratsx"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] font-semibold text-zinc-300 transition-colors hover:border-rat-700 hover:text-rat-400"
-          aria-label="Get help — DM @tokenratsx on X"
-          title="DM @tokenratsx on X"
+          aria-label={t(locale, "node.helpDm")}
+          title={t(locale, "node.helpDm")}
         >
           <span aria-hidden>💬</span>
-          <span>Help · DM @tokenratsx</span>
+          <span>{t(locale, "node.helpDm")}</span>
         </a>
       </div>
       <div className="mt-1.5 flex items-center gap-2">
         <code className="select-all font-mono text-[12px] text-zinc-200">{primary.cmd}</code>
-        <CopyButton text={primary.cmd} label="Copy" className="ml-auto shrink-0" />
+        <CopyButton
+          text={primary.cmd}
+          label={t(locale, "common.copy")}
+          className="ml-auto shrink-0"
+        />
       </div>
       <details className="mt-2 group">
         <summary className="cursor-pointer text-[11px] text-zinc-500 hover:text-zinc-300">
-          Other platforms
+          {t(locale, "node.otherPlatforms")}
         </summary>
         <ul className="mt-2 space-y-1.5">
           {others.map((k) => (
@@ -81,7 +92,7 @@ export function NodeInstallHint() {
             </li>
           ))}
           <li className="text-[11px] text-zinc-500">
-            Or download from{" "}
+            {t(locale, "node.orDownload")}{" "}
             <a
               href="https://nodejs.org/en/download"
               target="_blank"

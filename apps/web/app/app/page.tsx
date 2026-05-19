@@ -4,6 +4,7 @@ import { PrivacyFooter } from "../../components/PrivacyFooter";
 import { UserMenu } from "../../components/UserMenu";
 import { Wordmark } from "../../components/ui/Wordmark.js";
 import { getCookieHeader, requireSession } from "../../lib/auth";
+import { getServerLocale } from "../../lib/server-locale";
 import { DashboardClient } from "./DashboardClient";
 
 export const runtime = "edge";
@@ -25,6 +26,7 @@ export default async function AppPage() {
   const cookieHeader = await getCookieHeader();
   const h = await headers();
   const country = viewerCountry(h.get("cf-ipcountry"));
+  const locale = await getServerLocale();
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -34,12 +36,17 @@ export default async function AppPage() {
           <a href="/">
             <Wordmark size="md" />
           </a>
-          <UserMenu user={user} />
+          <UserMenu user={user} locale={locale} />
         </div>
       </header>
 
       <main className="mx-auto max-w-4xl px-6 py-8">
-        <DashboardClient user={user} cookieHeader={cookieHeader} viewerCountry={country} />
+        <DashboardClient
+          user={user}
+          cookieHeader={cookieHeader}
+          viewerCountry={country}
+          locale={locale}
+        />
       </main>
       <PrivacyFooter />
     </div>

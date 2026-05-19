@@ -4,6 +4,8 @@ import { InstallBlock } from "../components/InstallBlock";
 import { Wordmark } from "../components/ui/Wordmark.js";
 import { AUTH_GITHUB_START, getTrending } from "../lib/api";
 import { getSession } from "../lib/auth";
+import { t } from "../lib/i18n";
+import { getServerLocale } from "../lib/server-locale";
 import { TrendingClient } from "./trending/Client";
 
 export const runtime = "edge";
@@ -86,6 +88,7 @@ export default async function HomePage({
   const user = await getSession();
   if (user) redirect("/app");
 
+  const locale = await getServerLocale();
   const params = await searchParams;
   const ref = pickRef(params.ref);
   const startUrl = buildStartUrl({
@@ -113,25 +116,25 @@ export default async function HomePage({
         <div className="mx-auto max-w-3xl px-6 py-14 flex flex-col items-center text-center gap-6">
           <Wordmark size="xl" />
           <p className="max-w-md text-base text-zinc-300 sm:text-lg">
-            Strava for AI token burn. Auto-sync your Claude Code &amp; Cursor logs. Flex the burn.
+            {t(locale, "landing.tagline")}
           </p>
           <a
             href={startUrl}
             className="inline-flex items-center gap-2 rounded-xl bg-rat-500 px-6 py-3 text-base font-bold text-white shadow-lg shadow-rat-900/50 transition-colors hover:bg-rat-600 active:bg-rat-700"
           >
             <GitHubIcon />
-            Sign in with GitHub
+            {t(locale, "landing.signin")}
           </a>
           <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-zinc-500">
             <span aria-hidden>🔒</span>
-            <span>Counts only — we literally can&apos;t read your prompts.</span>
+            <span>{t(locale, "privacy.short")}</span>
             <a
               href="https://github.com/hsalberti/token-rats"
               target="_blank"
               rel="noopener noreferrer"
               className="text-rat-400 hover:text-rat-300"
             >
-              Verify the CLI →
+              {t(locale, "privacy.verifyShort")}
             </a>
           </p>
         </div>
@@ -140,10 +143,8 @@ export default async function HomePage({
       {/* Live trending board */}
       <main className="mx-auto max-w-3xl px-6 py-12">
         <div className="mb-6">
-          <h2 className="text-2xl font-black tracking-tight">Today&apos;s top burners</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Live global leaderboard of public Token Rats. Opt-in only.
-          </p>
+          <h2 className="text-2xl font-black tracking-tight">{t(locale, "landing.boardTitle")}</h2>
+          <p className="mt-1 text-sm text-zinc-400">{t(locale, "landing.boardSub")}</p>
         </div>
         <TrendingClient initialRows={rows} initialRange={range} generatedAt={generatedAt} />
       </main>
@@ -151,26 +152,28 @@ export default async function HomePage({
       {/* How it works — install snippet lives in step 01. */}
       <section className="border-y border-zinc-800 bg-zinc-900/50 py-16">
         <div className="mx-auto max-w-5xl px-6">
-          <h2 className="mb-10 text-center text-2xl font-black tracking-tight">How it works</h2>
+          <h2 className="mb-10 text-center text-2xl font-black tracking-tight">
+            {t(locale, "landing.howItWorks")}
+          </h2>
           <div className="grid gap-8 sm:grid-cols-3">
             <Step
               number="01"
-              title="Install"
-              description="One command to connect your Claude Code and Cursor logs. Runs locally — no prompt content leaves your machine."
+              title={t(locale, "landing.step1.title")}
+              description={t(locale, "landing.step1.desc")}
             >
               <div className="mt-4">
-                <InstallBlock />
+                <InstallBlock locale={locale} />
               </div>
             </Step>
             <Step
               number="02"
-              title="Compete"
-              description="Create a board with friends, or hit the global / country leaderboards. Climb, post, repeat."
+              title={t(locale, "landing.step2.title")}
+              description={t(locale, "landing.step2.desc")}
             />
             <Step
               number="03"
-              title="Token-maxx"
-              description="Token mog your friends, feel the agi. Accelerate. Ship. Repeat."
+              title={t(locale, "landing.step3.title")}
+              description={t(locale, "landing.step3.desc")}
             />
           </div>
         </div>

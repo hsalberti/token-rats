@@ -11,13 +11,15 @@
 import type { User } from "@token-rats/contracts";
 import { useEffect, useRef, useState } from "react";
 import { AUTH_LOGOUT } from "../lib/api";
+import { type Locale, t } from "../lib/i18n";
 import { Avatar } from "./ui/Avatar";
 
 interface Props {
   user: User;
+  locale?: Locale;
 }
 
-export function UserMenu({ user }: Props) {
+export function UserMenu({ user, locale = "en" }: Props) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -72,7 +74,9 @@ export function UserMenu({ user }: Props) {
           className="absolute right-0 z-50 mt-2 w-56 overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900 shadow-xl shadow-black/40"
         >
           <div className="border-b border-zinc-800 px-4 py-3">
-            <p className="text-xs uppercase tracking-widest text-zinc-500">Signed in as</p>
+            <p className="text-xs uppercase tracking-widest text-zinc-500">
+              {t(locale, "menu.signedInAs")}
+            </p>
             <p className="mt-0.5 truncate text-sm font-semibold">@{user.handle}</p>
           </div>
 
@@ -81,28 +85,28 @@ export function UserMenu({ user }: Props) {
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
-            View public profile
+            {t(locale, "menu.publicProfile")}
           </a>
           <a
             href="/app/friends"
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
-            Friends
+            {t(locale, "menu.friends")}
           </a>
           <a
             href="/onboarding"
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
-            Token autobiography
+            {t(locale, "menu.autobiography")}
           </a>
           <a
             href="/settings"
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
-            Settings
+            {t(locale, "menu.settings")}
           </a>
           <a
             href="https://x.com/tokenratsx"
@@ -111,7 +115,7 @@ export function UserMenu({ user }: Props) {
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-rat-400"
           >
-            Help · DM @tokenratsx
+            {t(locale, "menu.helpDm")}
           </a>
 
           <form action={AUTH_LOGOUT} method="POST" className="border-t border-zinc-800">
@@ -120,7 +124,7 @@ export function UserMenu({ user }: Props) {
               role="menuitem"
               className="block w-full px-4 py-2.5 text-left text-sm text-rat-400 hover:bg-zinc-800"
             >
-              Sign out
+              {t(locale, "menu.signout")}
             </button>
           </form>
         </div>

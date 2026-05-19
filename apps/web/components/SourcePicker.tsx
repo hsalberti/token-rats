@@ -17,6 +17,7 @@
  */
 
 import { useState } from "react";
+import { type Locale, t } from "../lib/i18n";
 import { InstallBlock } from "./InstallBlock";
 import { NodeInstallHint } from "./NodeInstallHint";
 import { OtherSourcePicker } from "./OtherSourcePicker";
@@ -39,7 +40,11 @@ const OPTIONS: { id: SourceId; label: string; icon: string | null; subtitle: str
   { id: "other", label: "Other", icon: null, subtitle: "IDE · API · Open Source" },
 ];
 
-export function SourcePicker() {
+interface SourcePickerProps {
+  locale?: Locale;
+}
+
+export function SourcePicker({ locale = "en" }: SourcePickerProps) {
   const [selected, setSelected] = useState<SourceId>("claude-code");
 
   return (
@@ -85,12 +90,12 @@ export function SourcePicker() {
         })}
       </div>
 
-      <SelectedDetail id={selected} />
+      <SelectedDetail id={selected} locale={locale} />
     </div>
   );
 }
 
-function SelectedDetail({ id }: { id: SourceId }) {
+function SelectedDetail({ id, locale }: { id: SourceId; locale: Locale }) {
   if (id === "other") {
     return <OtherSourcePicker />;
   }
@@ -99,12 +104,9 @@ function SelectedDetail({ id }: { id: SourceId }) {
 
   return (
     <div className="space-y-3">
-      <p className="text-sm text-zinc-400">
-        The CLI auto-discovers your local {sourceName} logs and uploads counts only — no prompts, no
-        completions, no source code.
-      </p>
-      <InstallBlock />
-      <NodeInstallHint />
+      <p className="text-sm text-zinc-400">{t(locale, "source.autodiscover", { sourceName })}</p>
+      <InstallBlock locale={locale} />
+      <NodeInstallHint locale={locale} />
     </div>
   );
 }

@@ -20,12 +20,14 @@ import { SourcePicker } from "../../components/SourcePicker";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { ApiError, api } from "../../lib/api";
+import { type Locale, t } from "../../lib/i18n";
 
 interface Props {
   user: User;
   cookieHeader: string;
   /** ISO alpha-2 (e.g. "DE") from cf-ipcountry, or null when unresolvable. */
   viewerCountry: string | null;
+  locale: Locale;
 }
 
 const COUNTRY_FLAGS = (cc: string): string =>
@@ -35,16 +37,16 @@ const COUNTRY_FLAGS = (cc: string): string =>
     .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
     .join("");
 
-function countryLabel(cc: string): string {
+function countryLabel(cc: string, locale: Locale): string {
   try {
-    const names = new Intl.DisplayNames(["en"], { type: "region" });
+    const names = new Intl.DisplayNames([locale], { type: "region" });
     return names.of(cc) ?? cc;
   } catch {
     return cc;
   }
 }
 
-export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
+export function DashboardClient({ user, cookieHeader, viewerCountry, locale }: Props) {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -76,7 +78,7 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
       );
       router.push(`/r/${data.room.code}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to create room");
+      setError(err instanceof ApiError ? err.message : t(locale, "dash.createFailed"));
       setBusy(false);
     }
   }
@@ -91,7 +93,7 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
       await api.joinRoom(code as Parameters<typeof api.joinRoom>[0], cookieHeader);
       router.push(`/r/${code}`);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Failed to join room");
+      setError(err instanceof ApiError ? err.message : t(locale, "dash.joinFailed"));
       setBusy(false);
     }
   }
@@ -126,11 +128,11 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
       <section className="grid gap-4 sm:grid-cols-2">
         <ActionCard
           tone="rat"
-          eyebrow="With friends"
-          title="Create a board"
-          body="Compete with your crew. Token-mogg them all week."
+          eyebrow={t(locale, "dash.cardA.eyebrow")}
+          title={t(locale, "dash.cardA.title")}
+          body={t(locale, "dash.cardA.body")}
           icon={<RatIcon />}
-          cta="+ Create board"
+          cta={t(locale, "dash.cardA.cta")}
           onClick={() => {
             setCreateOpen(true);
             setError(null);
@@ -144,17 +146,17 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
         />
         <ActionCard
           tone="globe"
-          eyebrow="Public boards"
-          title="Hit the global leaderboards"
-          body="Compete countrywide or worldwide. Opt-in, public."
+          eyebrow={t(locale, "dash.cardB.eyebrow")}
+          title={t(locale, "dash.cardB.title")}
+          body={t(locale, "dash.cardB.body")}
           icon={<GlobeIcon />}
           cta={
             viewerCountry
-              ? `${COUNTRY_FLAGS(viewerCountry)} ${countryLabel(viewerCountry)} board`
-              : "Global trending"
+              ? `${COUNTRY_FLAGS(viewerCountry)} ${t(locale, "dash.cardB.ctaCountry", { country: countryLabel(viewerCountry, locale) })}`
+              : t(locale, "dash.cardB.ctaGlobal")
           }
           href={viewerCountry ? "/groups" : "/trending"}
-          secondaryCta={viewerCountry ? "Global trending" : undefined}
+          secondaryCta={viewerCountry ? t(locale, "dash.cardB.secondary") : undefined}
           secondaryHref={viewerCountry ? "/trending" : undefined}
         />
       </section>
@@ -162,21 +164,21 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
       {/* Create form drops in just below the cards when "Create board" is clicked. */}
       {createOpen && (
         <Card>
-          <h2 className="mb-4 text-lg font-bold">Name your board</h2>
+          <h2 className="mb-4 text-lg font-bold">{t(locale, "dash.nameBoard")}</h2>
           <form onSubmit={handleCreate} className="flex flex-col gap-4">
             <div>
               <label
                 htmlFor="create-room-name"
                 className="mb-1.5 block text-sm font-semibold text-zinc-300"
               >
-                Board name
+                {t(locale, "dash.boardName")}
               </label>
               <input
                 id="create-room-name"
                 type="text"
                 value={roomName}
                 onChange={(e) => setRoomName(e.target.value)}
-                placeholder="e.g. Weekend Builders"
+                placeholder={t(locale, "dash.boardNamePlaceholder")}
                 maxLength={64}
                 className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:border-rat-500 focus:outline-none focus:ring-1 focus:ring-rat-500"
               />
@@ -191,29 +193,27 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
                   className="mt-1 h-4 w-4 accent-rat-500"
                 />
                 <span>
-                  Make this board public for{" "}
+                  {t(locale, "dash.makePublicPrefix")}{" "}
                   <span className="font-semibold text-zinc-100">
-                    {COUNTRY_FLAGS(viewerCountry)} {countryLabel(viewerCountry)}
+                    {COUNTRY_FLAGS(viewerCountry)} {countryLabel(viewerCountry, locale)}
                   </span>
                   .{" "}
                   <span className="text-xs text-zinc-500">
-                    Listed on /groups; joinable by anyone in {viewerCountry}.
+                    {t(locale, "dash.makePublicSuffix", { country: viewerCountry })}
                   </span>
                 </span>
               </label>
             ) : (
-              <p className="text-xs text-zinc-500">
-                We couldn&apos;t detect your country, so public boards aren&apos;t available here.
-              </p>
+              <p className="text-xs text-zinc-500">{t(locale, "dash.cantDetectCountry")}</p>
             )}
 
             {error && <p className="text-sm text-red-400">{error}</p>}
             <div className="flex gap-3">
               <Button type="submit" disabled={busy || !roomName.trim()}>
-                {busy ? "Creating…" : "Create board"}
+                {busy ? t(locale, "dash.creating") : t(locale, "dash.createBtn")}
               </Button>
               <Button type="button" variant="ghost" onClick={() => setCreateOpen(false)}>
-                Cancel
+                {t(locale, "common.cancel")}
               </Button>
             </div>
           </form>
@@ -232,13 +232,13 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
       {/* Your boards */}
       <section className="space-y-4">
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-xl font-bold tracking-tight">Your boards</h2>
+          <h2 className="text-xl font-bold tracking-tight">{t(locale, "dash.yourBoards")}</h2>
           {hasRooms && (
             <a
               href="/app/friends"
               className="text-sm text-zinc-500 hover:text-rat-400 transition-colors"
             >
-              Friends →
+              {t(locale, "dash.friendsLink")}
             </a>
           )}
         </div>
@@ -256,10 +256,8 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
         ) : !hasRooms ? (
           <div className="rounded-xl border border-dashed border-zinc-700 px-8 py-12 text-center">
             <p className="text-4xl">🐀</p>
-            <p className="mt-3 text-base font-bold text-zinc-300">No boards yet</p>
-            <p className="mt-1 text-sm text-zinc-500">
-              Create one above, or paste a code below to join a friend&apos;s.
-            </p>
+            <p className="mt-3 text-base font-bold text-zinc-300">{t(locale, "dash.noBoards")}</p>
+            <p className="mt-1 text-sm text-zinc-500">{t(locale, "dash.noBoardsHint")}</p>
           </div>
         ) : (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -279,19 +277,19 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
               htmlFor="join-code"
               className="mb-1 block text-xs font-semibold uppercase tracking-widest text-zinc-500"
             >
-              Got an invite code?
+              {t(locale, "dash.haveCode")}
             </label>
             <input
               id="join-code"
               type="text"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value)}
-              placeholder="e.g. abc-xyz"
+              placeholder={t(locale, "dash.joinPlaceholder")}
               className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 font-mono text-sm text-zinc-100 placeholder-zinc-500 focus:border-rat-500 focus:outline-none focus:ring-1 focus:ring-rat-500"
             />
           </div>
           <Button type="submit" variant="secondary" size="sm" disabled={busy || !joinCode.trim()}>
-            {busy ? "Joining…" : "Join board"}
+            {busy ? t(locale, "dash.joining") : t(locale, "dash.joinBtn")}
           </Button>
         </form>
         {error && !createOpen && <p className="text-sm text-red-400">{error}</p>}
@@ -300,12 +298,10 @@ export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
       {/* Add a source — sync flow lives below the social layer. */}
       <section className="space-y-3 pt-2">
         <div>
-          <h2 className="text-xl font-bold tracking-tight">Add a source</h2>
-          <p className="mt-1 text-sm text-zinc-400">
-            Pick where your tokens live. The CLI handles the rest — counts only, never prompts.
-          </p>
+          <h2 className="text-xl font-bold tracking-tight">{t(locale, "dash.addSource")}</h2>
+          <p className="mt-1 text-sm text-zinc-400">{t(locale, "dash.addSourceSub")}</p>
         </div>
-        <SourcePicker />
+        <SourcePicker locale={locale} />
       </section>
     </div>
   );
