@@ -157,6 +157,8 @@ Once 5a is live, widen the funnel. All five are independent on each other.
 
 **Definition of done:** User clicks "Connect Twitter" on `/settings/profile`, completes OAuth, sees their handle on their profile and all surfaces above. Disconnect works. Failed OAuth returns to `/settings/profile?error=twitter` without corrupting state.
 
+**Status (2026-05-19):** Backend shipped on dev — routes mounted at `/v1/auth/twitter/start`, `/v1/auth/twitter/callback`, `/v1/me/twitter/disconnect`. Migration `0008_users_twitter.sql` lands. Env vars `X_OAUTH_CLIENT_ID` / `X_OAUTH_CLIENT_SECRET` declared (optional — endpoints respond 503 when unset). `TwitterHandlePill` component exists. **Outstanding:** wire the "Connect Twitter / X" button into `apps/web/app/settings/profile/Client.tsx`, render the pill on leaderboard rows + `/u/[handle]` + room member list + `/app/friends` + OG cards. Configure the two Worker secrets via `wrangler secret put`.
+
 ---
 
 ### 🟩 Track AD — Friends-from-shared-rooms view
