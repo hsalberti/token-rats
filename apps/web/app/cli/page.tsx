@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Wordmark } from "../../components/ui/Wordmark.js";
 import { requireSession } from "../../lib/auth";
 import { CliApprovalClient } from "./CliApprovalClient";
 
@@ -22,8 +23,8 @@ export default async function CliPage({ searchParams }: Props) {
       <div className="w-full max-w-sm">
         {/* Brand */}
         <div className="mb-8 text-center">
-          <a href="/" className="text-2xl font-black">
-            Token <span className="text-rat-500">Rats</span>
+          <a href="/">
+            <Wordmark size="lg" />
           </a>
         </div>
 

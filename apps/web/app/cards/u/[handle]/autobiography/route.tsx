@@ -12,10 +12,11 @@ export const runtime = "edge";
 const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
   const { handle } = await context.params;
+  const logoUrl = new URL("/brand/rat-mark.png", req.url).toString();
 
   type AutoData = {
     handle: string;
@@ -118,15 +119,19 @@ export async function GET(
           marginBottom: 32,
         }}
       >
-        <div
-          style={{
-            fontSize: 20,
-            fontWeight: 900,
-            color: "#f97316",
-            letterSpacing: "-0.02em",
-          }}
-        >
-          Token Rats
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {" "}
+          <img src={logoUrl} alt="" width={36} height={36} />
+          <div
+            style={{
+              fontSize: 22,
+              fontWeight: 900,
+              color: "#f4f4f5",
+              letterSpacing: "-0.02em",
+            }}
+          >
+            Token <span style={{ color: "#f97316" }}>Rats</span>
+          </div>
         </div>
         <div
           style={{

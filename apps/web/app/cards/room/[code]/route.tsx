@@ -5,10 +5,11 @@ import { ApiError, api } from "../../../../lib/api";
 export const runtime = "edge";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ code: string }> },
 ): Promise<Response> {
   const { code } = await context.params;
+  const logoUrl = new URL("/brand/rat-mark.png", req.url).toString();
 
   let roomName = code;
   let memberCount = 0;
@@ -82,16 +83,18 @@ export async function GET(
       />
 
       {/* Brand bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 28 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 28 }}>
+        {" "}
+        <img src={logoUrl} alt="" width={40} height={40} />
         <div
           style={{
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: 900,
-            color: "#f97316",
+            color: "#f4f4f5",
             letterSpacing: "-0.03em",
           }}
         >
-          Token Rats
+          Token <span style={{ color: "#f97316" }}>Rats</span>
         </div>
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
         <div style={{ fontSize: 14, color: "#52525b" }}>last 30 days</div>

@@ -17,6 +17,7 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { NodeInstallHint } from "../../components/NodeInstallHint";
 import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
+import { Wordmark } from "../../components/ui/Wordmark.js";
 import { ApiError, api } from "../../lib/api";
 import { getCookieHeader, requireSession } from "../../lib/auth";
 
@@ -65,8 +66,8 @@ export default async function OnboardingPage() {
           <a href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
             ← Home
           </a>
-          <a href="/" className="text-lg font-black tracking-tight">
-            Token <span className="text-rat-500">Rats</span>
+          <a href="/">
+            <Wordmark size="md" />
           </a>
           <a href="/app" className="text-sm text-zinc-500 hover:text-zinc-300">
             Dashboard →
@@ -121,8 +122,8 @@ function NoSessionsView({ handle }: { handle: string }) {
           <a href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
             ← Home
           </a>
-          <a href="/" className="text-lg font-black tracking-tight">
-            Token <span className="text-rat-500">Rats</span>
+          <a href="/">
+            <Wordmark size="md" />
           </a>
           <div className="w-20" />
         </div>

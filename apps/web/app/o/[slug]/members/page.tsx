@@ -7,6 +7,7 @@
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Wordmark } from "../../../../components/ui/Wordmark.js";
 import { getCookieHeader } from "../../../../lib/auth";
 import { requireOrgAdmin } from "../../../../lib/org-auth";
 import { MembersClient } from "./MembersClient";
@@ -38,8 +39,8 @@ export default async function OrgMembersPage({ params }: Props) {
           <a href={`/o/${slug}`} className="text-sm text-zinc-500 hover:text-zinc-300">
             ← {org.name}
           </a>
-          <a href="/" className="text-lg font-black tracking-tight">
-            Token <span className="text-rat-500">Rats</span>
+          <a href="/">
+            <Wordmark size="md" />
           </a>
           <div className="w-16" />
         </div>

@@ -7,6 +7,7 @@ import type {
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { Avatar } from "../../components/ui/Avatar";
+import { Wordmark } from "../../components/ui/Wordmark.js";
 import {
   ApiError,
   getAdminActivity,
@@ -53,8 +54,8 @@ export default async function AdminPage() {
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-3">
-            <a href="/" className="text-lg font-black tracking-tight">
-              Token <span className="text-rat-500">Rats</span>
+            <a href="/">
+              <Wordmark size="md" />
             </a>
             <span className="rounded-md border border-rat-700/60 bg-rat-700/10 px-2 py-0.5 text-xs font-bold uppercase tracking-wider text-rat-400">
               Admin

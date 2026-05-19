@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Wordmark } from "../../components/ui/Wordmark.js";
 
 export const runtime = "edge";
 
@@ -403,8 +404,8 @@ export default function ChangelogPage() {
           <a href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
             &larr; Home
           </a>
-          <a href="/" className="text-lg font-black tracking-tight">
-            Token <span className="text-rat-500">Rats</span>
+          <a href="/">
+            <Wordmark size="md" />
           </a>
           <div className="w-16" />
         </div>

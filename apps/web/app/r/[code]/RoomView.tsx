@@ -26,6 +26,7 @@ import { StreakBadge } from "../../../components/room/StreakBadge";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Button } from "../../../components/ui/Button";
 import { RankBadge } from "../../../components/ui/RankBadge";
+import { Wordmark } from "../../../components/ui/Wordmark.js";
 import { ApiError, api } from "../../../lib/api";
 import { useRoomLive } from "../../../lib/use-room-live";
 
@@ -368,8 +369,8 @@ export function RoomView({
           <a href="/app" className="text-sm text-zinc-500 hover:text-zinc-300">
             Rooms
           </a>
-          <a href="/" className="text-lg font-black tracking-tight">
-            Token <span className="text-rat-500">Rats</span>
+          <a href="/">
+            <Wordmark size="md" />
           </a>
           <div className="w-16" />
         </div>

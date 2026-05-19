@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { InstallBlock } from "../components/InstallBlock";
+import { Wordmark } from "../components/ui/Wordmark.js";
 import { AUTH_GITHUB_START, getTrending } from "../lib/api";
 import { getSession } from "../lib/auth";
 import { TrendingClient } from "./trending/Client";
@@ -80,9 +81,7 @@ export default async function HomePage({
       {/* Hero strip — wordmark + tagline + install snippet + sign-in. */}
       <section className="border-b border-zinc-800 bg-zinc-900/40">
         <div className="mx-auto max-w-3xl px-6 py-10 flex flex-col items-center text-center gap-5">
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
-            Token <span className="text-rat-500">Rats</span>
-          </h1>
+          <Wordmark size="xl" />
           <p className="max-w-md text-base text-zinc-300 sm:text-lg">
             Strava for AI token burn. Auto-sync your Claude Code &amp; Cursor logs. Flex the burn.
           </p>
@@ -157,9 +156,7 @@ export default async function HomePage({
       {/* Footer */}
       <footer className="border-t border-zinc-800 px-6 py-8">
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
-          <span className="font-black">
-            Token <span className="text-rat-500">Rats</span>
-          </span>
+          <Wordmark size="sm" />
           <div className="flex items-center gap-6 text-sm text-zinc-500">
             <a
               href="https://github.com/hsalberti/token-rats"

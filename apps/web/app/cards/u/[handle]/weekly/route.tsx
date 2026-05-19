@@ -9,10 +9,11 @@ import { ApiError, api } from "../../../../../lib/api";
 export const runtime = "edge";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
   const { handle } = await context.params;
+  const logoUrl = new URL("/brand/rat-mark.png", req.url).toString();
 
   type ProfileData = {
     handle: string;
@@ -86,16 +87,18 @@ export async function GET(
       />
 
       {/* Brand bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 36 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 36 }}>
+        {" "}
+        <img src={logoUrl} alt="" width={40} height={40} />
         <div
           style={{
-            fontSize: 22,
+            fontSize: 24,
             fontWeight: 900,
-            color: "#f97316",
+            color: "#f4f4f5",
             letterSpacing: "-0.03em",
           }}
         >
-          Token Rats
+          Token <span style={{ color: "#f97316" }}>Rats</span>
         </div>
         <div style={{ fontSize: 14, color: "#52525b", marginTop: 2 }}>
           · Strava for AI token burn

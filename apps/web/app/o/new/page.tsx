@@ -12,6 +12,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "../../../components/ui/Button";
+import { Wordmark } from "../../../components/ui/Wordmark.js";
 import { ApiError, createOrg } from "../../../lib/api";
 
 type Plan = "free" | "student" | "pro";
@@ -76,8 +77,8 @@ export default function NewOrgPage() {
           <a href="/app" className="text-sm text-zinc-500 hover:text-zinc-300">
             ← Dashboard
           </a>
-          <a href="/" className="text-lg font-black tracking-tight">
-            Token <span className="text-rat-500">Rats</span>
+          <a href="/">
+            <Wordmark size="md" />
           </a>
           <div className="w-16" />
         </div>

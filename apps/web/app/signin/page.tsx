@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Wordmark } from "../../components/ui/Wordmark.js";
 import { AUTH_GITHUB_START } from "../../lib/api";
 import { getSession } from "../../lib/auth";
 
@@ -32,8 +33,8 @@ export default async function SignInPage({
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-6">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <h1 className="text-4xl font-black tracking-tight">
-            Token <span className="text-rat-500">Rats</span>
+          <h1>
+            <Wordmark size="lg" />
           </h1>
           <p className="mt-2 text-zinc-400">Strava for AI token burn.</p>
         </div>

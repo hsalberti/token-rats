@@ -7,6 +7,7 @@ import type { LeaderboardRange } from "@token-rats/contracts";
  */
 import type { Metadata } from "next";
 import { Avatar } from "../../../components/ui/Avatar";
+import { Wordmark } from "../../../components/ui/Wordmark.js";
 import { getMeFriends } from "../../../lib/api";
 import { getCookieHeader, requireSession } from "../../../lib/auth";
 import { FriendsClient } from "./FriendsClient";
@@ -41,8 +42,8 @@ export default async function FriendsPage({ searchParams }: PageProps) {
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
-            <a href="/app" className="text-lg font-black tracking-tight">
-              Token <span className="text-rat-500">Rats</span>
+            <a href="/app">
+              <Wordmark size="md" />
             </a>
             <nav className="hidden text-sm text-zinc-400 sm:flex sm:items-center sm:gap-3">
               <span className="text-zinc-600">/</span>

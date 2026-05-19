@@ -31,11 +31,12 @@ const RANGE_LABELS: Record<Range, string> = {
 };
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   context: { params: Promise<{ range: string }> },
 ): Promise<Response> {
   const { range: rawRange } = await context.params;
   const range = validateRange(rawRange);
+  const logoUrl = new URL("/brand/rat-mark.png", req.url).toString();
 
   type Row = {
     rank: number;
@@ -82,9 +83,11 @@ export async function GET(
       />
 
       {/* Brand bar */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 32 }}>
-        <div style={{ fontSize: 20, fontWeight: 900, color: "#f97316", letterSpacing: "-0.03em" }}>
-          Token Rats
+      <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 32 }}>
+        {" "}
+        <img src={logoUrl} alt="" width={36} height={36} />
+        <div style={{ fontSize: 22, fontWeight: 900, color: "#f4f4f5", letterSpacing: "-0.03em" }}>
+          Token <span style={{ color: "#f97316" }}>Rats</span>
         </div>
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
         <div style={{ fontSize: 14, color: "#71717a" }}>Global Trending</div>

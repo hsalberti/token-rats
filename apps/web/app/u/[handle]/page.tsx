@@ -5,6 +5,7 @@ import { SourceTiles } from "../../../components/SourcePill";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
+import { Wordmark } from "../../../components/ui/Wordmark.js";
 import { ApiError, api } from "../../../lib/api";
 import { getCookieHeader, getSession } from "../../../lib/auth";
 
@@ -104,8 +105,8 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             <a href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
               &larr; Home
             </a>
-            <a href="/" className="text-lg font-black tracking-tight">
-              Token <span className="text-rat-500">Rats</span>
+            <a href="/">
+              <Wordmark size="md" />
             </a>
             <div className="w-16" />
           </div>
@@ -140,8 +141,8 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           <a href="/" className="text-sm text-zinc-500 hover:text-zinc-300">
             &larr; Home
           </a>
-          <a href="/" className="text-lg font-black tracking-tight">
-            Token <span className="text-rat-500">Rats</span>
+          <a href="/">
+            <Wordmark size="md" />
           </a>
           <div className="w-16" />
         </div>
