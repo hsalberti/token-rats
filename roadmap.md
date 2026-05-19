@@ -12,6 +12,67 @@
 
 ## Features
 
+### 🟩 Global leaderboard preview on `/app`
+
+The signed-in dashboard at `/app` currently shows only "Your rooms" + source picker — the live global leaderboard from `/` is invisible after sign-in. Add a compact preview card that shows **top 10 public users (7d) + the viewer's own row** when their rank is outside top 10. Card links to a "see full board" target. Un-301 `/trending` for signed-in users so that link has a destination (signed-out viewers still get redirected to `/`).
+
+**Touches:**
+- `apps/web/app/trending/page.tsx`: branch on `getSession()` — signed-in users render the existing `<TrendingClient>` inside a minimal page shell (header with wordmark + back-to-/app link); signed-out users continue to `permanentRedirect("/")`. SSR fetches `getTrending(range)` for the signed-in path, with `?range=` parsed the same way `/` does it.
+- `apps/web/app/app/DashboardClient.tsx`: insert a new `<GlobalBoardPreview />` card between the welcome header and the "Your rooms" section. Component fetches `GET /v1/trending?range=7d` after mount, slices top 10, finds the viewer's row by `userId`, and renders viewer as an 11th highlighted row when `rank > 10`. Top 10 itself is rendered identically whether viewer is public or private.
+- `apps/web/components/`: new file `GlobalBoardPreview.tsx` — fully client-side with a skeleton (matches existing rooms-list pattern). Receives `viewerUserId` and `viewerPublicProfile` from props.
+- No new endpoint. Reuse `GET /v1/trending`, which already returns `userId` on every row, and read the viewer's id from the `User` object the dashboard already has.
+
+**Definition of done:**
+- Signed-in `/app`: a "Global leaderboard · 7d" card sits above "Your rooms", shows top 10 with rank/handle/avatar/tokens/cost. Title links to `/trending`.
+- When the viewer's profile is public AND they appear in top 100 with rank > 10, an extra highlighted "You · #N" row renders below the top 10.
+- When the viewer's profile is public AND they appear in top 10, no extra row is appended (they're already in the list, highlighted via `userId === viewer.id`).
+- When the viewer's profile is private OR they aren't in the top 100, no "You" row renders. A subtle footer link points to `/settings/profile` with copy "Go public to appear on the global board" (only shown when profile is private — verified via `users.public_profile`).
+- Signed-in `/trending`: renders the full `<TrendingClient>` with today/7d/30d tabs inside a dashboard-style page shell. Range tabs keep `?range=` in sync via the same shallow-nav as `/`.
+- Signed-out `/trending`: still 301s to `/` (unchanged for anonymous viewers).
+- `/cards/trending/...` OG routes continue to render unchanged.
+- Loading state: skeleton card with 10 placeholder rows, same height as the live state to prevent layout shift.
+- Error state: the card renders an inline "Couldn't load global board" line and is dismissible; dashboard does not crash.
+
+**Order constraints:**
+- No migration. No contract change beyond a possible `viewerRank: number | null` field if we later decide to compute it server-side — for v1 we compute it client-side from the existing top-100 response, so contracts are untouched.
+- Independent of any other feature in this file; ships standalone.
+
+---
+
+### 🟩 Pinned room preview on `/app`
+
+Users can star one room as "pinned"; the dashboard shows a preview card for that room with the **top 5 members (7d) + the viewer's own row if rank > 5**. First room you join is auto-pinned when nothing is pinned; users can change the pin via a star icon on each `RoomCard`. Zero rooms → no card.
+
+**Touches:**
+- New migration `0012_room_members_pinned.sql`: `ALTER TABLE room_members ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0;` plus `CREATE UNIQUE INDEX idx_room_members_one_pin_per_user ON room_members(user_id) WHERE is_pinned = 1;` (partial unique index — at most one pinned room per user).
+- New endpoint `POST /v1/rooms/:code/pin` (auth + membership required): in a transaction, set `is_pinned = 0` on all the caller's `room_members` rows, then `is_pinned = 1` on the row for this room. Returns 204.
+- New endpoint `DELETE /v1/rooms/:code/pin` (auth + membership required): clears `is_pinned` for the caller's row in this room. Returns 204. (Useful if a user wants no pin while having multiple rooms.)
+- Auto-pin on first join: in `POST /v1/rooms` and `POST /v1/rooms/:code/join`, after inserting the `room_members` row, run an `UPDATE` that only flips `is_pinned = 1` when the caller has no other pinned row. Same logic applied identically in both create + join paths.
+- Auto-rotate on leave: when a user leaves their pinned room (or it's deleted), pick the most-recently-joined remaining `room_members` row and set `is_pinned = 1` on it. If no rooms remain, no pin.
+- Extend `GET /v1/me/rooms` response: each room gains `isPinned: boolean`. Update `packages/contracts/src/rooms.ts` (or wherever `Room` is defined) accordingly. Existing consumers tolerate the additional field.
+- `apps/web/app/app/DashboardClient.tsx`: insert a `<PinnedRoomPreview />` card between the global-board preview and the "Your rooms" section. Component receives the pinned room (or null) from the `getMyRooms()` response, fetches `GET /v1/rooms/:code/leaderboard?range=7d`, renders top 5 + viewer row when rank > 5. Card title is the room name and links to `/r/<code>`.
+- `apps/web/app/app/DashboardClient.tsx` (RoomCard): add a star icon button in the top-right of each `RoomCard`. Filled star when `isPinned`, outline otherwise. Clicking toggles via the new pin/unpin endpoints; optimistic UI with revert-on-error. Pinning a room un-pins all others client-side immediately.
+- New `apps/web/lib/api.ts` helpers: `pinRoom(code, cookieHeader)`, `unpinRoom(code, cookieHeader)`.
+
+**Definition of done:**
+- New users with one room: that room is auto-pinned; the preview card shows top 5 (7d) and the user's row appears at rank 1 (or wherever) in the top 5 — no separate "You" row needed.
+- Users with multiple rooms can switch the pin via the star icon; previous pin is cleared in the same write. Partial unique index enforces single pin.
+- A user who leaves their pinned room sees the pin migrate to another room (most-recently-joined) within the same request that processed the leave. If no rooms remain, the preview card vanishes on next render.
+- Zero rooms → no pinned-room card renders at all (no empty state for it — the existing "No rooms yet" tile carries the empty state).
+- Pinned room of a user whose viewer rank in that room is > 5 → top 5 + appended highlighted "You · #N" row.
+- Pinned room where the viewer is in top 5 → 5 rows total; viewer's row is visually highlighted via `userId === viewer.id`.
+- The pin endpoints reject non-members with 403 and unknown room codes with 404 (mirrors `/v1/rooms/:code/leaderboard`).
+- Loading state: skeleton card with 5 placeholder rows; height matches the live state.
+- Error state: inline "Couldn't load pinned room" message; dashboard does not crash.
+- Migration applies cleanly with `pnpm db:migrate:local` on a fresh checkout and does not break existing reads of `room_members`.
+
+**Order constraints:**
+- Migration number `0012` assumes nothing else lands first. Renumber if another migration merges ahead.
+- Contract change: `Room` gains optional `isPinned: boolean`. Workspace consumers (CLI does not read this field, web does) recompile from source — no separate build step needed.
+- Independent of the global-board preview above; can ship in either order. Visually they stack on `/app` as: global preview → pinned preview → "Your rooms" grid.
+
+---
+
 ### 🟩 Group heatmap + room summary + group streak (30d default)
 
 Visit `/r/<code>` and see a stat strip + 30-day group heatmap + active-streak pill above the leaderboard. `/u/<handle>` heatmap also defaults to 30 days with a `52w` toggle that swaps the data live. The room OG card renders stat strip + streak pill (no heatmap — too busy at 1200×630).

@@ -19,6 +19,11 @@ export const Room = z.object({
   isPublic: z.boolean(),
   /** ISO-3166-1 alpha-2 (`cf-ipcountry` of the creator). Null on private rooms. */
   country: z.string().min(2).max(2).nullable(),
+  /**
+   * True iff this room is the caller's pinned room. Populated only on
+   * caller-scoped responses (e.g. GET /v1/me/rooms); absent elsewhere.
+   */
+  isPinned: z.boolean().optional(),
 });
 export type Room = z.infer<typeof Room>;
 

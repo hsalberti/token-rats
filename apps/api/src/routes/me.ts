@@ -160,11 +160,11 @@ me.get("/rooms", requireAuth, async (c) => {
 
   const result = await c.env.DB.prepare(
     `SELECT r.id, r.code, r.name, r.owner_id, r.org_id, r.created_at,
-            r.is_public, r.country
+            r.is_public, r.country, rm.is_pinned
      FROM room_members rm
      JOIN rooms r ON r.id = rm.room_id
      WHERE rm.user_id = ?
-     ORDER BY rm.joined_at DESC`,
+     ORDER BY rm.is_pinned DESC, rm.joined_at DESC`,
   )
     .bind(userId)
     .all<{
@@ -176,6 +176,7 @@ me.get("/rooms", requireAuth, async (c) => {
       created_at: number;
       is_public: number;
       country: string | null;
+      is_pinned: number;
     }>();
 
   const rooms = (result.results ?? []).map((r) => ({
@@ -187,6 +188,7 @@ me.get("/rooms", requireAuth, async (c) => {
     createdAt: r.created_at,
     isPublic: r.is_public === 1,
     country: r.country,
+    isPinned: r.is_pinned === 1,
   }));
 
   return c.json({ rooms });

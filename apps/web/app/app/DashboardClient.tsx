@@ -12,6 +12,8 @@
 import type { Room, User } from "@token-rats/contracts";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { GlobalBoardPreview } from "../../components/GlobalBoardPreview";
+import { PinnedRoomPreview } from "../../components/PinnedRoomPreview";
 import { SourcePicker } from "../../components/SourcePicker";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
@@ -40,7 +42,7 @@ function countryLabel(cc: string): string {
   }
 }
 
-export function DashboardClient({ user: _user, cookieHeader, viewerCountry }: Props) {
+export function DashboardClient({ user, cookieHeader, viewerCountry }: Props) {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -100,8 +102,41 @@ export function DashboardClient({ user: _user, cookieHeader, viewerCountry }: Pr
     }
   }
 
+  // Optimistic pin/unpin. The server enforces single-pin-per-user via a
+  // partial unique index; if the call fails we revert local state.
+  async function togglePin(room: Room) {
+    const prevRooms = rooms;
+    const willPin = !room.isPinned;
+    setRooms((rs) =>
+      rs.map((r) => ({
+        ...r,
+        isPinned: willPin ? r.code === room.code : r.isPinned && r.code !== room.code,
+      })),
+    );
+    try {
+      if (willPin) {
+        await api.pinRoom(room.code, cookieHeader);
+      } else {
+        await api.unpinRoom(room.code, cookieHeader);
+      }
+    } catch {
+      setRooms(prevRooms);
+    }
+  }
+
+  const pinnedRoom = rooms.find((r) => r.isPinned) ?? null;
+
   return (
     <div className="space-y-8">
+      {/* Global leaderboard preview — competitive view first. */}
+      <GlobalBoardPreview
+        viewerUserId={user.id}
+        viewerPublicProfile={user.publicProfile === true}
+      />
+
+      {/* Pinned room preview — only when the user has at least one room. */}
+      {pinnedRoom && <PinnedRoomPreview room={pinnedRoom} viewerUserId={user.id} />}
+
       {/* Welcome */}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
@@ -259,7 +294,7 @@ export function DashboardClient({ user: _user, cookieHeader, viewerCountry }: Pr
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {rooms.map((room) => (
-            <RoomCard key={room.code} room={room} />
+            <RoomCard key={room.code} room={room} onTogglePin={() => togglePin(room)} />
           ))}
         </div>
       )}
@@ -278,21 +313,33 @@ export function DashboardClient({ user: _user, cookieHeader, viewerCountry }: Pr
   );
 }
 
-function RoomCard({ room }: { room: Room }) {
+function RoomCard({ room, onTogglePin }: { room: Room; onTogglePin: () => void }) {
+  const isPinned = room.isPinned === true;
   return (
-    <a
-      href={`/r/${room.code}`}
-      className="group rounded-xl border border-zinc-800 bg-zinc-900 p-5 transition-colors hover:border-rat-700 hover:bg-zinc-800"
-    >
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="font-bold group-hover:text-rat-400">{room.name}</p>
-          <p className="mt-0.5 font-mono text-xs text-zinc-500">{room.code}</p>
-        </div>
-        <span className="rounded-lg bg-zinc-800 px-2 py-1 text-xs text-zinc-400 group-hover:bg-zinc-700">
-          View →
-        </span>
-      </div>
-    </a>
+    <div className="group relative rounded-xl border border-zinc-800 bg-zinc-900 transition-colors hover:border-rat-700 hover:bg-zinc-800">
+      <button
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onTogglePin();
+        }}
+        aria-label={isPinned ? "Unpin room" : "Pin room"}
+        aria-pressed={isPinned}
+        className={[
+          "absolute right-3 top-3 z-10 rounded-lg p-1.5 text-base leading-none transition-colors",
+          isPinned
+            ? "text-amber-400 hover:bg-zinc-800"
+            : "text-zinc-600 hover:bg-zinc-800 hover:text-zinc-300",
+        ].join(" ")}
+        title={isPinned ? "Pinned · click to unpin" : "Pin to dashboard preview"}
+      >
+        {isPinned ? "★" : "☆"}
+      </button>
+      <a href={`/r/${room.code}`} className="block p-5 pr-12">
+        <p className="font-bold group-hover:text-rat-400">{room.name}</p>
+        <p className="mt-0.5 font-mono text-xs text-zinc-500">{room.code}</p>
+      </a>
+    </div>
   );
 }

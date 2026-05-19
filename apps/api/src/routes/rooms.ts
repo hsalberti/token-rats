@@ -59,6 +59,32 @@ const ROOM_SELECT = "id, code, name, owner_id, org_id, created_at, is_public, co
 /** Feature #6: hard cap on public rooms per owner per country. */
 const PUBLIC_ROOMS_PER_USER_PER_COUNTRY = 3;
 
+/**
+ * Auto-pin the membership row at `(userId, roomId)` if (and only if) the
+ * caller has no other pinned room. Safe to call after any INSERT into
+ * `room_members`. The partial UNIQUE index `idx_room_members_one_pin_per_user`
+ * keeps invariants even under concurrent calls; we tolerate the rare race by
+ * swallowing constraint failures so the parent join/create still succeeds.
+ */
+async function autoPinIfNone(db: D1Database, userId: string, roomId: string): Promise<void> {
+  try {
+    await db
+      .prepare(
+        `UPDATE room_members
+            SET is_pinned = 1
+          WHERE user_id = ? AND room_id = ?
+            AND NOT EXISTS (
+              SELECT 1 FROM room_members
+              WHERE user_id = ? AND is_pinned = 1
+            )`,
+      )
+      .bind(userId, roomId, userId)
+      .run();
+  } catch {
+    // Concurrent join raced us to the pin — leave the existing one in place.
+  }
+}
+
 /** Normalize a `cf-ipcountry` header value. Returns null for empty / "XX" / "T1". */
 function cfCountry(c: { req: { header: (k: string) => string | undefined } }): string | null {
   const raw = c.req.header("cf-ipcountry");
@@ -123,6 +149,8 @@ rooms.post("/", requireAuth, async (c) => {
        VALUES (?, ?, ?)`,
     ).bind(id, userId, now),
   ]);
+
+  await autoPinIfNone(c.env.DB, userId, id);
 
   return c.json(
     {
@@ -190,6 +218,7 @@ rooms.post("/:code/join", requireAuth, async (c) => {
         c.env.CACHE.delete(`lb:${room.code}:${r}`),
       ),
     );
+    await autoPinIfNone(c.env.DB, userId, room.id);
   }
 
   return c.json({ room: roomPayload(room) });
@@ -287,8 +316,94 @@ rooms.post("/:code/leave", requireAuth, async (c) => {
     return forbidden(c, "Room owners cannot leave. Delete the room instead.");
   }
 
+  const wasPinned = await c.env.DB.prepare(
+    "SELECT is_pinned FROM room_members WHERE room_id = ? AND user_id = ?",
+  )
+    .bind(room.id, userId)
+    .first<{ is_pinned: number }>();
+
   await c.env.DB.prepare("DELETE FROM room_members WHERE room_id = ? AND user_id = ?")
     .bind(room.id, userId)
+    .run();
+
+  // If they just left their pinned room, rotate the pin to the next-most-
+  // recently-joined remaining membership. No-op if they have no other rooms.
+  if (wasPinned?.is_pinned === 1) {
+    await c.env.DB.prepare(
+      `UPDATE room_members
+          SET is_pinned = 1
+        WHERE rowid = (
+          SELECT rowid FROM room_members
+           WHERE user_id = ?
+           ORDER BY joined_at DESC
+           LIMIT 1
+        )`,
+    )
+      .bind(userId)
+      .run();
+  }
+
+  return c.json({ ok: true });
+});
+
+/* -------------------------------------------------------------------------- */
+/* POST   /v1/rooms/:code/pin                                                  */
+/* DELETE /v1/rooms/:code/pin                                                  */
+/* -------------------------------------------------------------------------- */
+
+rooms.post("/:code/pin", requireAuth, async (c) => {
+  const userId = c.var.userId;
+  const code = c.req.param("code");
+
+  const room = await c.env.DB.prepare("SELECT id FROM rooms WHERE code = ?")
+    .bind(code)
+    .first<{ id: string }>();
+
+  if (!room) return notFound(c, "Room not found");
+
+  const membership = await c.env.DB.prepare(
+    "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
+  )
+    .bind(room.id, userId)
+    .first();
+
+  if (!membership) return forbidden(c, "You are not a member of this room");
+
+  // Clear-then-set in a batch so the partial unique index is never violated
+  // mid-flight. The clear is a no-op when nothing was pinned; the set is a
+  // no-op when this row was already the pin.
+  await c.env.DB.batch([
+    c.env.DB.prepare(
+      "UPDATE room_members SET is_pinned = 0 WHERE user_id = ? AND is_pinned = 1 AND room_id != ?",
+    ).bind(userId, room.id),
+    c.env.DB.prepare(
+      "UPDATE room_members SET is_pinned = 1 WHERE user_id = ? AND room_id = ?",
+    ).bind(userId, room.id),
+  ]);
+
+  return c.json({ ok: true });
+});
+
+rooms.delete("/:code/pin", requireAuth, async (c) => {
+  const userId = c.var.userId;
+  const code = c.req.param("code");
+
+  const room = await c.env.DB.prepare("SELECT id FROM rooms WHERE code = ?")
+    .bind(code)
+    .first<{ id: string }>();
+
+  if (!room) return notFound(c, "Room not found");
+
+  const membership = await c.env.DB.prepare(
+    "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
+  )
+    .bind(room.id, userId)
+    .first();
+
+  if (!membership) return forbidden(c, "You are not a member of this room");
+
+  await c.env.DB.prepare("UPDATE room_members SET is_pinned = 0 WHERE user_id = ? AND room_id = ?")
+    .bind(userId, room.id)
     .run();
 
   return c.json({ ok: true });

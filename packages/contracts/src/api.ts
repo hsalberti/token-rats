@@ -308,6 +308,7 @@ export const ENDPOINTS = {
   meRooms: "/v1/me/rooms",
   leaveRoom: (code: RoomCode) => `/v1/rooms/${code}/leave`,
   renameRoom: (code: RoomCode) => `/v1/rooms/${code}`,
+  pinRoom: (code: RoomCode) => `/v1/rooms/${code}/pin`,
   roomActivity: (code: RoomCode) => `/v1/rooms/${code}/activity`,
   roomStreaks: (code: RoomCode) => `/v1/rooms/${code}/streaks`,
   roomChallenges: (code: RoomCode) => `/v1/rooms/${code}/challenges`,

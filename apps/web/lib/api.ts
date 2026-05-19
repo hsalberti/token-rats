@@ -252,6 +252,22 @@ export async function leaveRoom(code: RoomCode, cookieHeader?: string): Promise<
   });
 }
 
+/** Pin a room as the caller's "pinned" room (replaces any prior pin). */
+export async function pinRoom(code: RoomCode, cookieHeader?: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(ENDPOINTS.pinRoom(code), {
+    method: "POST",
+    cookieHeader,
+  });
+}
+
+/** Clear the caller's pin on this room. */
+export async function unpinRoom(code: RoomCode, cookieHeader?: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>(ENDPOINTS.pinRoom(code), {
+    method: "DELETE",
+    cookieHeader,
+  });
+}
+
 /** Rename a room (owner only). */
 export async function renameRoom(
   code: RoomCode,
@@ -505,6 +521,8 @@ export const api = {
   approveCli,
   getMyRooms,
   leaveRoom,
+  pinRoom,
+  unpinRoom,
   renameRoom,
   getRoomActivity,
   getRoomStreaks,
