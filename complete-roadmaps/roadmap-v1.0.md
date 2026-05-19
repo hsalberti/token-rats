@@ -1,4 +1,6 @@
-# Token Rats — Roadmap
+# Token Rats — Roadmap v1.0
+
+> **Status: Completed 2026-05-19.** All 15 tracks (Phases 0–3) shipped. Archived for reference.
 
 The roadmap is built around **parallel tracks**. Each track has an owner (a human or an agent), a hard interface contract, and a definition of done. Tracks inside a phase are independent — they can run concurrently across multiple agents without merge conflicts as long as they respect the contracts defined in Phase 0.
 

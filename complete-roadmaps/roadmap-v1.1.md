@@ -1,5 +1,9 @@
 # Token Rats — Roadmap v1.1
 
+> **Status: Closed 2026-05-19.** Shipped early: personal heatmap (Track V, partial — `GET /v1/u/:handle/heatmap` + `<ProfileHeatmap />`).
+> **Dropped:** Track P (head-to-head 1v1 cards) — not riding the current wave.
+> **Carrying into v1.2:** Track V remainder (group metrics + group streak + room heatmap, with default window dropping from 52w to 60d), Track Q (bury org plan behind flag), Track R (Web Push payload encryption), Track S (email column + Resend), Track T (Playwright smokes), Track U (primary-source pill), Track X (waitlists).
+
 v1 (Phases 0–3) is on disk and merged. 98 tests pass. The pipeline runs end-to-end. What v1 has not done is meet a real audience: the only signal so far is a private Discord. v1.1 is therefore a **sharpening pass** — one viral feature, one strategic deprioritization, and the unsexy reliability work that lets the social loop actually fire when a stranger from X clicks `npx token-rats`.
 
 > **Sister doc — provider expansion:** see [`roadmap-providers.md`](./roadmap-providers.md) for the *parallel* sub-effort that adds Codex parsing, a three-option source picker, per-source profile tiles, and the "Other" picker tree (IDE / API / Open Source). It deltas the **base v1.0** track letters (A, D, F, P, Q) — different work from the Phase 4 P/Q below, which happen to reuse the same letters.
