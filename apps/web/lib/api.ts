@@ -20,6 +20,7 @@ import type {
   GetMeResponse,
   GetMyRoomsResponse,
   GetProfileResponse,
+  GetReferralResponse,
   GetRoomResponse,
   GetStreaksResponse,
   GetTrendingResponse,
@@ -190,10 +191,7 @@ export async function getMyRooms(cookieHeader?: string): Promise<GetMyRoomsRespo
 }
 
 /** Leave a room by code. */
-export async function leaveRoom(
-  code: RoomCode,
-  cookieHeader?: string,
-): Promise<LeaveRoomResponse> {
+export async function leaveRoom(code: RoomCode, cookieHeader?: string): Promise<LeaveRoomResponse> {
   return request<LeaveRoomResponse>(ENDPOINTS.leaveRoom(code), {
     method: "POST",
     cookieHeader,
@@ -312,6 +310,11 @@ export async function getTrending(
   return request<GetTrendingResponse>(url, { cookieHeader });
 }
 
+/** Get the signed-in user's referral code, count, and recent referrals. */
+export async function getReferral(cookieHeader?: string): Promise<GetReferralResponse> {
+  return request<GetReferralResponse>(ENDPOINTS.meReferral, { cookieHeader });
+}
+
 /** Submit an abuse report against a public handle. */
 export async function reportAbuse(
   body: ReportAbuseRequest,
@@ -405,6 +408,7 @@ export const api = {
   patchMe,
   getTrending,
   reportAbuse,
+  getReferral,
   // Phase 3 Track O
   createOrg,
   getOrg,
@@ -439,9 +443,7 @@ export async function setProxyAnthropicKey(
 }
 
 /** Delete the current user's stored Anthropic API key. */
-export async function deleteProxyAnthropicKey(
-  cookieHeader?: string,
-): Promise<{ stored: boolean }> {
+export async function deleteProxyAnthropicKey(cookieHeader?: string): Promise<{ stored: boolean }> {
   return request<{ stored: boolean }>(ENDPOINTS.proxyAnthropicKey, {
     method: "DELETE",
     cookieHeader,

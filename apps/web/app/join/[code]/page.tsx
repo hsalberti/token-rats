@@ -7,6 +7,7 @@ export const runtime = "edge";
 
 interface Props {
   params: Promise<{ code: string }>;
+  searchParams: Promise<{ ref?: string | string[] }>;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -17,14 +18,25 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function JoinPage({ params }: Props) {
+function pickRef(raw: string | string[] | undefined): string | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== "string") return null;
+  return /^[A-Za-z0-9_-]{6,32}$/.test(v) ? v : null;
+}
+
+export default async function JoinPage({ params, searchParams }: Props) {
   const { code } = await params;
+  const sp = await searchParams;
+  const ref = pickRef(sp.ref);
   const user = await getSession();
   const cookieHeader = await getCookieHeader();
 
   if (!user) {
-    // Not signed in — show sign-in prompt that will continue back here after auth
-    const signInUrl = `${AUTH_GITHUB_START}?redirect=${encodeURIComponent(`/join/${code}`)}`;
+    // Not signed in — show sign-in prompt. Carry both the post-auth redirect
+    // and the inviter's referral code (when present) into the OAuth start URL.
+    const startParams = new URLSearchParams({ redirect: `/join/${code}` });
+    if (ref) startParams.set("ref", ref);
+    const signInUrl = `${AUTH_GITHUB_START}?${startParams.toString()}`;
     return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-6">
         <div className="w-full max-w-sm">
@@ -42,8 +54,8 @@ export default async function JoinPage({ params }: Props) {
                 {code}
               </p>
               <p className="mb-6 text-sm text-zinc-400">
-                Sign in with GitHub to join this room and start tracking your
-                token burn with your crew.
+                Sign in with GitHub to join this room and start tracking your token burn with your
+                crew.
               </p>
               <a
                 href={signInUrl}

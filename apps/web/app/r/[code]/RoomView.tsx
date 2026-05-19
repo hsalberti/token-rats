@@ -74,6 +74,9 @@ export function RoomView({
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [renamingRoom, setRenamingRoom] = useState(false);
+  // Cached referral code for tagging invite links so we can credit whoever
+  // shared the room when a new friend signs up.
+  const [inviterRef, setInviterRef] = useState<string | null>(null);
 
   // Activity tab state
   const [activity, setActivity] = useState<ActivityRow[]>([]);
@@ -179,10 +182,7 @@ export function RoomView({
     if (tab === "challenges" && !challengesLoaded) {
       setChallengesLoading(true);
       api
-        .getRoomChallenges(
-          room.code as Parameters<typeof api.getRoomChallenges>[0],
-          cookieHeader,
-        )
+        .getRoomChallenges(room.code as Parameters<typeof api.getRoomChallenges>[0], cookieHeader)
         .then((data) => {
           setActiveChallenges(data.active);
           setPastChallenges(data.past);
@@ -219,8 +219,24 @@ export function RoomView({
     setRoom(data.room);
   }
 
-  function handleInvite() {
-    copyText(`https://tokenrats.com/join/${room.code}`);
+  async function handleInvite() {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://tokenrats.com";
+
+    let ref = inviterRef;
+    if (!ref) {
+      try {
+        const data = await api.getReferral();
+        ref = data.referral.code;
+        setInviterRef(ref);
+      } catch {
+        // Non-fatal — fall back to an un-tagged invite link.
+      }
+    }
+
+    const url = ref
+      ? `${origin}/join/${room.code}?ref=${encodeURIComponent(ref)}`
+      : `${origin}/join/${room.code}`;
+    copyText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
@@ -374,9 +390,7 @@ export function RoomView({
         )}
 
         {/* Tab: Activity */}
-        {activeTab === "activity" && (
-          <ActivityFeed activity={activity} loading={activityLoading} />
-        )}
+        {activeTab === "activity" && <ActivityFeed activity={activity} loading={activityLoading} />}
 
         {/* Tab: Challenges */}
         {activeTab === "challenges" && (
@@ -473,9 +487,7 @@ function LeaderboardTable({
             <RankBadge rank={row.rank} />
             <div className="flex min-w-0 items-center gap-2">
               <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
-              <span className="truncate font-semibold group-hover:text-rat-400">
-                @{row.handle}
-              </span>
+              <span className="truncate font-semibold group-hover:text-rat-400">@{row.handle}</span>
               {isCurrentUser && (
                 <span className="rounded-md bg-rat-500/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-rat-400">
                   you

@@ -29,9 +29,31 @@ function fmtCost(cents: number) {
   })}`;
 }
 
-export default async function HomePage() {
+/**
+ * Only accept ref codes that match the API's referral-code shape so we never
+ * forward arbitrary attacker-controlled strings into the OAuth start URL.
+ */
+function pickRef(raw: string | string[] | undefined): string | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== "string") return null;
+  return /^[A-Za-z0-9_-]{6,32}$/.test(v) ? v : null;
+}
+
+function startUrlWithRef(ref: string | null): string {
+  return ref ? `${AUTH_GITHUB_START}?ref=${encodeURIComponent(ref)}` : AUTH_GITHUB_START;
+}
+
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string | string[] }>;
+}) {
   const user = await getSession();
   if (user) redirect("/app");
+
+  const params = await searchParams;
+  const ref = pickRef(params.ref);
+  const startUrl = startUrlWithRef(ref);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -41,7 +63,7 @@ export default async function HomePage() {
           Token <span className="text-rat-500">Rats</span>
         </span>
         <a
-          href={AUTH_GITHUB_START}
+          href={startUrl}
           className="rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rat-600 active:bg-rat-700"
         >
           Sign in with GitHub
@@ -69,7 +91,7 @@ export default async function HomePage() {
         </div>
 
         <a
-          href={AUTH_GITHUB_START}
+          href={startUrl}
           className="inline-flex items-center gap-2 rounded-xl bg-rat-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-rat-900/50 transition-colors hover:bg-rat-600 active:bg-rat-700"
         >
           <GitHubIcon />
