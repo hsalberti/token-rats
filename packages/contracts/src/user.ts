@@ -7,6 +7,12 @@ export const User = z.object({
   /** Present only when the caller is the user themselves or the user is public. */
   bio: z.string().max(200).nullable().optional(),
   twitterHandle: z.string().max(50).nullable().optional(),
+  /**
+   * True iff `twitter_handle` came from the OAuth flow (i.e. `twitter_user_id`
+   * is set). Self-only — used by settings UI to distinguish manual legacy
+   * handles from verified ones.
+   */
+  twitterVerified: z.boolean().optional(),
   publicProfile: z.boolean().optional(),
   /**
    * Primary verified GitHub email, captured at OAuth callback time. Self-only
@@ -17,11 +23,16 @@ export const User = z.object({
 });
 export type User = z.infer<typeof User>;
 
-/** Settings for making a profile public and editing discovery fields. */
+/**
+ * Settings for making a profile public and editing discovery fields.
+ *
+ * `twitterHandle` is intentionally NOT here — verified handles flow only
+ * through `/v1/auth/twitter/start` (OAuth); legacy manual entries are
+ * left untouched. See feature #5 in roadmap.md.
+ */
 export const PublicProfileSettings = z.object({
   publicProfile: z.boolean().optional(),
   bio: z.string().max(200).nullable().optional(),
-  twitterHandle: z.string().max(50).nullable().optional(),
 });
 export type PublicProfileSettings = z.infer<typeof PublicProfileSettings>;
 

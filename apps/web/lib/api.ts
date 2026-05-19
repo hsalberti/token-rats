@@ -338,6 +338,17 @@ export async function patchMe(
   });
 }
 
+/** Disconnect the signed-in user's verified X/Twitter handle. */
+export async function disconnectTwitter(cookieHeader?: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>("/v1/me/twitter/disconnect", {
+    method: "POST",
+    cookieHeader,
+  });
+}
+
+/** URL to start the X/Twitter OAuth flow. Navigate the browser here. */
+export const TWITTER_CONNECT_URL = `${API_URL}/v1/auth/twitter/start`;
+
 /** Get the global trending leaderboard. */
 export async function getTrending(
   range: LeaderboardRange = "today",
@@ -490,6 +501,7 @@ export const api = {
   postPushTest,
   // Phase 3 Track N
   patchMe,
+  disconnectTwitter,
   getTrending,
   reportAbuse,
   getReferral,

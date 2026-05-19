@@ -2,6 +2,7 @@ import type { Heatmap, HeatmapRange } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
 import { SourceTiles } from "../../../components/SourcePill";
+import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
 import { ApiError, api } from "../../../lib/api";
@@ -158,17 +159,9 @@ export default async function ProfilePage({ params, searchParams }: Props) {
               <p className="mt-1 text-zinc-400">Token Rat</p>
             )}
             {profile.twitterHandle && (
-              <a
-                href={`https://twitter.com/${profile.twitterHandle}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-rat-400 hover:text-rat-300 transition-colors"
-              >
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                </svg>
-                @{profile.twitterHandle}
-              </a>
+              <div className="mt-2">
+                <TwitterHandlePill handle={profile.twitterHandle} />
+              </div>
             )}
           </div>
         </div>

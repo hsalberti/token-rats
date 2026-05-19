@@ -21,7 +21,7 @@ me.get("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
   const row = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, email FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -31,6 +31,7 @@ me.get("/", requireAuth, async (c) => {
       public_profile: number;
       bio: string | null;
       twitter_handle: string | null;
+      twitter_user_id: string | null;
       email: string | null;
     }>();
 
@@ -46,6 +47,7 @@ me.get("/", requireAuth, async (c) => {
       publicProfile: row.public_profile === 1,
       bio: row.bio,
       twitterHandle: row.twitter_handle,
+      twitterVerified: row.twitter_user_id !== null,
       email: row.email,
     },
   });
@@ -66,14 +68,12 @@ me.patch("/", requireAuth, async (c) => {
     return validationError(c, err instanceof z.ZodError ? err.issues : String(err));
   }
 
-  // Nothing to update — return current user unchanged
-  if (
-    body.publicProfile === undefined &&
-    body.bio === undefined &&
-    body.twitterHandle === undefined
-  ) {
+  // Nothing to update — return current user unchanged.
+  // twitterHandle was removed from PatchMeRequest in v1.2 — manual writes
+  // are gone, OAuth + disconnect are the only mutation paths.
+  if (body.publicProfile === undefined && body.bio === undefined) {
     const row = await c.env.DB.prepare(
-      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, email FROM users WHERE id = ?",
+      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email FROM users WHERE id = ?",
     )
       .bind(userId)
       .first<{
@@ -83,6 +83,7 @@ me.patch("/", requireAuth, async (c) => {
         public_profile: number;
         bio: string | null;
         twitter_handle: string | null;
+        twitter_user_id: string | null;
         email: string | null;
       }>();
     if (!row) return notFound(c, "User not found");
@@ -94,6 +95,7 @@ me.patch("/", requireAuth, async (c) => {
         publicProfile: row.public_profile === 1,
         bio: row.bio,
         twitterHandle: row.twitter_handle,
+        twitterVerified: row.twitter_user_id !== null,
         email: row.email,
       },
     });
@@ -111,10 +113,6 @@ me.patch("/", requireAuth, async (c) => {
     setClauses.push("bio = ?");
     binds.push(body.bio ?? null);
   }
-  if (body.twitterHandle !== undefined) {
-    setClauses.push("twitter_handle = ?");
-    binds.push(body.twitterHandle ?? null);
-  }
 
   binds.push(userId);
 
@@ -123,7 +121,7 @@ me.patch("/", requireAuth, async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, email FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -133,6 +131,7 @@ me.patch("/", requireAuth, async (c) => {
       public_profile: number;
       bio: string | null;
       twitter_handle: string | null;
+      twitter_user_id: string | null;
       email: string | null;
     }>();
 
@@ -146,6 +145,7 @@ me.patch("/", requireAuth, async (c) => {
       publicProfile: updated.public_profile === 1,
       bio: updated.bio,
       twitterHandle: updated.twitter_handle,
+      twitterVerified: updated.twitter_user_id !== null,
       email: updated.email,
     },
   });

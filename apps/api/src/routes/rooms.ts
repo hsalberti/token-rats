@@ -168,9 +168,12 @@ rooms.get("/:code", requireAuth, async (c) => {
     return forbidden(c, "You are not a member of this room");
   }
 
-  // Fetch members with user info
+  // Fetch members with user info. We only surface the verified X handle —
+  // pre-OAuth manual handles are intentionally suppressed at the read side.
   const membersResult = await c.env.DB.prepare(
-    `SELECT rm.user_id, u.handle, u.avatar_url, rm.joined_at
+    `SELECT rm.user_id, u.handle, u.avatar_url, rm.joined_at,
+            CASE WHEN u.twitter_verified_at IS NOT NULL THEN u.twitter_handle ELSE NULL END
+              AS twitter_handle
      FROM room_members rm
      JOIN users u ON u.id = rm.user_id
      WHERE rm.room_id = ?
@@ -182,6 +185,7 @@ rooms.get("/:code", requireAuth, async (c) => {
       handle: string;
       avatar_url: string | null;
       joined_at: number;
+      twitter_handle: string | null;
     }>();
 
   const members = (membersResult.results ?? []).map((m) => ({
@@ -189,6 +193,7 @@ rooms.get("/:code", requireAuth, async (c) => {
     handle: m.handle,
     avatarUrl: m.avatar_url,
     joinedAt: m.joined_at,
+    twitterHandle: m.twitter_handle,
   }));
 
   return c.json({

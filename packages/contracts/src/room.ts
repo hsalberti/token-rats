@@ -23,5 +23,7 @@ export const RoomMember = z.object({
   handle: z.string(),
   avatarUrl: z.string().url().nullable(),
   joinedAt: z.number().int().positive(),
+  /** OAuth-verified X handle, when present. Manual handles are not surfaced. */
+  twitterHandle: z.string().max(50).nullable().optional(),
 });
 export type RoomMember = z.infer<typeof RoomMember>;

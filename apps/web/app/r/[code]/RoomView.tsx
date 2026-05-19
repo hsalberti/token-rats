@@ -18,6 +18,7 @@ import type {
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HeatmapWithToggle } from "../../../components/HeatmapWithToggle";
 import { SourceBadges } from "../../../components/SourceBadge";
+import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
 import { ChallengesPanel } from "../../../components/room/ChallengesPanel";
 import { RenameRoomForm } from "../../../components/room/RenameRoomForm";
@@ -103,7 +104,7 @@ function buildShareText(opts: {
 export function RoomView({
   summary,
   room: initialRoom,
-  members: _members,
+  members,
   initialLeaderboard,
   heatmap,
   groupStreak,
@@ -424,6 +425,29 @@ export function RoomView({
               return res.heatmap;
             }}
           />
+        )}
+
+        {/* Members list — compact chip row. Drops the verified X pill when set. */}
+        {members.length > 0 && (
+          <section className="space-y-2">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+              Members ({members.length})
+            </h3>
+            <ul className="flex flex-wrap gap-2">
+              {members.map((m) => (
+                <li
+                  key={m.userId}
+                  className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5"
+                >
+                  <Avatar src={m.avatarUrl} handle={m.handle} size="xs" />
+                  <a href={`/u/${m.handle}`} className="text-sm font-semibold hover:text-rat-400">
+                    @{m.handle}
+                  </a>
+                  <TwitterHandlePill handle={m.twitterHandle} />
+                </li>
+              ))}
+            </ul>
+          </section>
         )}
 
         {/* Tab bar */}

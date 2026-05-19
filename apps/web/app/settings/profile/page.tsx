@@ -27,6 +27,7 @@ export default async function ProfileSettingsPage() {
   const publicProfile = data.user.publicProfile ?? false;
   const bio = data.user.bio ?? null;
   const twitterHandle = data.user.twitterHandle ?? null;
+  const twitterVerified = data.user.twitterVerified ?? false;
   const email = data.user.email ?? null;
 
   return (
@@ -77,6 +78,7 @@ export default async function ProfileSettingsPage() {
           initialPublicProfile={publicProfile}
           initialBio={bio}
           initialTwitterHandle={twitterHandle}
+          initialTwitterVerified={twitterVerified}
         />
       </div>
     </main>

@@ -107,7 +107,20 @@ Shipped. Key decisions:
 
 ### Feature #5 — Twitter/X handle pill
 
-_(filled in during/after implementation)_
+Shipped. Key decisions:
+
+- **Disconnect endpoint already lived at `POST /v1/me/twitter/disconnect`** (added by the earlier backend track). The roadmap suggested `POST /v1/auth/twitter/disconnect`. I left the path alone — `/v1/me/twitter/*` is the convention for self-mutation routes — and pointed the new client method at the existing endpoint. No path renames.
+- **Manual `twitterHandle` writes removed entirely.** Dropped from `PublicProfileSettings` (which feeds `PatchMeRequest`). The API still tolerates the field by Zod's default extra-key stripping, but it's now a no-op. Two tests asserting old behavior were replaced by a single "field is stripped" test.
+- **`twitter_user_id`** is the schema column name (migration 0008). The roadmap mentioned `twitter_oauth_id` — that name doesn't exist; I used the actual column.
+- **New `twitterVerified: boolean` field on `User`.** Self-only, derived from `twitter_user_id IS NOT NULL`. The settings UI uses it to distinguish "manual legacy handle" from "OAuth-verified handle" and to render the "Connect X to verify" banner.
+- **Legacy handles aren't purged.** Per the roadmap. They stay in the DB, the user sees the banner on `/settings/profile`, and the verified-only `<TwitterHandlePill>` doesn't render them in member lists / friends / leaderboards.
+- **Member list rendered for the first time.** RoomView had a `members` prop that was never consumed (`_members`). Now there's a compact chip row labelled "Members (N)" between the heatmap and the tab bar — avatar + handle link + verified-X pill per chip. That's where the pill lives in the room context.
+- **`/v1/rooms/:code` member list** now returns `twitterHandle` (verified-only via a CASE on `twitter_verified_at`). The contract for `RoomMember` was extended with the new optional field.
+- **`<TwitterHandlePill handle={null} />` returns null** by design — callers can drop it unconditionally without conditional checks. Used pattern: `<TwitterHandlePill handle={x.twitterHandle} />` with no surrounding `&&`.
+- **Profile page pill placement.** Replaced the inline `<a>` block; now renders the pill inside a wrapper div with `mt-2` so spacing stays consistent under the bio line.
+- **Friends page pill placement.** Dropped the bespoke `𝕏 @handle` chip in favor of `<TwitterHandlePill>` for visual consistency.
+- **Leaderboard rows and OG cards stay handle-only.** Roadmap explicit. The pill is not added to any leaderboard row.
+- **OAuth secret config** (`X_OAUTH_CLIENT_ID`, `X_OAUTH_CLIENT_SECRET`) — env-var presence checked in `auth-twitter.ts` (returns 503 when unset). No new code needed for "set the secrets" — that's a one-time `wrangler secret put` step done outside the worktree.
 
 ### Feature #6 — Public country-locked groups
 
