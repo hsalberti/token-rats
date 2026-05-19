@@ -22,7 +22,7 @@ export default async function SettingsLayout({ children }: { children: React.Rea
 
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
-      <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
+      <header className="relative z-40 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-4">
             <a href="/app" className="text-sm text-zinc-500 hover:text-zinc-300">
