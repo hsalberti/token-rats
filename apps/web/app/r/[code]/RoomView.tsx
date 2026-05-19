@@ -17,6 +17,7 @@ import type {
 } from "@token-rats/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { HeatmapWithToggle } from "../../../components/HeatmapWithToggle";
+import { PrivacyFooter } from "../../../components/PrivacyFooter";
 import { SourceBadges } from "../../../components/SourceBadge";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
@@ -132,7 +133,8 @@ export function RoomView({
   const [range, setRange] = useState<LeaderboardRange>("30d");
   const [leaderboard, setLeaderboard] = useState<Leaderboard>(initialLeaderboard);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [inviteCopied, setInviteCopied] = useState(false);
   const [renamingRoom, setRenamingRoom] = useState(false);
   // Cached referral code for tagging invite links so we can credit whoever
   // shared the room when a new friend signs up.
@@ -313,8 +315,8 @@ export function RoomView({
       }
     }
     copyText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setShareCopied(true);
+    setTimeout(() => setShareCopied(false), 2000);
   }
 
   async function handleInvite() {
@@ -347,8 +349,8 @@ export function RoomView({
     }
 
     copyText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setInviteCopied(true);
+    setTimeout(() => setInviteCopied(false), 2000);
   }
 
   // Build streak lookup by userId for leaderboard augmentation
@@ -428,10 +430,10 @@ export function RoomView({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" onClick={handleShare}>
-              {copied ? "Copied!" : "Share recap"}
+              {shareCopied ? "Copied!" : "Share recap"}
             </Button>
             <Button variant="secondary" size="sm" onClick={handleInvite}>
-              {copied ? "Copied!" : "Copy invite link"}
+              {inviteCopied ? "Copied!" : "Copy invite link"}
             </Button>
           </div>
         </div>
@@ -562,6 +564,7 @@ export function RoomView({
           />
         )}
       </main>
+      <PrivacyFooter />
     </div>
   );
 }

@@ -31,15 +31,9 @@ export default async function ProfileSettingsPage() {
   const email = data.user.email ?? null;
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
+    <main className="text-zinc-100 px-6 py-8">
       <div className="max-w-lg mx-auto">
-        <div className="mb-8">
-          <a href="/app" className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
-            &larr; Back to app
-          </a>
-        </div>
-
-        <h1 className="text-2xl font-bold mb-2">Profile Settings</h1>
+        <h2 className="text-xl font-bold mb-2">Profile</h2>
         <p className="text-zinc-400 mb-8">Control your public presence on Token Rats.</p>
 
         {/* Email — captured from GitHub, read-only. v1.2. */}

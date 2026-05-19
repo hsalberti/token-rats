@@ -15,7 +15,9 @@
 import type { AutobiographyStats } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { InstallBlock } from "../../components/InstallBlock";
 import { NodeInstallHint } from "../../components/NodeInstallHint";
+import { PrivacyFooter } from "../../components/PrivacyFooter";
 import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
 import { Wordmark } from "../../components/ui/Wordmark.js";
 import { ApiError, api } from "../../lib/api";
@@ -107,6 +109,7 @@ export default async function OnboardingPage() {
         {/* Animated reveal — client component */}
         <AutobiographyReveal stats={stats} handle={user.handle} />
       </main>
+      <PrivacyFooter />
     </div>
   );
 }
@@ -144,20 +147,11 @@ function NoSessionsView({ handle }: { handle: string }) {
           </p>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5 text-left w-full">
-          <p className="mb-3 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+        <div className="w-full space-y-3 text-left">
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
             Quick start
           </p>
-          <div className="space-y-2 font-mono text-sm">
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-600">$</span>
-              <span className="text-zinc-300">npx token-rats login</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-zinc-600">$</span>
-              <span className="text-zinc-300">npx token-rats sync</span>
-            </div>
-          </div>
+          <InstallBlock />
           <NodeInstallHint />
         </div>
 
@@ -176,6 +170,7 @@ function NoSessionsView({ handle }: { handle: string }) {
           </a>
         </div>
       </main>
+      <PrivacyFooter />
     </div>
   );
 }

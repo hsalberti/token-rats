@@ -38,15 +38,9 @@ export default async function ReferralsPage() {
   const origin = host ? `${proto}://${host}` : "https://tokenrats.com";
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
+    <main className="text-zinc-100 px-6 py-8">
       <div className="max-w-lg mx-auto">
-        <div className="mb-8">
-          <a href="/app" className="text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
-            &larr; Back to app
-          </a>
-        </div>
-
-        <h1 className="text-2xl font-bold mb-2">Invite friends</h1>
+        <h2 className="text-xl font-bold mb-2">Invite friends</h2>
         <p className="text-zinc-400 mb-8">
           Share your link. When a friend signs up through it we credit it to you, so we can hand out
           rewards later.

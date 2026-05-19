@@ -213,6 +213,7 @@ auth.get("/github/callback", async (c) => {
     .first<{ id: string; handle: string; avatar_url: string | null }>();
 
   let userId: string;
+  let isNewUser = false;
 
   if (existing) {
     // Update avatar_url + email on every login so users who add a verified
@@ -229,6 +230,7 @@ auth.get("/github/callback", async (c) => {
     }
     userId = existing.id;
   } else {
+    isNewUser = true;
     // Insert new user; handle = github login. Email may be NULL if the user
     // declined the email scope (rare on first sign-in but possible).
     await c.env.DB.prepare(
@@ -270,7 +272,11 @@ auth.get("/github/callback", async (c) => {
     ...(domain && { domain }),
   });
 
-  return c.redirect(`${c.env.WEB_ORIGIN}/app`, 302);
+  // Brand-new users land on /onboarding so they see the autobiography
+  // (or the "run npx token-rats sync" nudge) instead of an empty dashboard.
+  // Returning users go straight to /app.
+  const landing = isNewUser ? "/onboarding" : "/app";
+  return c.redirect(`${c.env.WEB_ORIGIN}${landing}`, 302);
 });
 
 /* -------------------------------------------------------------------------- */

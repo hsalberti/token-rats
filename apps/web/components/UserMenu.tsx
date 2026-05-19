@@ -84,11 +84,34 @@ export function UserMenu({ user }: Props) {
             View public profile
           </a>
           <a
-            href="/settings/profile"
+            href="/app/friends"
+            role="menuitem"
+            className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
+          >
+            Friends
+          </a>
+          <a
+            href="/onboarding"
+            role="menuitem"
+            className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
+          >
+            Token autobiography
+          </a>
+          <a
+            href="/settings"
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
             Settings
+          </a>
+          <a
+            href="https://x.com/tokenratsx"
+            target="_blank"
+            rel="noopener noreferrer"
+            role="menuitem"
+            className="block px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-rat-400"
+          >
+            Help · DM @tokenratsx
           </a>
 
           <form action={AUTH_LOGOUT} method="POST" className="border-t border-zinc-800">
