@@ -17,6 +17,7 @@ import { redirect } from "next/navigation";
 import { requireSession, getCookieHeader } from "../../lib/auth";
 import { api, ApiError } from "../../lib/api";
 import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
+import { NodeInstallHint } from "../../components/NodeInstallHint";
 
 export const runtime = "edge";
 
@@ -152,6 +153,7 @@ function NoSessionsView({ handle }: { handle: string }) {
               <span className="text-zinc-300">npx token-rats sync</span>
             </div>
           </div>
+          <NodeInstallHint />
         </div>
 
         <div className="flex gap-4">
