@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Footer } from "../components/ui/Footer.js";
 import "./globals.css";
 
 export const runtime = "edge";
@@ -51,7 +52,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark">
-      <body className="min-h-screen bg-zinc-950 text-zinc-100 antialiased">{children}</body>
+      <body className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100 antialiased">
+        <div className="flex-1">{children}</div>
+        <Footer />
+      </body>
     </html>
   );
 }
