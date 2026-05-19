@@ -7,6 +7,7 @@
  */
 
 import { Avatar } from "@/components/ui/Avatar";
+import { PrimarySourcePill } from "@/components/SourcePill";
 import { TwitterHandlePill } from "@/components/TwitterHandlePill";
 import { getTrending } from "@/lib/api";
 import { useState, useTransition } from "react";
@@ -22,6 +23,8 @@ interface TrendingRow {
   costUsdCents: number;
   sessions: number;
   twitterHandle?: string | null;
+  /** v1.2 Track AF — kebab-case primary-source label or null. */
+  primarySource?: string | null;
 }
 
 interface Props {
@@ -149,10 +152,11 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
                 {/* Avatar */}
                 <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
 
-                {/* Handle + verified Twitter pill */}
+                {/* Handle + verified Twitter pill + primary-source pill */}
                 <span className="flex-1 min-w-0 flex items-center gap-2">
                   <span className="font-semibold text-zinc-100 truncate">@{row.handle}</span>
                   <TwitterHandlePill handle={row.twitterHandle} />
+                  <PrimarySourcePill source={row.primarySource} />
                 </span>
 
                 {/* Stats */}

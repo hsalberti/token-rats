@@ -14,6 +14,8 @@ export async function GET(
     handle: string;
     twitterHandle?: string | null;
     twitterVerified?: boolean;
+    /** v1.2 Track AF — kebab-case primary-source label or null. */
+    primarySource?: string | null;
     totals: {
       today: { tokens: number; costUsdCents: number };
       week: { tokens: number; costUsdCents: number };
@@ -129,6 +131,7 @@ export async function GET(
         {profile?.twitterVerified && profile.twitterHandle && (
           <TwitterPillSvg handle={profile.twitterHandle} />
         )}
+        {profile?.primarySource && <PrimarySourcePillSvg source={profile.primarySource} />}
       </div>
       <div style={{ fontSize: 20, color: "#71717a", marginBottom: 44 }}>Token Rat 🐀</div>
 
@@ -329,6 +332,34 @@ function TwitterPillSvg({ handle }: { handle: string }) {
         <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
       </svg>
       <span>{`@${handle}`}</span>
+    </div>
+  );
+}
+
+/**
+ * v1.2 Track AF — primary-source pill rendered inside the OG card. Monospace,
+ * rat-orange border on a neutral fill. Kept as a plain `<div>` so
+ * `next/og`'s ImageResponse can rasterise it. The web component
+ * (`<PrimarySourcePill>`) renders the same vocabulary in the HTML UI.
+ */
+function PrimarySourcePillSvg({ source }: { source: string }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        background: "#18181b",
+        border: "1.5px solid rgba(249,115,22,0.5)",
+        borderRadius: 10,
+        padding: "6px 12px",
+        fontSize: 18,
+        fontWeight: 700,
+        color: "#fdba74",
+        fontFamily: "monospace",
+        letterSpacing: "-0.01em",
+      }}
+    >
+      {source}
     </div>
   );
 }

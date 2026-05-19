@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from "react";
 import type { AutobiographyStats } from "@token-rats/contracts";
+import { PrimarySourcePill } from "../SourcePill";
 import { TwitterHandlePill } from "../TwitterHandlePill";
 
 const DAY_NAMES = [
@@ -127,9 +128,11 @@ interface Props {
   handle: string;
   /** v1.2 Track AC — verified Twitter/X handle for the pill next to display name. */
   twitterHandle?: string | null;
+  /** v1.2 Track AF — kebab-case primary-source label rendered next to handle. */
+  primarySource?: string | null;
 }
 
-export function AutobiographyReveal({ stats, handle, twitterHandle }: Props) {
+export function AutobiographyReveal({ stats, handle, twitterHandle, primarySource }: Props) {
   const steps = buildSteps(stats);
   const [visibleCount, setVisibleCount] = useState(0);
   const [done, setDone] = useState(false);
@@ -154,12 +157,14 @@ export function AutobiographyReveal({ stats, handle, twitterHandle }: Props) {
 
   return (
     <div className="mx-auto max-w-xl w-full">
-      {/* Verified handle pill, surfaced once at the top so screenshot-share
-          captures the X identity alongside the autobiography stats. */}
-      {twitterHandle && (
+      {/* Verified handle pill + primary-source pill, surfaced once at the top
+          so screenshot-share captures both the X identity and the dominant
+          source alongside the autobiography stats. */}
+      {(twitterHandle || primarySource) && (
         <div className="mb-3 flex items-center gap-2 text-sm text-zinc-400">
           <span>@{handle}</span>
           <TwitterHandlePill handle={twitterHandle} />
+          <PrimarySourcePill source={primarySource} />
         </div>
       )}
 

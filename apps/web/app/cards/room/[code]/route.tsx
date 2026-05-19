@@ -18,6 +18,8 @@ export async function GET(
     tokens: number;
     costUsdCents: number;
     twitterHandle?: string | null;
+    /** v1.2 Track AF — kebab-case primary-source label or null. */
+    primarySource?: string | null;
   };
   let top3: TopRow[] = [];
 
@@ -37,6 +39,7 @@ export async function GET(
       tokens: r.tokens,
       costUsdCents: r.costUsdCents,
       twitterHandle: r.twitterHandle ?? null,
+      primarySource: r.primarySource ?? null,
     }));
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) {
@@ -211,6 +214,7 @@ export async function GET(
                     {`@${row.handle}`}
                   </div>
                   {row.twitterHandle && <TwitterPillSvg handle={row.twitterHandle} />}
+                  {row.primarySource && <PrimarySourcePillSvg source={row.primarySource} />}
                 </div>
 
                 {/* Token count + cost */}

@@ -106,6 +106,7 @@ export default async function OnboardingPage() {
           stats={stats}
           handle={user.handle}
           twitterHandle={user.twitterVerified ? (user.twitterHandle ?? null) : null}
+          primarySource={user.primarySource ?? null}
         />
       </main>
     </div>

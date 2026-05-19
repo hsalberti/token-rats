@@ -151,6 +151,7 @@ export default async function ProfilePage({ params }: Props) {
             <div className="flex flex-wrap items-center gap-2">
               <h1 className="text-3xl font-black tracking-tight">@{profile.handle}</h1>
               {profile.twitterVerified && <TwitterHandlePill handle={profile.twitterHandle} />}
+              <PrimarySourcePill source={profile.primarySource} />
             </div>
             {profile.bio ? (
               <p className="mt-1 text-zinc-300 text-sm leading-relaxed">{profile.bio}</p>
