@@ -455,18 +455,6 @@ export function RoomView({
           </div>
         )}
 
-        {/* Group activity heatmap */}
-        {heatmap && heatmap.days.length > 0 && (
-          <HeatmapWithToggle
-            initial={heatmap}
-            title="Group activity"
-            fetcher={async (r) => {
-              const res = await api.getRoomHeatmap(room.code as RoomCode, r);
-              return res.heatmap;
-            }}
-          />
-        )}
-
         {/* Members list — compact chip row. Drops the verified X pill when set. */}
         {members.length > 0 && (
           <section className="space-y-2">
@@ -546,6 +534,18 @@ export function RoomView({
                 />
               )}
             </div>
+
+            {/* Group activity heatmap */}
+            {heatmap && heatmap.days.length > 0 && (
+              <HeatmapWithToggle
+                initial={heatmap}
+                title="Group activity"
+                fetcher={async (r) => {
+                  const res = await api.getRoomHeatmap(room.code as RoomCode, r);
+                  return res.heatmap;
+                }}
+              />
+            )}
           </>
         )}
 

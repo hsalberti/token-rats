@@ -3,9 +3,10 @@
  * and /r/[code].
  *
  * `range="52w"` renders the year view (53 weeks × 7 days, ~364 cells).
- * `range="30d"` renders a denser strip — 30 days laid out as 5 columns × 6
- * rows (sized to the trailing 30 days, not 52 weeks). Bucket + color logic
- * is shared.
+ * `range="30d"` renders a tall strip — 30 days laid out as 3 columns × 10
+ * rows, filled column-major so the right column holds the most recent 10
+ * days and the bottom-right cell is today. Rows do not represent weekdays.
+ * Bucket + color logic is shared.
  *
  * Driven by GET /v1/u/:handle/heatmap?range= or GET /v1/r/:code/heatmap?range=.
  * Pure SVG so it stays crisp at any zoom and renders identically in OG cards
@@ -168,20 +169,21 @@ function YearView({ heatmap, title }: { heatmap: HeatmapData; title: string }) {
 }
 
 /* ------------------------------- 30-day view ------------------------------ */
-/* Layout: 6 rows × 5 columns of bigger cells, so 30 cells exactly. Reads     */
-/* like a calendar block rather than a year band.                            */
+/* Layout: 3 columns × 10 rows, filled column-major. Oldest day sits top-left,*/
+/* newest day bottom-right; the rightmost column is the most recent 10 days. */
 
 const T_CELL = 24;
 const T_GAP = 6;
-const T_COLS = 5;
-const T_ROWS = 6;
+const T_COLS = 3;
+const T_ROWS = 10;
 
 function ThirtyDayView({ heatmap, title }: { heatmap: HeatmapData; title: string }) {
   const byDay = new Map<string, { tokens: number; sessions: number }>();
   for (const d of heatmap.days) byDay.set(d.day, d);
 
   const to = parseUtc(heatmap.to);
-  // 30 days: render today bottom-right, walking back 29 days.
+  // 30 days, column-major: i=0 is the oldest day (top-left of leftmost column),
+  // i=29 is today (bottom-right of rightmost column).
   const cells: { col: number; row: number; day: string; tokens: number }[] = [];
   let maxTokens = 0;
   for (let i = 0; i < 30; i++) {
@@ -191,8 +193,8 @@ function ThirtyDayView({ heatmap, title }: { heatmap: HeatmapData; title: string
     const tokens = byDay.get(dayStr)?.tokens ?? 0;
     if (tokens > maxTokens) maxTokens = tokens;
     cells.push({
-      col: i % T_COLS,
-      row: Math.floor(i / T_COLS),
+      col: Math.floor(i / T_ROWS),
+      row: i % T_ROWS,
       day: dayStr,
       tokens,
     });
