@@ -39,5 +39,9 @@ WEB_ORIGIN = "https://tokenrats.com"
 #   GITHUB_CLIENT_ID
 #   GITHUB_CLIENT_SECRET
 #   SESSION_SIGNING_KEY
-#   VAPID_PRIVATE_KEY   (base64url-encoded raw 32-byte EC P-256 private key)
-#   VAPID_PUBLIC_KEY    (base64url-encoded uncompressed P-256 point, 65 bytes)
+#   VAPID_PRIVATE_KEY        (base64url-encoded raw 32-byte EC P-256 private key)
+#   VAPID_PUBLIC_KEY         (base64url-encoded uncompressed P-256 point, 65 bytes)
+#   STRIPE_SECRET_KEY
+#   STRIPE_WEBHOOK_SECRET
+#   EMAIL_PROVIDER_API_KEY   (Resend API key; weekly digest cron — `wrangler secret put EMAIL_PROVIDER_API_KEY`)
+#   ANTHROPIC_API_KEY        (optional; proxy fallback)

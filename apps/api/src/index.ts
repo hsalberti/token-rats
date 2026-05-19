@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import type { Env } from "./env.js";
 import type { AuthVariables } from "./middleware/auth.js";
 import abuseRoutes from "./routes/abuse.js";
+import adminRoutes from "./routes/admin.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
 import groupStreakRoutes from "./routes/group-streak.js";
@@ -21,6 +22,7 @@ import sessionsRoutes from "./routes/sessions.js";
 import streaksRoutes from "./routes/streaks.js";
 import stripeWebhookRoutes from "./routes/stripe-webhook.js";
 import trendingRoutes from "./routes/trending.js";
+import waitlistsRoutes from "./routes/waitlists.js";
 import { runWeeklyDigests } from "./scheduled.js";
 
 const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
@@ -106,6 +108,8 @@ app.route("/v1/trending", trendingRoutes);
 app.route("/v1/abuse", abuseRoutes);
 app.route("/v1/proxy", proxyRoutes);
 app.route("/v1/orgs", orgsRoutes);
+app.route("/v1/waitlists", waitlistsRoutes);
+app.route("/v1/admin", adminRoutes);
 app.route("/webhooks/stripe", stripeWebhookRoutes);
 
 /* -------------------------------------------------------------------------- */

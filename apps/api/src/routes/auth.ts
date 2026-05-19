@@ -46,7 +46,9 @@ auth.get("/github/start", async (c) => {
   const params = new URLSearchParams({
     client_id: c.env.GITHUB_CLIENT_ID,
     redirect_uri: `${apiOrigin}/v1/auth/github/callback`,
-    scope: "read:user",
+    // v1.2 Track AB: `user:email` lets us call /user/emails for the primary
+    // verified email, which feeds `users.email` and the weekly digest.
+    scope: "read:user user:email",
     state,
   });
 
@@ -124,6 +126,31 @@ auth.get("/github/callback", async (c) => {
     return c.text("Failed to fetch GitHub user info", 502);
   }
 
+  // v1.2 Track AB: fetch the primary verified email. Best-effort — if this
+  // call fails (or the user has no verified primary), we leave `email` NULL
+  // and continue. Login must not fail because the email fetch did.
+  let primaryEmail: string | null = null;
+  try {
+    const emailRes = await fetch("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "token-rats-api/1.0",
+        Accept: "application/vnd.github+json",
+      },
+    });
+    if (emailRes.ok) {
+      const emails = (await emailRes.json()) as Array<{
+        email: string;
+        primary: boolean;
+        verified: boolean;
+      }>;
+      const match = emails.find((e) => e.primary && e.verified);
+      if (match) primaryEmail = match.email;
+    }
+  } catch {
+    // Swallow — login still succeeds without an email.
+  }
+
   // Upsert user in D1
   const now = Date.now();
   const newId = crypto.randomUUID();
@@ -138,17 +165,20 @@ auth.get("/github/callback", async (c) => {
   let userId: string;
 
   if (existing) {
-    // Update avatar_url in case it changed
-    await c.env.DB.prepare("UPDATE users SET avatar_url = ? WHERE id = ?")
-      .bind(ghUser.avatar_url ?? null, existing.id)
+    // Update avatar_url + email on every login so a flipped primary email
+    // propagates without forcing the user to sign out and back in.
+    await c.env.DB.prepare(
+      "UPDATE users SET avatar_url = ?, email = COALESCE(?, email) WHERE id = ?",
+    )
+      .bind(ghUser.avatar_url ?? null, primaryEmail, existing.id)
       .run();
     userId = existing.id;
   } else {
     // Insert new user; handle = github login
     await c.env.DB.prepare(
-      "INSERT INTO users (id, github_id, handle, avatar_url, created_at) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO users (id, github_id, handle, avatar_url, email, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
-      .bind(newId, ghUser.id, ghUser.login, ghUser.avatar_url ?? null, now)
+      .bind(newId, ghUser.id, ghUser.login, ghUser.avatar_url ?? null, primaryEmail, now)
       .run();
     userId = newId;
   }

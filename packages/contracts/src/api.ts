@@ -238,6 +238,11 @@ export const ENDPOINTS = {
   orgAccept: (slug: string) => `/v1/orgs/${slug}/accept`,
   orgDashboard: (slug: string) => `/v1/orgs/${slug}/dashboard`,
   stripeWebhook: "/webhooks/stripe",
+  // v1.2 Track AA — waitlists + admin queue
+  waitlists: "/v1/waitlists",
+  adminOrgsPending: "/v1/admin/orgs/pending",
+  adminApproveOrg: (slug: string) => `/v1/admin/orgs/${slug}/approve`,
+  adminWaitlists: "/v1/admin/waitlists",
   // Phase 3 Track M
   proxyAnthropicMessages: "/v1/proxy/anthropic/v1/messages",
   proxyAnthropicKey: "/v1/proxy/keys/anthropic",

@@ -20,6 +20,7 @@ import { subscribeToPush, sendTestPush } from "@/lib/push";
 
 interface Props {
   initialPrefs: NotificationPrefs;
+  email: string | null;
 }
 
 function Toggle({
@@ -57,7 +58,7 @@ function Toggle({
   );
 }
 
-export function NotificationsClient({ initialPrefs }: Props) {
+export function NotificationsClient({ initialPrefs, email }: Props) {
   const [prefs, setPrefs] = useState<NotificationPrefs>(initialPrefs);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
@@ -120,10 +121,17 @@ export function NotificationsClient({ initialPrefs }: Props) {
         <h2 className="text-lg font-semibold mb-4 text-zinc-100">Email</h2>
         <div className="bg-zinc-900 rounded-xl divide-y divide-zinc-800">
           <div className="flex items-center justify-between px-4 py-4">
-            <div>
+            <div className="min-w-0 pr-4">
               <div className="font-medium">Weekly digest</div>
               <div className="text-sm text-zinc-400">
                 A Monday summary of your token burn vs. your rooms.
+              </div>
+              <div className="text-xs text-zinc-500 mt-1">
+                We&apos;ll only send one email a week, Mondays.
+              </div>
+              <div className="text-xs text-zinc-500 mt-1 truncate">
+                Sending to:{" "}
+                <span className="text-zinc-300">{email ?? "not yet captured"}</span>
               </div>
             </div>
             <Toggle

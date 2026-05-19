@@ -19,7 +19,7 @@ me.get("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
   const row = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, email FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -29,6 +29,7 @@ me.get("/", requireAuth, async (c) => {
       public_profile: number;
       bio: string | null;
       twitter_handle: string | null;
+      email: string | null;
     }>();
 
   if (!row) {
@@ -43,6 +44,7 @@ me.get("/", requireAuth, async (c) => {
       publicProfile: row.public_profile === 1,
       bio: row.bio,
       twitterHandle: row.twitter_handle,
+      email: row.email,
     },
   });
 });

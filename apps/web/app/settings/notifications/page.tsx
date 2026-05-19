@@ -3,7 +3,7 @@
  * Auth-required: redirects to /signin if unauthenticated.
  */
 import { requireSession, getCookieHeader } from "@/lib/auth";
-import { getNotificationPrefs } from "@/lib/api";
+import { getMe, getNotificationPrefs } from "@/lib/api";
 import { NotificationsClient } from "./Client";
 
 export const runtime = "edge";
@@ -16,10 +16,14 @@ export default async function NotificationsSettingsPage() {
   await requireSession();
   const cookieHeader = await getCookieHeader();
 
-  // Don't catch — defaults would render the user's current opt-outs as
+  // Don't catch prefs — defaults would render the user's current opt-outs as
   // opted in, and submitting would silently flip them. Let the error
   // boundary handle the failure.
-  const { prefs } = await getNotificationPrefs(cookieHeader);
+  const [{ prefs }, { user }] = await Promise.all([
+    getNotificationPrefs(cookieHeader),
+    getMe(cookieHeader),
+  ]);
+  const email = user.email ?? null;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
@@ -38,7 +42,7 @@ export default async function NotificationsSettingsPage() {
           Control how Token Rats reaches you.
         </p>
 
-        <NotificationsClient initialPrefs={prefs} />
+        <NotificationsClient initialPrefs={prefs} email={email} />
       </div>
     </main>
   );

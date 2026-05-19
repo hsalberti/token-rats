@@ -99,14 +99,22 @@ stripeWebhook.post("/", async (c) => {
 
     // Find the org by stripe_customer_id
     const org = await c.env.DB.prepare(
-      "SELECT id FROM orgs WHERE stripe_customer_id = ?",
+      "SELECT id, plan FROM orgs WHERE stripe_customer_id = ?",
     )
       .bind(subscription.customer)
-      .first<{ id: string }>();
+      .first<{ id: string; plan: string }>();
 
     if (!org) {
       // No matching org — acknowledge anyway so Stripe doesn't retry
       return c.json({ received: true, note: "org_not_found" });
+    }
+
+    // v1.2 Track AA — student orgs are free-by-policy. We ignore Stripe events
+    // for them so an admin-approved student tier can't be silently bumped to
+    // 'pro' or downgraded to 'free' by an inbound subscription event. The
+    // student plan is locked in via the admin approve endpoint.
+    if (org.plan === "student") {
+      return c.json({ received: true, note: "student_plan_no_op" });
     }
 
     try {

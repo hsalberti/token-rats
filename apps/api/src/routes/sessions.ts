@@ -47,9 +47,32 @@ async function fanoutToRooms(
     .bind(userId)
     .all<{ code: string }>();
 
-  if (!rooms.results || rooms.results.length === 0) return;
+  if (!rooms.results || rooms.results.length === 0) {
+    // No rooms — still bust any user-scoped heatmap cache so the personal
+    // profile picks up the new burn within KV's 60s TTL window.
+    await Promise.all([
+      env.CACHE.delete(`hm:user:${user.handle}:60`),
+      env.CACHE.delete(`hm:user:${user.handle}:364`),
+    ]);
+    return;
+  }
 
   const fanouts: Promise<void>[] = [];
+
+  // v1.2 Track Y — bust personal + per-room derived caches so the new burn
+  // shows up immediately instead of waiting up to 60s for KV TTL expiry.
+  fanouts.push(env.CACHE.delete(`hm:user:${user.handle}:60`));
+  fanouts.push(env.CACHE.delete(`hm:user:${user.handle}:364`));
+
+  for (const { code } of rooms.results) {
+    fanouts.push(env.CACHE.delete(`hm:room:${code}:60`));
+    fanouts.push(env.CACHE.delete(`hm:room:${code}:364`));
+    fanouts.push(env.CACHE.delete(`gs:${code}`));
+    for (const r of ["today", "7d", "30d", "all"] as const) {
+      fanouts.push(env.CACHE.delete(`rs:${code}:${r}`));
+      fanouts.push(env.CACHE.delete(`lb:${code}:${r}`));
+    }
+  }
 
   for (const { code } of rooms.results) {
     const id = env.ROOM_LIVE.idFromName(code);

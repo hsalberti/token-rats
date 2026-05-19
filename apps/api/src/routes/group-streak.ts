@@ -31,6 +31,56 @@ function tsToUtcDay(ms: number): string {
   return new Date(ms).toISOString().slice(0, 10);
 }
 
+export interface GroupMember {
+  userId: string;
+  /** YYYY-MM-DD UTC */
+  joinedDay: string;
+}
+
+export interface MemberDay {
+  userId: string;
+  /** YYYY-MM-DD UTC */
+  day: string;
+}
+
+/**
+ * Pure computation of the group's active/unanimous day sets.
+ *
+ *  - `activeDays`    = sorted union of every member's days.
+ *  - `unanimousDays` = sorted intersection of every member's days, where each
+ *    member is only required to be present on days at-or-after their joinedDay
+ *    (so a recent joiner can't retroactively break an older unanimous streak).
+ */
+export function buildGroupDaySets(
+  members: GroupMember[],
+  dayRows: MemberDay[],
+): { activeDays: string[]; unanimousDays: string[] } {
+  const unionSet = new Set<string>();
+  const perMember = new Map<string, Set<string>>();
+  for (const r of dayRows) {
+    unionSet.add(r.day);
+    if (!perMember.has(r.userId)) perMember.set(r.userId, new Set());
+    perMember.get(r.userId)!.add(r.day);
+  }
+  const activeDays = Array.from(unionSet).sort();
+
+  const unanimousDays: string[] = [];
+  for (const d of activeDays) {
+    let ok = true;
+    for (const m of members) {
+      if (m.joinedDay > d) continue; // member wasn't here yet — excused
+      const ms = perMember.get(m.userId);
+      if (!ms || !ms.has(d)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) unanimousDays.push(d);
+  }
+
+  return { activeDays, unanimousDays };
+}
+
 groupStreak.get("/:code/group-streak", requireAuth, async (c) => {
   const userId = c.var.userId;
   const code = c.req.param("code");
@@ -60,7 +110,7 @@ groupStreak.get("/:code/group-streak", requireAuth, async (c) => {
     .bind(room.id)
     .all<{ user_id: string; joined_at: number }>();
 
-  const members = (memberRows.results ?? []).map((r) => ({
+  const members: GroupMember[] = (memberRows.results ?? []).map((r) => ({
     userId: r.user_id,
     joinedDay: tsToUtcDay(r.joined_at),
   }));
@@ -77,39 +127,15 @@ groupStreak.get("/:code/group-streak", requireAuth, async (c) => {
     .bind(room.id)
     .all<{ user_id: string; day: string }>();
 
+  const memberDays: MemberDay[] = (dayRows.results ?? []).map((r) => ({
+    userId: r.user_id,
+    day: r.day,
+  }));
+
+  const { activeDays, unanimousDays } = buildGroupDaySets(members, memberDays);
+
   const todayUtc = new Date().toISOString().slice(0, 10);
-
-  // 3. Active streak = union over all members.
-  const unionSet = new Set<string>();
-  const perMember = new Map<string, Set<string>>();
-  for (const r of dayRows.results ?? []) {
-    unionSet.add(r.day);
-    if (!perMember.has(r.user_id)) perMember.set(r.user_id, new Set());
-    perMember.get(r.user_id)!.add(r.day);
-  }
-  const activeDays = Array.from(unionSet).sort();
   const active = computeStreaks(activeDays, todayUtc);
-
-  // 4. Unanimous streak = intersection across every member, ignoring days
-  //    before each member's joinedDay (so a recent joiner can't retroactively
-  //    break the streak for days they weren't around for).
-  //
-  //    For each candidate day d, "unanimous" holds iff every member who joined
-  //    on/before d has a row for d. Compute by iterating the union of days and
-  //    keeping only those that pass.
-  const unanimousDays: string[] = [];
-  for (const d of activeDays) {
-    let ok = true;
-    for (const m of members) {
-      if (m.joinedDay > d) continue; // member wasn't here yet — excused
-      const ms = perMember.get(m.userId);
-      if (!ms || !ms.has(d)) {
-        ok = false;
-        break;
-      }
-    }
-    if (ok) unanimousDays.push(d);
-  }
   const unanimous = computeStreaks(unanimousDays, todayUtc);
 
   const streak: GroupStreak = {

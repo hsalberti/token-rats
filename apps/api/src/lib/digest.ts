@@ -1,10 +1,12 @@
 /**
  * Weekly digest builder for Token Rats.
  *
- * buildWeeklyDigest(userId, db) aggregates the past 7 days from daily_rollup
- * and returns { subject, html, text } ready to send via email.
+ * buildWeeklyDigest(userId, db, opts) aggregates the past 7 days from
+ * daily_rollup and returns { subject, html, text } ready to send via email.
  *
- * This is a pure(-ish) function — no external calls, just DB reads.
+ * Unsubscribe tokens are HMAC-signed with the same SESSION_SIGNING_KEY the
+ * auth layer uses — we just sign a different payload (purpose-prefixed) so a
+ * leaked unsubscribe link can never be replayed as a session cookie.
  */
 
 import { WEEK_MS } from "./time.js";
@@ -13,6 +15,13 @@ export interface DigestResult {
   subject: string;
   html: string;
   text: string;
+}
+
+interface DigestOpts {
+  /** Web origin for the unsubscribe link, e.g. `https://tokenrats.com`. */
+  webOrigin: string;
+  /** Signing key (same as `SESSION_SIGNING_KEY`). */
+  signingKey: string;
 }
 
 interface DailyRollupRow {
@@ -35,6 +44,75 @@ interface WeeklyStats {
   rows: DailyRollupRow[];
 }
 
+const ALG = { name: "HMAC", hash: "SHA-256" };
+const UNSUBSCRIBE_PURPOSE = "unsub";
+
+function b64urlEncode(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let bin = "";
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+function b64urlDecode(s: string): Uint8Array {
+  const padded = s.replace(/-/g, "+").replace(/_/g, "/");
+  const pad = (4 - (padded.length % 4)) % 4;
+  const bin = atob(padded + "=".repeat(pad));
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return bytes;
+}
+
+async function importKey(raw: string): Promise<CryptoKey> {
+  return crypto.subtle.importKey("raw", new TextEncoder().encode(raw), ALG, false, [
+    "sign",
+    "verify",
+  ]);
+}
+
+/**
+ * Sign an unsubscribe token. Format: `<userId>.<issuedAt>.<sig>`.
+ * The payload that's signed is purpose-prefixed (`unsub:<userId>.<issuedAt>`) so
+ * this token cannot be replayed as a session cookie.
+ */
+export async function signUnsubscribeToken(userId: string, signingKey: string): Promise<string> {
+  const issuedAt = Date.now();
+  const payload = `${UNSUBSCRIBE_PURPOSE}:${userId}.${issuedAt}`;
+  const key = await importKey(signingKey);
+  const sig = await crypto.subtle.sign(ALG, key, new TextEncoder().encode(payload));
+  return `${userId}.${issuedAt}.${b64urlEncode(sig)}`;
+}
+
+export type VerifyUnsubResult =
+  | { ok: true; userId: string }
+  | { ok: false; reason: string };
+
+/**
+ * Verify an unsubscribe token. No expiry — once a user clicks "unsubscribe", the
+ * link should keep working even if they find it months later in their archive.
+ */
+export async function verifyUnsubscribeToken(
+  token: string,
+  signingKey: string,
+): Promise<VerifyUnsubResult> {
+  const parts = token.split(".");
+  if (parts.length !== 3) return { ok: false, reason: "malformed" };
+  const [userId, issuedAtStr, sigB64] = parts as [string, string, string];
+  if (!userId || !Number.isFinite(Number(issuedAtStr))) {
+    return { ok: false, reason: "malformed" };
+  }
+  const payload = `${UNSUBSCRIBE_PURPOSE}:${userId}.${issuedAtStr}`;
+  const key = await importKey(signingKey);
+  const valid = await crypto.subtle.verify(
+    ALG,
+    key,
+    b64urlDecode(sigB64),
+    new TextEncoder().encode(payload),
+  );
+  if (!valid) return { ok: false, reason: "bad_signature" };
+  return { ok: true, userId };
+}
+
 function formatTokens(n: number): string {
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
@@ -48,7 +126,12 @@ function formatCents(cents: number): string {
 function formatDay(day: string): string {
   // day is YYYY-MM-DD
   const d = new Date(`${day}T00:00:00Z`);
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric", timeZone: "UTC" });
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC",
+  });
 }
 
 function buildStats(rows: DailyRollupRow[]): WeeklyStats {
@@ -71,7 +154,12 @@ function buildStats(rows: DailyRollupRow[]): WeeklyStats {
   return { totalTokens, totalCostCents, totalSessions, bestDay, bestDayTokens, rows };
 }
 
-function buildHtml(handle: string, stats: WeeklyStats): string {
+function buildHtml(
+  handle: string,
+  stats: WeeklyStats,
+  unsubscribeUrl: string,
+  webOrigin: string,
+): string {
   const rowsHtml = stats.rows
     .map(
       (r) => `
@@ -92,20 +180,22 @@ function buildHtml(handle: string, stats: WeeklyStats): string {
     <h1 style="font-size:24px;margin:0 0 4px">Token Rats Weekly</h1>
     <p style="color:#a1a1aa;margin:0 0 24px">Hey @${handle}, here's your week in tokens.</p>
 
-    <div style="display:flex;gap:16px;margin-bottom:24px">
-      <div style="flex:1;background:#18181b;border-radius:8px;padding:16px">
-        <div style="font-size:12px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em">Total tokens</div>
-        <div style="font-size:28px;font-weight:700;margin-top:4px">${formatTokens(stats.totalTokens)}</div>
-      </div>
-      <div style="flex:1;background:#18181b;border-radius:8px;padding:16px">
-        <div style="font-size:12px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em">Cost burned</div>
-        <div style="font-size:28px;font-weight:700;margin-top:4px">${formatCents(stats.totalCostCents)}</div>
-      </div>
-      <div style="flex:1;background:#18181b;border-radius:8px;padding:16px">
-        <div style="font-size:12px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em">Sessions</div>
-        <div style="font-size:28px;font-weight:700;margin-top:4px">${stats.totalSessions}</div>
-      </div>
-    </div>
+    <table style="width:100%;border-collapse:separate;border-spacing:8px 0;margin:0 -8px 24px">
+      <tr>
+        <td style="background:#18181b;border-radius:8px;padding:16px;width:33%">
+          <div style="font-size:12px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em">Total tokens</div>
+          <div style="font-size:28px;font-weight:700;margin-top:4px">${formatTokens(stats.totalTokens)}</div>
+        </td>
+        <td style="background:#18181b;border-radius:8px;padding:16px;width:33%">
+          <div style="font-size:12px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em">Cost burned</div>
+          <div style="font-size:28px;font-weight:700;margin-top:4px">${formatCents(stats.totalCostCents)}</div>
+        </td>
+        <td style="background:#18181b;border-radius:8px;padding:16px;width:33%">
+          <div style="font-size:12px;color:#a1a1aa;text-transform:uppercase;letter-spacing:.05em">Sessions</div>
+          <div style="font-size:28px;font-weight:700;margin-top:4px">${stats.totalSessions}</div>
+        </td>
+      </tr>
+    </table>
 
     ${
       stats.bestDay
@@ -125,16 +215,23 @@ function buildHtml(handle: string, stats: WeeklyStats): string {
       <tbody>${rowsHtml}</tbody>
     </table>
 
-    <p style="font-size:12px;color:#52525b">
+    <p style="font-size:12px;color:#52525b;margin-top:24px">
       You're receiving this because you have weekly digests enabled.
-      <a href="https://tokenrats.com/settings/notifications" style="color:#f97316">Manage preferences</a>
+      <a href="${webOrigin}/settings/notifications" style="color:#f97316">Manage preferences</a>
+      &nbsp;·&nbsp;
+      <a href="${unsubscribeUrl}" style="color:#f97316">Unsubscribe</a>
     </p>
   </div>
 </body>
 </html>`;
 }
 
-function buildText(handle: string, stats: WeeklyStats): string {
+function buildText(
+  handle: string,
+  stats: WeeklyStats,
+  unsubscribeUrl: string,
+  webOrigin: string,
+): string {
   const lines = [
     `Token Rats Weekly — @${handle}`,
     "",
@@ -145,15 +242,24 @@ function buildText(handle: string, stats: WeeklyStats): string {
   ];
 
   if (stats.bestDay) {
-    lines.push(`Best day: ${formatDay(stats.bestDay)} (${formatTokens(stats.bestDayTokens)} tokens)`, "");
+    lines.push(
+      `Best day: ${formatDay(stats.bestDay)} (${formatTokens(stats.bestDayTokens)} tokens)`,
+      "",
+    );
   }
 
   lines.push("Daily breakdown:", "");
   for (const r of stats.rows) {
-    lines.push(`  ${formatDay(r.day)}: ${formatTokens(r.tokens)} tokens / ${formatCents(r.cost_usd_cents)} / ${r.sessions} sessions`);
+    lines.push(
+      `  ${formatDay(r.day)}: ${formatTokens(r.tokens)} tokens / ${formatCents(r.cost_usd_cents)} / ${r.sessions} sessions`,
+    );
   }
 
-  lines.push("", "Manage preferences: https://tokenrats.com/settings/notifications");
+  lines.push(
+    "",
+    `Manage preferences: ${webOrigin}/settings/notifications`,
+    `Unsubscribe: ${unsubscribeUrl}`,
+  );
 
   return lines.join("\n");
 }
@@ -169,6 +275,7 @@ function buildText(handle: string, stats: WeeklyStats): string {
 export async function buildWeeklyDigest(
   userId: string,
   db: D1Database,
+  opts: DigestOpts,
 ): Promise<DigestResult | null> {
   // Get user handle
   const userRow = await db
@@ -200,9 +307,12 @@ export async function buildWeeklyDigest(
   const stats = buildStats(rows);
   const subject = `Your Token Rats week: ${formatTokens(stats.totalTokens)} tokens burned`;
 
+  const token = await signUnsubscribeToken(userId, opts.signingKey);
+  const unsubscribeUrl = `${opts.webOrigin}/unsubscribe?token=${encodeURIComponent(token)}`;
+
   return {
     subject,
-    html: buildHtml(userRow.handle, stats),
-    text: buildText(userRow.handle, stats),
+    html: buildHtml(userRow.handle, stats, unsubscribeUrl, opts.webOrigin),
+    text: buildText(userRow.handle, stats, unsubscribeUrl, opts.webOrigin),
   };
 }

@@ -216,7 +216,7 @@ export async function encryptPayload(opts: EncryptOptions): Promise<EncryptedPay
     )) as CryptoKeyPair);
 
   const asPublicRaw = new Uint8Array(
-    await crypto.subtle.exportKey("raw", asKeyPair.publicKey),
+    (await crypto.subtle.exportKey("raw", asKeyPair.publicKey)) as ArrayBuffer,
   );
 
   // Step 2 — import UA public key for ECDH.
@@ -229,11 +229,13 @@ export async function encryptPayload(opts: EncryptOptions): Promise<EncryptedPay
   );
 
   // Step 3 — ECDH shared secret.
-  const ecdhBits = await crypto.subtle.deriveBits(
-    { name: "ECDH", public: uaKey },
-    asKeyPair.privateKey,
-    256,
-  );
+  // The runtime field is "public", but ECMAScript reserves it as a keyword in
+  // strict-mode ES2022 object-literal positions; workers-types declares the
+  // alias as "$public". Construct the algorithm object so the JS property key
+  // is literally "public" while satisfying TypeScript.
+  const ecdhAlg: SubtleCryptoDeriveKeyAlgorithm = { name: "ECDH" };
+  (ecdhAlg as unknown as { public: CryptoKey }).public = uaKey;
+  const ecdhBits = await crypto.subtle.deriveBits(ecdhAlg, asKeyPair.privateKey, 256);
   const ecdhSecret = new Uint8Array(ecdhBits);
 
   // Step 4 — IKM = HKDF(auth_secret, ecdhSecret, "WebPush: info\0" || ua || as, 32)
