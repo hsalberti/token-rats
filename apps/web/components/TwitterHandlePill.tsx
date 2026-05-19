@@ -1,3 +1,5 @@
+"use client";
+
 /**
  * v1.2 Track AC — Twitter/X verified handle pill.
  *
@@ -5,6 +7,11 @@
  * name. Returns null when the user has not connected their X account, so
  * callers can always drop `<TwitterHandlePill handle={row.twitterHandle} />`
  * unconditionally.
+ *
+ * Marked "use client" because the asLink branch attaches an onClick
+ * stopPropagation handler — React refuses to serialize event handlers in
+ * Server Components, so without this directive any server-rendered page that
+ * shows a connected handle (e.g. /u/<handle>) hits a runtime error.
  *
  * The handle prop should already be the verified handle (the API only fills
  * it after OAuth — see routes/leaderboard.ts, routes/trending.ts,
