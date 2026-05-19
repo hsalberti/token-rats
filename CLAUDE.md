@@ -39,15 +39,29 @@ Token Rats is a Cloudflare-native monorepo: a Next.js PWA, a Hono Worker API, an
 
 **Pricing is centralized.** `packages/pricing` owns the model → `$/MTok` table (`prices.json`) and the `priceOf(model, inTok, outTok)` helper, which also matches date-suffixed model IDs against family prefixes. Parsers and the Worker both call `priceOf` — do not inline price math anywhere else.
 
-**API surface (`apps/api/src`).** Hono app in `index.ts` mounts route modules from `routes/` under `/v1/*` (auth, me, sessions, rooms + sub-routes for leaderboard/streaks/challenges/live, profiles, push, notifications, trending, abuse, proxy, orgs) plus `/webhooks/stripe`. Cross-cutting logic (auth helpers, ingest dedupe, rate limiting, Stripe, web push, weekly digest) lives in `lib/`. The cookie-based auth middleware is in `middleware/auth.ts` and sets `AuthVariables` on the Hono context. The `RoomLiveHub` Durable Object (exported from `index.ts`) is the SSE fan-out for live room updates. `scheduled.ts` runs from the `0 16 * * 1` cron in `wrangler.toml` for weekly digests.
+**API surface (`apps/api/src`).** Hono app in `index.ts` mounts route modules from `routes/` under `/v1/*`. Today's mount map:
 
-**Worker bindings (`apps/api/wrangler.toml`).** `DB` (D1), `CACHE` (KV), `CARDS` (R2), `ROOM_LIVE` (Durable Object). Secrets — `GITHUB_CLIENT_ID/SECRET`, `SESSION_SIGNING_KEY`, `VAPID_PRIVATE_KEY/PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, optional `ANTHROPIC_API_KEY` — set via `wrangler secret put`, never committed; use `.dev.vars` locally. The root `infra/wrangler.toml` is reference-only; the deployable config is `apps/api/wrangler.toml`.
+- `/v1/auth` (GitHub OAuth) and `/v1/auth/twitter/*` + `/v1/me/twitter/disconnect` (Twitter/X OAuth, mounted as `/v1` so it can register both prefixes)
+- `/v1/me` (identity) — `friends.ts` is mounted on the same namespace so the path is `/v1/me/friends`
+- `/v1/sessions` (CLI ingest)
+- `/v1/rooms` plus the per-room sub-routes for `leaderboard`, `streaks`, `challenges`, `live` (SSE)
+- `/v1/r` (`room-aggregates` — public room summary, heatmap, group streak)
+- `/v1/groups` (public country-locked group discovery)
+- `/v1/u` (public profiles)
+- `/v1/push`, `/v1/notifications`
+- `/v1/trending`, `/v1/abuse`, `/v1/proxy`, `/v1/orgs`, `/v1/admin` (project-owner only, gated by `ADMIN_GITHUB_LOGIN`)
+- `/webhooks/stripe`
+- `GET /healthz`
 
-**D1 migrations.** SQL files in `infra/migrations/` (referenced by `migrations_dir = "../../infra/migrations"`). `0001_init.sql` is frozen — the original schema (users, orgs, org_members, rooms, room_members, sessions, daily_rollup). Later migrations add streaks/challenges, notifications, proxy keys, public profiles, and the org plan. Add new migrations as numbered files; don't edit existing ones. `org_id` is nullable on `rooms` so the org plan slots in without a schema break.
+Cross-cutting logic (auth helpers, ingest dedupe, primary-source resolution, rate limiting, Stripe, web push, weekly digest, referrals, email) lives in `lib/`. The cookie-based auth middleware is in `middleware/auth.ts` and sets `AuthVariables` on the Hono context. The `RoomLiveHub` Durable Object (re-exported from `index.ts`, source in `lib/room-live-hub.ts`) is the SSE fan-out for live room updates. `scheduled.ts` runs from the `0 16 * * 1` cron in `wrangler.toml` for weekly digests.
 
-**Web app (`apps/web/app`).** Next.js 15 App Router + React 19 + Tailwind. Top-level route segments cover rooms (`r/`), public profiles (`u/`), orgs (`o/`), `signin`, `settings`, `onboarding`, `trending`, `proxy`, `cli`, `join`, `cards` (OG share-card route), and the authed dashboard at `app/`. Shared client helpers (`lib/api.ts`, `lib/auth.ts`, `lib/use-room-live.ts`, etc.) wrap fetch calls and the SSE live hook. Components are split into `components/ui/`, `components/room/`, and `components/onboarding/`.
+**Worker bindings (`apps/api/wrangler.toml`).** `DB` (D1), `CACHE` (KV), `CARDS` (R2), `ROOM_LIVE` (Durable Object). One plain var: `WEB_ORIGIN` (set to the prod web origin; CORS also unconditionally allows any `localhost`/`127.0.0.1` origin for dev). Secrets — `GITHUB_CLIENT_ID/SECRET`, `SESSION_SIGNING_KEY`, `VAPID_PRIVATE_KEY/PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Twitter/X OAuth secrets, `ADMIN_GITHUB_LOGIN`, optional `ANTHROPIC_API_KEY` — set via `wrangler secret put`, never committed; use `.dev.vars` locally. The root `infra/wrangler.toml` is reference-only; the deployable config is `apps/api/wrangler.toml`.
 
-**CLI (`packages/cli`).** Entry at `src/index.ts` dispatches commands in `src/commands/` (`login`, `sync`, `watch`, `whoami`, `logout`). `sync`/`watch` discover Claude Code + Cursor logs on disk, hand them to `@token-rats/parsers`, then upload to the API. The CLI is published as the `token-rats` binary via `bin` in its package.json; its build (`build.mjs`) is a separate esbuild step, not part of Turbo.
+**D1 migrations.** SQL files in `infra/migrations/` (referenced by `migrations_dir = "../../infra/migrations"`). `0001_init.sql` is frozen — the original schema (users, orgs, org_members, rooms, room_members, sessions, daily_rollup). Later migrations layer in streaks/challenges (`0002`), notifications (`0003`), proxy keys (`0004`), public profiles (`0005`), the org plan (`0006`), referrals (`0007`), Twitter handles (`0008`), pending orgs (`0009`), user email (`0010`), public rooms (`0011`), pinned room members (`0012`). Add new migrations as numbered files; don't edit existing ones. `org_id` is nullable on `rooms` so the org plan slots in without a schema break.
+
+**Web app (`apps/web/app`).** Next.js 15 App Router + React 19 + Tailwind. Top-level route segments: rooms (`r/`), public profiles (`u/`), orgs (`o/`), `signin`, `settings`, `onboarding`, `trending`, `proxy`, `cli`, `join`, `cards` (OG share-card route), `groups`, `changelog`, `admin`, and the authed dashboard at `app/` (with `app/friends`). Shared client helpers (`lib/api.ts`, `lib/auth.ts`, `lib/use-room-live.ts`, etc.) wrap fetch calls and the SSE live hook. Components are split into `components/ui/`, `components/room/`, and `components/onboarding/`.
+
+**CLI (`packages/cli`).** Entry at `src/index.ts` dispatches commands in `src/commands/` (`login`, `sync`, `watch`, `whoami`, `logout`, `install-cursor`). `sync`/`watch` discover Claude Code + Cursor logs on disk, hand them to `@token-rats/parsers`, then upload to the API. `install-cursor` writes the Cursor log-export hook locally. The CLI is published as the `token-rats` binary via `bin` in its package.json; its build (`build.mjs`) is a separate esbuild step, not part of Turbo.
 
 ## Conventions
 
