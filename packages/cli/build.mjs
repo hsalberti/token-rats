@@ -27,9 +27,12 @@ await build({
   platform: "node",
   target: "node20",
   format: "esm",
-  // Keep runtime deps and built-ins external
+  // Keep runtime deps and built-ins external. sql.js ships a WASM file that
+  // resolves relative to the installed package on disk, so it must remain a
+  // real `require()` — esbuild can't inline it.
   external: [
     "better-sqlite3",
+    "sql.js",
     "clipboardy",
     "open",
     "node:*",
