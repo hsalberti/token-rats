@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import type { Env } from "./env.js";
 import type { AuthVariables } from "./middleware/auth.js";
 import abuseRoutes from "./routes/abuse.js";
+import adminRoutes from "./routes/admin.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
@@ -96,6 +97,12 @@ app.route("/v1/abuse", abuseRoutes);
 app.route("/v1/proxy", proxyRoutes);
 app.route("/v1/orgs", orgsRoutes);
 app.route("/webhooks/stripe", stripeWebhookRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Admin analytics (project-owner only — gated by ADMIN_GITHUB_LOGIN)         */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/admin", adminRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Worker exports                                                              */

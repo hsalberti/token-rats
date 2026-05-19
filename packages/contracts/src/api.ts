@@ -241,6 +241,10 @@ export const ENDPOINTS = {
   // Phase 3 Track M
   proxyAnthropicMessages: "/v1/proxy/anthropic/v1/messages",
   proxyAnthropicKey: "/v1/proxy/keys/anthropic",
+  // Admin analytics (project-owner only)
+  adminSignups: "/v1/admin/signups",
+  adminActivity: "/v1/admin/activity",
+  adminReferrers: "/v1/admin/referrers",
 } as const;
 
 // Re-export streak/challenge types for convenience
