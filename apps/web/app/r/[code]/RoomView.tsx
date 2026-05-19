@@ -40,7 +40,14 @@ const RANGE_LABELS: Record<LeaderboardRange, string> = {
   "30d": "30 days",
   all: "All time",
 };
+const SHARE_RANGE_LABELS: Record<LeaderboardRange, string> = {
+  today: "Today",
+  "7d": "Past 7 days",
+  "30d": "Past 30 days",
+  all: "All time",
+};
 const RANGES: LeaderboardRange[] = ["today", "7d", "30d", "all"];
+const MEDALS = ["🥇", "🥈", "🥉"];
 
 function fmtTokens(n: number) {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
@@ -58,6 +65,33 @@ function fmtCost(cents: number) {
 
 function copyText(text: string) {
   navigator.clipboard.writeText(text).catch(() => undefined);
+}
+
+function buildShareText(opts: {
+  roomName: string;
+  roomCode: string;
+  range: LeaderboardRange;
+  rows: Leaderboard["rows"];
+  totalTokens: number;
+}): string {
+  const { roomName, roomCode, range, rows, totalTokens } = opts;
+  const joinUrl = `https://tokenrats.com/join/${roomCode}`;
+  const top = rows.slice(0, 3);
+
+  if (top.length === 0) {
+    return `🐀 ${roomName}\n\nJoin the rats:\n${joinUrl}`;
+  }
+
+  const lines = [
+    `🐀 ${roomName} — ${SHARE_RANGE_LABELS[range]}`,
+    "",
+    ...top.map((r, i) => `${MEDALS[i]} @${r.handle} ${fmtTokens(r.tokens)}`),
+    "",
+    `${fmtTokens(totalTokens)} tokens burned`,
+    "",
+    joinUrl,
+  ];
+  return lines.join("\n");
 }
 
 export function RoomView({
@@ -219,13 +253,29 @@ export function RoomView({
     setRoom(data.room);
   }
 
-  function handleInvite() {
-    copyText(`https://tokenrats.com/join/${room.code}`);
+  const totalTokens = leaderboard.rows.reduce((s, r) => s + r.tokens, 0);
+
+  async function handleShare() {
+    const text = buildShareText({
+      roomName: room.name,
+      roomCode: room.code,
+      range,
+      rows: leaderboard.rows,
+      totalTokens,
+    });
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        // AbortError = user dismissed the share sheet; any other error falls through to copy.
+        if (err instanceof Error && err.name === "AbortError") return;
+      }
+    }
+    copyText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }
-
-  const totalTokens = leaderboard.rows.reduce((s, r) => s + r.tokens, 0);
 
   // Build streak lookup by userId for leaderboard augmentation
   const streakByUser = new Map(streaks.map((s) => [s.userId, s]));
@@ -299,8 +349,8 @@ export function RoomView({
             <p className="mt-1 font-mono text-sm text-zinc-500">{room.code}</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="secondary" size="sm" onClick={handleInvite}>
-              {copied ? "Copied!" : "Copy invite link"}
+            <Button variant="secondary" size="sm" onClick={handleShare}>
+              {copied ? "Copied!" : "Share"}
             </Button>
           </div>
         </div>
