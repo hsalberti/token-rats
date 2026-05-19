@@ -11,9 +11,9 @@
 
 import { Hono } from "hono";
 import type { Env } from "../env.js";
+import { randomBase64url } from "../lib/auth.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { randomBase64url } from "../lib/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 

@@ -148,8 +148,7 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
       cursorSessions.push(...records);
       if (opts.verbose) {
         dim(
-          `  Cursor: ${rows.length} generation event(s) → ${records.length} session(s)` +
-            ` (tokens estimated, see help)`,
+          `  Cursor: ${rows.length} generation event(s) → ${records.length} session(s) (tokens estimated, see help)`,
         );
       }
     } catch {
@@ -201,7 +200,9 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
 
   // ── 4. Dry-run short-circuit ───────────────────────────────────────────────
   if (opts.dryRun) {
-    info(`[dry-run] Would upload ${allSessions.length} session(s) in ${Math.ceil(allSessions.length / BATCH_SIZE)} batch(es).`);
+    info(
+      `[dry-run] Would upload ${allSessions.length} session(s) in ${Math.ceil(allSessions.length / BATCH_SIZE)} batch(es).`,
+    );
     if (opts.verbose) {
       for (const s of allSessions.slice(0, 10)) {
         dim(

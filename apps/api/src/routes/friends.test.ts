@@ -6,13 +6,13 @@
  * else throws.
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { Hono } from "hono";
-import friendsRoutes from "./friends.js";
-import type { Env } from "../env.js";
-import type { AuthVariables } from "../middleware/auth.js";
-import { signToken } from "../lib/auth.js";
 import type { FriendsResponse } from "@token-rats/contracts";
+import { Hono } from "hono";
+import { beforeEach, describe, expect, it } from "vitest";
+import type { Env } from "../env.js";
+import { signToken } from "../lib/auth.js";
+import type { AuthVariables } from "../middleware/auth.js";
+import friendsRoutes from "./friends.js";
 
 /* -------------------------------------------------------------------------- */
 /* In-memory D1 + KV stubs                                                     */

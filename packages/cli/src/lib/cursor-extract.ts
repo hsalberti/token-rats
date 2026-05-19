@@ -46,10 +46,10 @@ export function cursorWorkspaceStorageDir(): string {
     return join(home, "Library", "Application Support", rel);
   }
   if (process.platform === "win32") {
-    const appData = process.env["APPDATA"] ?? join(home, "AppData", "Roaming");
+    const appData = process.env.APPDATA ?? join(home, "AppData", "Roaming");
     return join(appData, rel);
   }
-  const xdgConfig = process.env["XDG_CONFIG_HOME"] ?? join(home, ".config");
+  const xdgConfig = process.env.XDG_CONFIG_HOME ?? join(home, ".config");
   return join(xdgConfig, rel);
 }
 
@@ -163,12 +163,10 @@ async function readGenerationsFromDb(dbPath: string): Promise<CursorRow[]> {
     for (const item of parsed) {
       if (typeof item !== "object" || item === null) continue;
       const r = item as Record<string, unknown>;
-      const id = typeof r["generationUUID"] === "string" ? r["generationUUID"] : null;
-      const type = typeof r["type"] === "string" ? r["type"] : null;
+      const id = typeof r.generationUUID === "string" ? r.generationUUID : null;
+      const type = typeof r.type === "string" ? r.type : null;
       const unixMs =
-        typeof r["unixMs"] === "number" && isFinite(r["unixMs"]) && r["unixMs"] > 0
-          ? r["unixMs"]
-          : null;
+        typeof r.unixMs === "number" && Number.isFinite(r.unixMs) && r.unixMs > 0 ? r.unixMs : null;
       // Deliberately ignore `textDescription` — that's prompt content.
       if (!id || !type || unixMs === null) continue;
       out.push({ id, type, unixMs });

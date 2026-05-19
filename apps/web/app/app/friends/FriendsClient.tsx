@@ -6,10 +6,10 @@
  * Renders the range toggle + the row list, re-fetching when the range flips.
  */
 
+import type { FriendRow, FriendsResponse, LeaderboardRange } from "@token-rats/contracts";
 import { useState, useTransition } from "react";
 import { Avatar } from "../../../components/ui/Avatar";
 import { getMeFriends } from "../../../lib/api";
-import type { FriendRow, FriendsResponse, LeaderboardRange } from "@token-rats/contracts";
 
 interface Props {
   initial: FriendsResponse;

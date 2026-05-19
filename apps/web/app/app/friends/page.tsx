@@ -1,3 +1,4 @@
+import type { LeaderboardRange } from "@token-rats/contracts";
 /**
  * v1.2 Track AD — `/app/friends`
  *
@@ -5,10 +6,9 @@
  * private rooms, with a client-side range toggle and live re-fetch.
  */
 import type { Metadata } from "next";
-import type { LeaderboardRange } from "@token-rats/contracts";
-import { requireSession, getCookieHeader } from "../../../lib/auth";
-import { getMeFriends } from "../../../lib/api";
 import { Avatar } from "../../../components/ui/Avatar";
+import { getMeFriends } from "../../../lib/api";
+import { getCookieHeader, requireSession } from "../../../lib/auth";
 import { FriendsClient } from "./FriendsClient";
 
 export const runtime = "edge";

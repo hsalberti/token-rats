@@ -9,9 +9,9 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
 import { notFound, validationError } from "../lib/errors.js";
+import { ensureReferralCode } from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { ensureReferralCode } from "../lib/referral.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 

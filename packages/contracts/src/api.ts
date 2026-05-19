@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Leaderboard, LeaderboardRange, LeaderboardRow } from "./leaderboard.js";
+import { ReferralStats } from "./referral.js";
 import { Room, type RoomCode, RoomMember } from "./room.js";
 import { SessionRecord } from "./session.js";
 import {
@@ -9,7 +10,6 @@ import {
   ChallengeWithLeaderboard,
   StreakRow,
 } from "./streaks.js";
-import { ReferralStats } from "./referral.js";
 import { AutobiographyStats, Profile, PublicProfileSettings, User } from "./user.js";
 export type {
   CreatePushSubscriptionRequest,

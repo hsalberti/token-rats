@@ -90,15 +90,15 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
     if (typeof raw !== "object" || raw === null) continue;
     const row = raw as Record<string, unknown>;
 
-    const id = typeof row["id"] === "string" ? row["id"] : null;
+    const id = typeof row.id === "string" ? row.id : null;
     if (!id) continue;
 
-    const type = typeof row["type"] === "string" ? row["type"] : null;
+    const type = typeof row.type === "string" ? row.type : null;
     if (!type) continue;
 
     const unixMs =
-      typeof row["unixMs"] === "number" && isFinite(row["unixMs"]) && row["unixMs"] > 0
-        ? row["unixMs"]
+      typeof row.unixMs === "number" && Number.isFinite(row.unixMs) && row.unixMs > 0
+        ? row.unixMs
         : null;
     if (unixMs === null) continue;
 

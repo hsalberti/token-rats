@@ -15,8 +15,8 @@
 import type { AutobiographyStats } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
 import { NodeInstallHint } from "../../components/NodeInstallHint";
+import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
 import { ApiError, api } from "../../lib/api";
 import { getCookieHeader, requireSession } from "../../lib/auth";
 

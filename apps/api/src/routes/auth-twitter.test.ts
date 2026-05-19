@@ -5,12 +5,12 @@
  * `fetch` is mocked at the module level so the tests don't hit twitter.com.
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { Hono } from "hono";
-import twitterAuthRoutes from "./auth-twitter.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Env } from "../env.js";
-import type { AuthVariables } from "../middleware/auth.js";
 import { signToken } from "../lib/auth.js";
+import type { AuthVariables } from "../middleware/auth.js";
+import twitterAuthRoutes from "./auth-twitter.js";
 
 /* -------------------------------------------------------------------------- */
 /* Stubs                                                                       */

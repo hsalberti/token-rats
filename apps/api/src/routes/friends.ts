@@ -1,3 +1,5 @@
+import { GetLeaderboardQuery } from "@token-rats/contracts";
+import type { FriendRow, FriendSharedRoom, LeaderboardRange } from "@token-rats/contracts";
 /**
  * v1.2 Track AD — `GET /v1/me/friends?range=today|7d|30d|all`
  *
@@ -10,12 +12,10 @@
  * list within a tick instead of waiting up to a minute for the TTL.
  */
 import { Hono } from "hono";
-import { GetLeaderboardQuery } from "@token-rats/contracts";
-import type { FriendRow, FriendSharedRoom, LeaderboardRange } from "@token-rats/contracts";
 import type { Env } from "../env.js";
+import { validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { validationError } from "../lib/errors.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
