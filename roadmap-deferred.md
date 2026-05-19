@@ -98,3 +98,125 @@ deliverability + domain verification work is real, and shipping a
 half-working digest is worse than no digest. Capture-only ships first;
 sending follows once the audience is large enough to be worth a real
 ESP integration.
+
+## Primary-source pill (full pipeline)
+
+**Problem.** Helpers + component are shipped (`apps/api/src/lib/primary-source.ts`,
+`apps/web/components/SourcePill.tsx` with `<PrimarySourcePill>`) but the
+underlying data pipeline is missing — there is no `sessions.source_plan`
+column, no parser code that infers the plan tier, and the ingest path
+doesn't carry `sourcePlan`. The helper as written would error if anyone
+called it against today's schema. The component renders nothing because
+no response shape carries a `primarySource` label. "Frontend wiring" in
+the original roadmap line undersold the work; it's a full
+detect→store→render pipeline.
+
+**Goal.** When ≥50% of a user's 30d USD cost came from a single
+`(source, sourcePlan)` combination, render a small kebab-case pill
+("claude-max", "cursor-ide", "codex-api") next to their handle on the
+agreed render sites.
+
+**Scope to revisit (decisions already made, just not implemented):**
+
+- **Migration.** Add `sessions.source_plan TEXT` (nullable, default
+  `NULL` for back-compat).
+- **Parsers.** Add filesystem-only detection: presence of an OAuth
+  credentials file (claude max / pro) vs an `~/.anthropic` API key file,
+  Cursor's settings file, Codex's credentials file. Log-content
+  heuristics are explicitly **out of scope** — too fragile.
+- **CLI + ingest.** Extend `SessionRecord` (in `packages/contracts`)
+  with `sourcePlan: 'max' | 'pro' | 'api' | 'ide' | 'unknown' | null`.
+  Ingest validates + writes to `sessions.source_plan`.
+- **Server-side compute.** Call `getPrimarySourceMap` on the response
+  shapes that render the pill; attach `primarySource: string | null` to
+  each row.
+- **Render sites (v1).** Mirror the Twitter-pill scope: `/u/<handle>`,
+  `/r/<code>` member list, `/app/friends`. **Leaderboard, trending, OG
+  cards are explicitly out of scope** in v1 to keep the contract
+  surface small.
+- **Threshold.** Keep the existing `>= 50%` hard-coded rule. No split
+  pill; below threshold → no pill rendered.
+
+**Why deferred.** The work is real (parser code + migration + contract
+diff across CLI/web/api + render wiring on three pages) and the user
+chose to keep the helper + component dormant rather than ship a
+half-pipeline. When we revisit, the decisions above mean the
+implementation plan is already locked — no new design questions, just
+execution.
+
+## iOS Safari web-push surface
+
+**Problem.** The Web Push payload-encryption feature ships supporting
+Chrome desktop + Android only. On iOS Safari, the test-push button
+silently no-ops because Apple's web-push implementation only works for
+installed PWAs on iOS 16.4+, and we haven't built the install-prompt
+contextual UX. iOS users won't know why nothing is happening.
+
+**Goal.** When an iOS Safari visitor (or any browser without push
+support) hits `/settings/notifications`, show contextual UX that
+explains the situation and, where possible, offers a path forward
+(PWA install prompt for iOS 16.4+).
+
+**Scope to revisit:**
+
+- Feature-detect `'Notification' in window && 'PushManager' in window`
+  on the client.
+- If unsupported, hide the test-push button and show a "Push isn't
+  available on this browser" line. iOS Safari specifically gets an
+  install-to-home-screen prompt (we already render `manifest.ts`).
+- After install + relaunch as PWA, the push flow resumes normally.
+
+**Why deferred.** Low priority — Chrome desktop + Android cover the
+primary persona (vibe coders on Mac / Linux / Android). The iOS PWA
+install dance adds UX surface we haven't designed and would slow the
+core push feature down. Revisit once we have D7 retention data
+suggesting iOS users are a meaningful slice we're losing.
+
+## Taskbar app (Tauri 2.x, macOS + Windows)
+
+**Problem.** No always-visible surface for token-burn stats. Users have
+to actively visit the web app to see today's spend, current streak, or
+their top-room rank. Notifications are confined to web push (which is
+flaky on iOS and absent for users without a browser tab open).
+
+**Goal.** A native menu-bar / tray app on macOS + Windows that shows
+today's spend, current streak, and top-room rank at a glance, fires
+native OS notifications on "you got passed" + "room hit a milestone",
+and links out to the web for deeper views.
+
+**Locked design decisions (already made during sharpening):**
+
+- **Auth.** Same flow as the CLI: device-code via `/cli?code=XXXX`.
+  Token stored in the OS keychain (Keychain on macOS, Credential
+  Manager on Windows). Optimization: if the local CLI token file
+  already exists (`~/.token-rats/token.json` or wherever the CLI stores
+  it), the taskbar imports it on first launch and skips the device-code
+  flow. Falls back to device-code for fresh installs.
+- **Sync model.** Pull-only. Taskbar polls a new thin endpoint
+  `/v1/me/taskbar` every 60s while the app is open. The endpoint
+  returns today's tokens + cost, current streak, top-room rank,
+  last-sync timestamp, plus a pending-notifications array (for the
+  events below). No CLI invocation from the taskbar — "sync now"
+  either opens a terminal with the CLI command or punts the action
+  entirely (decide at build time).
+- **Notifications.** Two events for v1: "you got passed" (your rank in
+  any room you're in dropped vs last seen) and "your room hit a
+  milestone" (room crosses 1M / 10M / 100M / 1B token thresholds).
+  Computed server-side and returned in the taskbar summary payload;
+  the taskbar dispatches them to the native notification system.
+- **Distribution.** Brew tap for macOS (`brew install
+  token-rats/tap/token-rats-taskbar`) and winget for Windows.
+  Code-signing for v1: TBD when we revisit — picking unsigned keeps
+  costs at zero but adds Gatekeeper / SmartScreen friction; macOS
+  signing ($99/yr Apple Developer ID) is probably worth it on the
+  priority platform.
+- **Workspace.** New `apps/taskbar` workspace. Rust + Tauri 2.x. New
+  CI matrix: `macos-14`, `windows-2022`. No contract changes — only
+  the new `/v1/me/taskbar` endpoint.
+
+**Why deferred.** The user wants to open-source the repo first.
+Building a Tauri app in a closed repo creates a release artifact people
+can't audit; doing it after open-sourcing means the install / build
+flow can be public from day one. Also a ~2-week task on its own — best
+to land after the smaller features that the user wants in front of the
+audience.

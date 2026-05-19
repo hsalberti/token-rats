@@ -26,18 +26,17 @@ Visit `/r/<code>` and see a stat strip + 30-day group heatmap + active-streak pi
 - Group streak rule: a day counts toward the streak iff **≥1 room member has a `daily_rollup` row with `tokens > 0` for that UTC day**. The pill shows the current consecutive-day count; breaks on the first all-zero day. Today (in progress) does not count yet.
 - Room OG card route (`/cards/room/<code>`) renders stat strip + streak pill. Heatmap omitted by design.
 - No KV cache in this round — queries hit D1 directly. Revisit only if a room page exceeds the latency budget.
+- Aggregate metrics (member count, 30d tokens, 30d cost) are intentionally public to anyone with the room URL, including signed-out viewers and non-members of private rooms. This is a deliberate change to the prior "private rooms are 403 to non-members" semantics — accepted on the basis that aggregates aren't sensitive.
 
 **Order constraints:** the `Heatmap` contract gains `range`; existing profile-heatmap consumer (`/u/<handle>`) must migrate in the same PR. No migrations.
-
-**[OPEN]** Stat-strip-on-private-rooms leaks "this room exists and has N members + $X spent" to anyone with the link. This is a real change to private-room semantics (today everything 403s). Confirm before merge.
 
 ---
 
 ### 🟩 `/trending` as the signed-out homepage
 
-Signed-out visitors land on a live global leaderboard with today/7d/30d tabs (default `7d`). A slim hero strip sits above the board. The current "How it works" and "We literally can't read your prompts" sections move *below* the board. The sample-leaderboard section is deleted (the real one is right there). Signed-in users still redirect to `/app`.
+Signed-out visitors land on a live global leaderboard with today/7d/30d tabs (default `7d`). A slim hero strip — **wordmark + tagline + install snippet + GitHub sign-in** — sits above the board. The current "How it works" and "We literally can't read your prompts" sections move *below* the board. The sample-leaderboard section is deleted (the real one is right there). Signed-in users still redirect to `/app`.
 
-**Touches:** `apps/web/app/page.tsx` (rebuild around `<TrendingClient initialRange="7d" />`); `apps/web/app/trending/page.tsx` becomes a 301 redirect to `/`; OG meta on `/` switches from marketing framing to live-board framing; preserve `?ref=<code>` forwarding to the sign-in CTA (existing `pickRef()` regex stays); update any internal links pointing to `/trending`.
+**Touches:** `apps/web/app/page.tsx` (rebuild around `<TrendingClient initialRange="7d" />` + the new hero strip); `apps/web/app/trending/page.tsx` becomes a 301 redirect to `/`; OG meta on `/` switches from marketing framing to live-board framing; preserve `?ref=<code>` forwarding to the sign-in CTA (existing `pickRef()` regex stays); update any internal links pointing to `/trending`.
 
 **Definition of done:**
 - `/` signed-out: SSR's the live board at 7d, hero strip above, How-it-works + privacy strip below, footer unchanged. No mock data anywhere.
@@ -46,11 +45,7 @@ Signed-out visitors land on a live global leaderboard with today/7d/30d tabs (de
 - Range tab switching keeps `?range=` in sync via shallow nav; bare `/` defaults to 7d.
 - `?ref=<code>` still flows through to the GitHub OAuth start URL in the new hero CTA.
 - `/` OG meta reflects the live-board content, not the marketing pitch (preview shows "today's top burners" framing).
-
-**[OPEN]** Hero strip contents — pick before implementation:
-  (a) wordmark + tagline + install snippet + GitHub sign-in *(recommended — install snippet is the meme; keep it visible above the board)*,
-  (b) wordmark + tagline + GitHub sign-in only,
-  (c) keep all current landing sections, just *add* board above them.
+- Hero strip contains wordmark + tagline + install snippet (`<InstallBlock>`) + GitHub sign-in button, in that visual order.
 
 ---
 
@@ -80,8 +75,7 @@ Clicking "Create org" inserts a row in `orgs` with `status='pending'`, reserving
 - The plan-CHECK widening must run before any soft-create writes `requested_plan='student'`.
 - No dependency on feature #4 (Resend) — emails are trust-on-submit.
 - No new contract package additions beyond extending `CreateOrgRequest` and adding the two admin shapes.
-
-**[OPEN]** Whether the founder can change the **slug** on `/o/<slug>/pending` after submission, or only the name + email. Slug edit re-runs the uniqueness check and re-routes the page. Default: **slug is fixed on submit**, only name + email are editable. Confirm or override.
+- Slug is **fixed at first submit**. Only `founder_name` and `founder_email` are editable on `/o/<slug>/pending`. If the founder typo'd the slug, they have to wait for admin approval and rename via the future org-settings flow — there's no withdraw-and-resubmit path in v1.
 
 ---
 
@@ -133,8 +127,7 @@ Backend OAuth + migration already shipped (`auth-twitter.ts`, `0008_users_twitte
 **Order constraints:**
 - The secrets must be set before the OAuth button ships, or the redirect 500s.
 - No contract changes for leaderboard/trending (deferred by scope). Only the room contract may need to add `twitterHandle` to its member-row shape if it's missing today.
-
-**[OPEN]** Pre-existing manually-set handles (users who set a value in the now-removed text field): leave as-is, or clear in a one-time backfill migration? My recommendation: **leave them**. Add a banner on `/settings/profile` saying "Your handle was set manually before we required OAuth — reconnect to mark it verified." Compromise: leave the data, but only render the pill on render sites if a separate `twitter_verified` boolean is true (requires migration `0011_users_twitter_verified.sql`). Confirm preference.
+- Pre-existing manually-set handles are **left in place**. No purge migration. `/settings/profile` shows a banner to users whose handle is set but who haven't completed OAuth (detect via the lack of a `twitter_oauth_id`) prompting them to reconnect via OAuth to mark it verified. The pill renders unconditionally on the current handle until they reconnect or disconnect.
 
 ---
 
@@ -169,41 +162,74 @@ A new `/groups` page lists public rooms in the viewer's `cf-ipcountry` (signed-o
 
 ---
 
-### 🟩 Primary-source pill (frontend wiring)
-
-Helpers + component already shipped (`lib/primary-source.ts`, `PrimarySourcePill`). What's outstanding: compute `primarySource` server-side on the relevant responses, and render the pill next to handles everywhere ≥50% of a user's 30d cost came from one source.
-
-**Touches:** server-side compute on `LeaderboardRow`, `PublicProfile`, autobiography stats; render on `/u/<handle>`, room leaderboard, share cards under `/cards/`, trending. Extend `SessionRecord` with `sourcePlan` in parsers.
-
----
-
 ### 🟩 Web Push payload encryption
 
-"Send test push" on `/settings/notifications` actually delivers a notification with a real title + body on Chrome desktop and Android. iOS Safari remains known-broken (document, don't chase).
+"Send test push" on `/settings/notifications` actually delivers a notification with a real title + body on **Chrome desktop and Android**. We don't write the crypto ourselves — vendor a Workers-compatible web-push library and replace the `webpush.ts` stub with calls into it. iOS Safari handling (PWA install prompt, "not supported" copy) is deferred — see [`roadmap-deferred.md`](./roadmap-deferred.md).
 
-**Touches:** `apps/api/src/lib/webpush.ts` (ECDH P-256 + HKDF + AES-128-GCM per RFC 8291, using `crypto.subtle` from the Workers runtime); unit tests against RFC 8291 vectors; E2E from `/settings/notifications`.
+**Touches:**
+- Add a Workers-compatible web-push dependency (candidates: `web-push-cf`, `@negrel/webpush`, or similar — pick whichever has a clean `crypto.subtle`-only implementation and an active maintainer). Verify it builds + runs under `wrangler dev` before merging.
+- `apps/api/src/lib/webpush.ts`: keep the file as the project's wrapper (subscription parsing, VAPID JWT signing already works, payload encoding, error handling), but the actual ECDH + HKDF + AES-GCM goes through the vendored library — **no hand-rolled crypto primitives**. The VAPID JWT path stays as-is.
+- 404 / 410 from the push service: hard-delete the offending row from `push_subscriptions`. Other 4xx/5xx propagate as errors but do not delete.
+- Tests: load RFC 8291 vectors into a unit test that exercises the encryption wrapper (regardless of library — confirms the wired-up pipe produces RFC-conformant ciphertext). Manual E2E from `/settings/notifications` against Chrome desktop + Android before merge.
+- No frontend changes required — `/settings/notifications` already has the test-push button.
 
----
+**Definition of done:**
+- "Send test push" on Chrome desktop and Android delivers a real notification (title + body + click-through URL).
+- RFC 8291 vector tests pass.
+- A subscription that returns 404 or 410 on send is deleted from `push_subscriptions` within the same request.
+- No hand-written ECDH / HKDF / AES-GCM lives in our repo. `webpush.ts` only orchestrates the library + handles VAPID + parses subscriptions.
+- iOS Safari users see the existing UI; clicking the test button silently no-ops (no special copy yet — that's deferred).
 
-### 🟩 Taskbar app (Tauri 2.x, macOS + Windows)
+**Order constraints:**
+- The vendored library must be vetted for Workers compatibility (no Node `Buffer`, no `node:` imports) before commit. If no library fits, surface that finding before falling back to a hand-roll.
+- No contract changes.
 
-A native menu-bar / tray app shows today's spend, current streak, top-room rank, and a "sync now" action. Native OS notifications fire on "you got passed" and "your room hit a milestone." Distribution: brew tap (macOS) + winget (Windows), unsigned in this round.
-
-**Touches:** new workspace `apps/taskbar`; Rust + Tauri 2.x stack; device-code auth (same flow as the CLI's `/cli?code=XXXX`); OS keychain storage; new CI build matrix (macos-14, windows-2022). No contract changes — reuses existing endpoints.
-
-This is the longest single feature in the list — budget ~2 weeks. Ship after the smaller features have landed so you're not blocking visible product work on Rust toolchain noise.
+**[OPEN]** Library choice — needs a 30-minute survey. List candidates, pick one, document the choice in the PR description.
 
 ---
 
 ### 🟨 Playwright smoke suite
 
-Not user-visible; a CI gate. ~10 specs assert the install → first card flow, the new homepage, the heatmap toggle, the soft-create flow, the Twitter connect flow, the friends view, the country-locked groups page, the OG cards, and the test-push toast.
+Not user-visible; a CI gate. Specs run against a **real `wrangler dev` Worker** (not MSW) with a fresh local D1 file seeded per spec, so contract drift is caught end-to-end. Browser matrix: **Chromium + WebKit** (no Firefox). Path-filtered gate: smoke runs block PR merge **only when the PR touches `apps/web/**` or `packages/contracts/**`**; api-only or CLI-only PRs skip the smoke job. No visual / screenshot diffs in v1 — behavioral assertions only.
 
-**Touches:** new `apps/web/e2e/`; `@playwright/test` + MSW dependencies; CI workflow change. Runs against a stubbed Worker (msw), not the real one.
+**Spec list (matches what we're actually shipping):**
+1. **Install → first card** — install snippet on `/`, run `npx token-rats login`, sync a fixture log, assert the first leaderboard row + OG share card render.
+2. **Signed-out homepage** — `/` renders the live trending board with 7d default, hero strip above, How-it-works + privacy strip below; `/trending` 301s to `/`; `?ref=<code>` survives the GitHub sign-in CTA.
+3. **Heatmap range toggle** — `/u/<handle>` and `/r/<code>` default to 30d; clicking the toggle swaps to 52w and updates `?range=` in the URL.
+4. **Room stat strip + group streak** — `/r/<code>` shows Members · 30d tokens · 30d cost; group-streak pill reflects ≥1-member-active-day rule with a seeded fixture.
+5. **Soft-create org flow** — POST /v1/orgs → 201 → `/o/<slug>/pending` renders confirmation + editable name/email form; second create from same user → 409.
+6. **Admin approval** — admin user (seeded via `ADMIN_GITHUB_LOGIN`) searches pending orgs and clicks approve; member-only endpoints unblock.
+7. **Email capture interstitial** — pre-deploy user (seeded with `email = NULL`) is redirected once through GitHub OAuth on first page load; post-callback, `users.email` is populated, no re-redirect.
+8. **Twitter connect / disconnect** — Connect X → OAuth round-trip (stub the X side at the network layer for this spec only) → pill renders on `/u/<handle>`, `/r/<code>` member list, friends view. Disconnect → pill disappears everywhere.
+9. **Country-locked groups** — `cf-ipcountry` header injected; create a public room as `DE` user, verify a `US` user can view `/r/<code>` but join is replaced with the country pill; `/groups` lists the room for `DE` and not for `US`.
+10. **Test-push toast** — `/settings/notifications` "Send test push" hits the real wrapper; mocked push service returns 201; UI shows the success toast. (Subscription invalidation path uses a mocked 410 to assert the row gets hard-deleted.)
 
-**Depends on** every other feature in this list landing first so the specs can assert real surfaces. Ships last.
+**Touches:**
+- New directory `apps/web/e2e/` with one `*.spec.ts` per item above.
+- `@playwright/test` dev dependency at the workspace root. No MSW.
+- A per-spec setup helper that: (a) starts `wrangler dev` against a fresh tmp D1 file with migrations applied, (b) seeds fixtures, (c) tears down. May share one worker per spec file via Playwright's worker fixtures.
+- New CI workflow file (or extension of `ci.yml`) with a `paths:` filter on `apps/web/**` and `packages/contracts/**`. Runs the Chromium + WebKit matrix.
+- Document the local run path in `apps/web/README.md` or `CLAUDE.md`.
+
+**Definition of done:**
+- All 10 specs pass on Chromium and WebKit locally and in CI.
+- A PR touching only `apps/api/**` or `packages/cli/**` does **not** trigger the smoke job (verified once after merge).
+- A PR touching `apps/web/**` cannot merge with a failing or skipped smoke job.
+- Seed helpers + the wrangler-dev harness live in `apps/web/e2e/_setup/` (or similar) and are reusable across specs.
+- No screenshot baselines committed; specs are behavior-only.
+
+**Depends on:** every other feature in this list landing first so the specs assert real surfaces. Ships last.
 
 ---
+
+## Coordination notes
+
+Cross-feature races that the author of the *second* PR to land in each pair must resolve:
+
+- **Migration numbering.** Three features need new D1 migrations: #3 (`0009_orgs_pending.sql`), #4 (`0010_users_email.sql`), #6 (`0011_rooms_public.sql`). The numbers in this file assume *that* order. Whoever lands second or third must renumber to whatever the previous migration was + 1, and update the touches line in their PR description.
+- **Room contract / `RoomView.tsx`.** Feature #1 adds the stat strip + heatmap + streak to the top of `RoomView.tsx`; feature #5 adds the Twitter pill to the member list; feature #6 adds the country-mismatch join pill. Three features all editing the same file means whoever merges second has to rebase the third. Coordinate by merging in `#1 → #6 → #5` order (heaviest UI changes first) if the calendar allows.
+- **`orgs.plan` CHECK widening (#3).** This is a table-rebuild migration that briefly locks the `orgs` table. Don't ship it concurrently with anything that writes to `orgs`.
+- **`Heatmap` contract change (#1).** Adding the `range` field to the shared `Heatmap` contract type breaks the existing `/u/<handle>` page until the consumer migrates. Same-PR migration is the design intent — don't split.
 
 ## Locked product decisions
 
@@ -217,7 +243,7 @@ These came out of v1.2 planning and override anything inferred from prior conven
 - **Friends are derived, not requested.** Anyone you share a private (non-public) room with is a friend. No friend graph table.
 - **Twitter/X is real OAuth** — verified handle stored on the user, rendered as a pill next to display name on profile, room member list, and friends list this round (leaderboard + OG cards deferred). Read-only scope; auto-post stays deferred.
 - **Public groups are country-locked via `cf-ipcountry`** — visible and joinable only to viewers whose Cloudflare-resolved country matches.
-- **Taskbar app is cross-platform** (macOS + Windows tray) via Tauri 2.x. New workspace `apps/taskbar`. Reuses existing API; no contract changes.
+- **Taskbar app is deferred until after the repo is open-sourced.** When we revisit, it's cross-platform (macOS + Windows tray) via Tauri 2.x. See [`roadmap-deferred.md`](./roadmap-deferred.md) for the locked design decisions.
 
 ## Explicitly deferred
 
@@ -227,7 +253,7 @@ Real signals that won't ship in this cycle.
 - Friend requests / one-way follows — derived friendship covers the wave.
 - iOS push — still known-broken in Safari. Document, don't chase.
 - Reviving the paid org plan publicly — gated on student-org cohort feedback + D7 retention.
-- Taskbar v2 — Linux, code-signed Windows. v1 ships unsigned.
+- Taskbar app (entire v1) — deferred until after open-sourcing the repo. See [`roadmap-deferred.md`](./roadmap-deferred.md).
 - VS Code extension as a source — Cursor cache covers most of the surface. Provider expansion lives in [`notes/provider-expansion.md`](./notes/provider-expansion.md).
 - Anti-cheat / verification — not the bottleneck.
 
