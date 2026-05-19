@@ -41,3 +41,60 @@ Node themselves.
 `NodeInstallHint` covers the immediate UX bleed for ~2 lines of code; the
 binary path is worth doing properly when we have a stretch to spend on
 release engineering.
+
+## Pro-tier org Stripe checkout email on approval
+
+**Problem.** Approving a pro-tier org today just flips `orgs.status` to
+`'approved'` — the founder gets the same end state as a student-tier org
+and no billing is collected. That's fine for the soft-launch (we're not
+turning on Stripe yet) but it's the missing half of the "pro" tier.
+
+**Goal.** When admin approves an org whose `requested_plan='pro'`, send the
+founder a Stripe Checkout link via Resend (or wire a one-time link in the
+approval response). On successful checkout, set `orgs.plan='pro'` and
+populate `stripe_customer_id` / `stripe_subscription_id`.
+
+**Why deferred.** Mission.md keeps paid features "architected for, not
+built" until the student-tier cohort gives D7 retention signal. Wiring
+Stripe checkout + the webhook handler for org subscriptions is real work
+that we shouldn't do until we know there's demand. The soft-create flow
+already records `requested_plan`, so this is purely additive when we
+revisit.
+
+## Automated email sending (Resend + weekly digest + unsubscribe)
+
+**Problem.** `users.email` is now captured (see the shipped email-capture
+feature) but nothing actually sends mail. `apps/api/src/lib/email.ts` is
+still a stub that logs the intent; `apps/api/src/scheduled.ts` is an
+explicit no-op. The Monday `0 16 * * 1` cron in `wrangler.toml` runs and
+returns immediately. Until this lands, any outreach is done manually
+against the captured email list.
+
+**Goal.** Deliver the weekly digest (and any future transactional emails)
+via a real ESP, with a working unsubscribe link.
+
+**Scope to revisit:**
+
+- **Resend wiring.** Replace `sendEmail` stub with a real Resend call.
+  Decide on sandbox vs verified domain (the recommendation is
+  `noreply@tokenrats.com` with full SPF + DKIM + DMARC for inbox
+  placement).
+- **Cron handler.** Restore `runWeeklyDigests` to iterate users with an
+  email + a non-empty 7-day rollup, call `buildWeeklyDigest`, and send.
+  Replace the sequential `await sendEmail` loop with a Cloudflare Queues
+  fan-out before this scales past a few hundred users.
+- **Unsubscribe.** Add `POST /v1/notifications/unsubscribe?token=<signed>`
+  (HMAC over `(user_id, scope)`) that flips a notification preference
+  bit. v1 is link-only — no `/settings/notifications` toggle to manually
+  re-subscribe; revisit if the lack of a manual flip causes confusion.
+- **Notification preferences schema.** Either a single
+  `users.email_unsubscribed_at` timestamp (coarse) or a
+  `user_notification_prefs` table keyed on `(user_id, category)`. The
+  current notifications routes don't have an email category yet.
+
+**Why deferred.** The user prefers to send outreach manually from the
+captured list until there's a clear digest worth automating. Email
+deliverability + domain verification work is real, and shipping a
+half-working digest is worse than no digest. Capture-only ships first;
+sending follows once the audience is large enough to be worth a real
+ESP integration.
