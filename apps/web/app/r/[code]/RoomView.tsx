@@ -15,9 +15,8 @@ import type {
   RoomSummary,
   StreakRow,
 } from "@token-rats/contracts";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { HeatmapWithToggle } from "../../../components/HeatmapWithToggle";
-import { PrivacyFooter } from "../../../components/PrivacyFooter";
 import { SourceBadges } from "../../../components/SourceBadge";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
@@ -40,6 +39,7 @@ interface Props {
   groupStreak: GroupStreak | null;
   cookieHeader: string;
   currentUserId?: string;
+  footer: ReactNode;
 }
 
 type Tab = "leaderboard" | "activity" | "challenges";
@@ -127,6 +127,7 @@ export function RoomView({
   groupStreak,
   cookieHeader,
   currentUserId,
+  footer,
 }: Props) {
   const [room, setRoom] = useState<Room>(initialRoom);
   const [activeTab, setActiveTab] = useState<Tab>("leaderboard");
@@ -564,7 +565,7 @@ export function RoomView({
           />
         )}
       </main>
-      <PrivacyFooter />
+      {footer}
     </div>
   );
 }
