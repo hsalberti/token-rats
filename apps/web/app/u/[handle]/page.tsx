@@ -1,6 +1,8 @@
 import type { Heatmap, HeatmapRange } from "@token-rats/contracts";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
+import { ProfileReferralCard } from "../../../components/ProfileReferralCard";
 import { SourceTiles } from "../../../components/SourcePill";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { Avatar } from "../../../components/ui/Avatar";
@@ -64,6 +66,8 @@ export default async function ProfilePage({ params, searchParams }: Props) {
     bio?: string | null;
     twitterHandle?: string | null;
     publicProfile?: boolean;
+    referredCount?: number;
+    referralCode?: string;
     totals: {
       today: { tokens: number; costUsdCents: number };
       week: { tokens: number; costUsdCents: number };
@@ -133,6 +137,13 @@ export default async function ProfilePage({ params, searchParams }: Props) {
 
   if (!profile) return null;
 
+  // Origin for the share link — read from request headers so SSR and CSR
+  // render identically (no client-only window reads).
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${proto}://${host}` : "https://tokenrats.com";
+
   return (
     <div className="min-h-screen bg-zinc-950">
       {/* Header */}
@@ -195,6 +206,19 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             if the API call errored, `heatmap` is null and we skip the block. */}
         {heatmap && heatmap.days.length > 0 && (
           <ProfileHeatmapClient handle={handle} initial={heatmap} />
+        )}
+
+        {/* Referrals — count is public on any visible profile; the
+            copy-able invite link is only included when the viewer owns
+            the profile (API enforces this by only sending referralCode
+            to the owner). */}
+        {(typeof profile.referredCount === "number" || profile.referralCode) && (
+          <ProfileReferralCard
+            count={profile.referredCount ?? 0}
+            referralCode={profile.referralCode}
+            origin={origin}
+            handle={profile.handle}
+          />
         )}
 
         {/* Badges / tagline */}

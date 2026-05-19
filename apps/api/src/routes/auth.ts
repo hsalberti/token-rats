@@ -49,6 +49,19 @@ const auth = new Hono<HonoEnv>();
 /** Cookie marker so we never re-show the email re-auth interstitial. */
 const EMAIL_REAUTH_COOKIE = "tr_email_reauth_seen";
 
+/**
+ * Sanitize a UTM-style query param before round-tripping it through KV /
+ * persisting it on the user's row. Lowercased, restricted to a small charset,
+ * capped at 40 chars. Returns null for anything that doesn't survive.
+ */
+const UTM_RE = /^[a-z0-9._-]+$/;
+function sanitizeUtm(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const v = raw.trim().toLowerCase().slice(0, 40);
+  if (v.length === 0) return null;
+  return UTM_RE.test(v) ? v : null;
+}
+
 auth.get("/github/start", async (c) => {
   const state = randomBase64url(24);
   const stateKey = `oauth:state:${state}`;
@@ -58,7 +71,15 @@ auth.get("/github/start", async (c) => {
   const refRaw = c.req.query("ref");
   const ref = refRaw && isValidReferralCodeFormat(refRaw) ? refRaw : null;
 
-  await c.env.CACHE.put(stateKey, JSON.stringify({ ref }), { expirationTtl: 600 });
+  // Optional channel attribution (UTM). Sanitized + capped before storage,
+  // never trusted on read. Used to label new-signup rows in admin reporting.
+  const utmSource = sanitizeUtm(c.req.query("utm_source"));
+  const utmMedium = sanitizeUtm(c.req.query("utm_medium"));
+  const utmCampaign = sanitizeUtm(c.req.query("utm_campaign"));
+
+  await c.env.CACHE.put(stateKey, JSON.stringify({ ref, utmSource, utmMedium, utmCampaign }), {
+    expirationTtl: 600,
+  });
 
   // v1.2 email-capture flow: when the web app redirects an existing user
   // through here to grant the new `user:email` scope, we set a cookie *now*
@@ -113,16 +134,30 @@ auth.get("/github/callback", async (c) => {
   // Delete immediately (one-time use)
   await c.env.CACHE.delete(stateKey);
 
-  // Older state records were just "1"; new records are JSON `{ ref: string | null }`.
+  // Older state records were just "1"; newer records are JSON. Shape grew
+  // over time: `{ ref }` → `{ ref, utmSource, utmMedium, utmCampaign }`. We
+  // re-validate every field on read so a tampered KV entry can't push junk
+  // into the `users` row.
   let refCode: string | null = null;
+  let utmSource: string | null = null;
+  let utmMedium: string | null = null;
+  let utmCampaign: string | null = null;
   if (stateVal.startsWith("{")) {
     try {
-      const parsed = JSON.parse(stateVal) as { ref?: string | null };
+      const parsed = JSON.parse(stateVal) as {
+        ref?: string | null;
+        utmSource?: string | null;
+        utmMedium?: string | null;
+        utmCampaign?: string | null;
+      };
       if (typeof parsed.ref === "string" && isValidReferralCodeFormat(parsed.ref)) {
         refCode = parsed.ref;
       }
+      utmSource = sanitizeUtm(parsed.utmSource ?? undefined);
+      utmMedium = sanitizeUtm(parsed.utmMedium ?? undefined);
+      utmCampaign = sanitizeUtm(parsed.utmCampaign ?? undefined);
     } catch {
-      // ignore — treat as no ref
+      // ignore — treat as no ref / no utm
     }
   }
 
@@ -232,11 +267,26 @@ auth.get("/github/callback", async (c) => {
   } else {
     isNewUser = true;
     // Insert new user; handle = github login. Email may be NULL if the user
-    // declined the email scope (rare on first sign-in but possible).
+    // declined the email scope (rare on first sign-in but possible). UTM
+    // fields stamp the signup channel; null when the user didn't arrive via
+    // a tagged link.
     await c.env.DB.prepare(
-      "INSERT INTO users (id, github_id, handle, avatar_url, email, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+      `INSERT INTO users
+         (id, github_id, handle, avatar_url, email,
+          signup_source, signup_medium, signup_campaign, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-      .bind(newId, ghUser.id, ghUser.login, ghUser.avatar_url ?? null, primaryEmail, now)
+      .bind(
+        newId,
+        ghUser.id,
+        ghUser.login,
+        ghUser.avatar_url ?? null,
+        primaryEmail,
+        utmSource,
+        utmMedium,
+        utmCampaign,
+        now,
+      )
       .run();
     userId = newId;
 

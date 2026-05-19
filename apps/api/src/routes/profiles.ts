@@ -8,6 +8,7 @@
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { notFound } from "../lib/errors.js";
+import { ensureReferralCode } from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
 
@@ -113,6 +114,18 @@ profiles.get("/:handle", optionalAuth, async (c) => {
     sessions: r.sessions,
   }));
 
+  // Referrals (migration 0007). Count is public — readable by anyone who
+  // can already see the profile. The code itself is owner-only so the page
+  // can render a copy-able invite link without a second fetch.
+  const referralCountRow = await c.env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM referrals WHERE referrer_user_id = ?",
+  )
+    .bind(user.id)
+    .first<{ n: number }>();
+  const referredCount = referralCountRow?.n ?? 0;
+
+  const referralCode = isOwner ? await ensureReferralCode(c.env.DB, user.id) : undefined;
+
   return c.json({
     profile: {
       id: user.id,
@@ -120,6 +133,8 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       avatarUrl: user.avatar_url,
       ...(isPublic || isOwner ? { bio: user.bio, twitterHandle: user.twitter_handle } : {}),
       ...(isOwner ? { publicProfile: user.public_profile === 1 } : {}),
+      referredCount,
+      ...(referralCode ? { referralCode } : {}),
       totals: {
         today: {
           tokens: totals.today_tokens,

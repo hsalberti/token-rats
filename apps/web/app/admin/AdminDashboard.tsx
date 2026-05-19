@@ -307,32 +307,36 @@ function ActivitySection({ data }: { data: AdminActivityResponse }) {
 /* -------------------------------------------------------------------------- */
 
 function ReferrersSection({ data }: { data: AdminReferrersResponse }) {
-  const total = data.rows.reduce((acc, r) => acc + r.count, 0);
+  const top = data.rows[0]?.count ?? 0;
 
   return (
     <section className="space-y-4">
       <h2 className="text-xl font-bold tracking-tight">Top referrers</h2>
-      {!data.tracked && (
-        <div className="rounded-lg border border-yellow-700/40 bg-yellow-900/10 px-4 py-3 text-sm text-yellow-200">
-          <strong className="font-bold">Not tracked yet.</strong> The schema has no referral
-          attribution column on <code className="rounded bg-zinc-800 px-1">users</code>, and OAuth
-          state/landing pages don&apos;t log a source. The breakdown below is a proxy:{" "}
-          <span className="font-semibold">{data.signal}</span>.
-        </div>
-      )}
+      <p className="text-sm text-zinc-400">
+        Signups brought in via a <code className="rounded bg-zinc-800 px-1">?ref=</code> link.
+      </p>
       <Card>
         {data.rows.length === 0 ? (
-          <p className="text-sm text-zinc-500">No proxy data available yet.</p>
+          <p className="text-sm text-zinc-500">No referrals yet.</p>
         ) : (
           <ul className="divide-y divide-zinc-800">
-            {data.rows.map((r) => {
-              const pct = total > 0 ? Math.round((r.count / total) * 100) : 0;
+            {data.rows.map((r, idx) => {
+              const pct = top > 0 ? Math.round((r.count / top) * 100) : 0;
               return (
-                <li key={r.label} className="flex items-center justify-between py-3">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm text-zinc-300">{r.label}</span>
-                    <span className="text-xs text-zinc-500">{pct}%</span>
-                  </div>
+                <li key={r.handle} className="flex items-center gap-3 py-3">
+                  <span className="w-6 text-right font-mono text-xs text-zinc-500">{idx + 1}</span>
+                  {r.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={r.avatarUrl} alt="" className="h-7 w-7 rounded-full bg-zinc-800" />
+                  ) : (
+                    <div className="h-7 w-7 rounded-full bg-zinc-800" />
+                  )}
+                  <a
+                    href={`/u/${r.handle}`}
+                    className="flex-1 truncate font-mono text-sm text-zinc-200 hover:text-orange-400"
+                  >
+                    @{r.handle}
+                  </a>
                   <div className="flex items-center gap-3">
                     <div className="h-2 w-32 overflow-hidden rounded-full bg-zinc-800">
                       <div className="h-full bg-rat-500" style={{ width: `${pct}%` }} />

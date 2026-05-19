@@ -7,7 +7,7 @@ import type {
 /**
  * GET /v1/admin/signups    — total user count + cumulative signups by UTC day (30d)
  * GET /v1/admin/activity   — distinct active users per UTC day (30d)
- * GET /v1/admin/referrers  — signup-source signal (or "not tracked" placeholder)
+ * GET /v1/admin/referrers  — top referrers by signups brought in via ?ref=<code>
  *
  * Auth: cookie/bearer required (requireAuth), AND the resolved userId must
  * match `ADMIN_GITHUB_LOGIN` via the `isAdmin` helper. Non-admins get 403.
@@ -193,53 +193,30 @@ admin.get("/activity", async (c) => {
 /* GET /v1/admin/referrers                                                     */
 /* -------------------------------------------------------------------------- */
 
-admin.get("/referrers", async (c) => {
-  // Referral attribution is not in the schema. There is no `referrer`
-  // column on `users` and no signup-source table. We surface a best-effort
-  // fallback: the breakdown of users by the source of their *earliest*
-  // synced session in the last 30 days. This proxies "where they came in
-  // from" — landing-page hits, GitHub OAuth events, and join-link clicks
-  // are not logged anywhere queryable.
-  const days = last30Days();
-  const firstDay = days[0];
-  if (!firstDay) {
-    return c.json<AdminReferrersResponse>({
-      tracked: false,
-      signal: "First CLI source (last 30 days)",
-      rows: [],
-      generatedAt: Date.now(),
-    });
-  }
-  const windowStartMs = dayStartMs(firstDay);
+const TOP_REFERRERS_LIMIT = 100;
 
-  // For each user, find their earliest session's source within the window,
-  // then count users by that source. Users with no session in the window
-  // are excluded from the proxy.
+admin.get("/referrers", async (c) => {
+  // Top referrers from the `referrals` table (migration 0007). Each row is
+  // a user who has brought in at least one signup via their `?ref=<code>`
+  // link. Capped at TOP_REFERRERS_LIMIT — admin-only, so the cap is
+  // generous; a public version (with masking) can be derived later.
   const rows = await c.env.DB.prepare(
-    `SELECT first_source AS source, COUNT(*) AS n
-     FROM (
-       SELECT user_id,
-              (SELECT s2.source
-                 FROM sessions s2
-                 WHERE s2.user_id = s.user_id
-                   AND s2.started_at >= ?
-                 ORDER BY s2.started_at ASC
-                 LIMIT 1) AS first_source
-       FROM sessions s
-       WHERE s.started_at >= ?
-       GROUP BY user_id
-     )
-     WHERE first_source IS NOT NULL
-     GROUP BY first_source
-     ORDER BY n DESC`,
+    `SELECT u.handle, u.avatar_url AS avatarUrl, COUNT(*) AS n
+       FROM referrals r
+       JOIN users u ON u.id = r.referrer_user_id
+      GROUP BY r.referrer_user_id
+      ORDER BY n DESC, u.handle ASC
+      LIMIT ?`,
   )
-    .bind(windowStartMs, windowStartMs)
-    .all<{ source: string; n: number }>();
+    .bind(TOP_REFERRERS_LIMIT)
+    .all<{ handle: string; avatarUrl: string | null; n: number }>();
 
   const payload: AdminReferrersResponse = {
-    tracked: false,
-    signal: "First CLI source (last 30 days)",
-    rows: (rows.results ?? []).map((r) => ({ label: r.source, count: r.n })),
+    rows: (rows.results ?? []).map((r) => ({
+      handle: r.handle,
+      avatarUrl: r.avatarUrl,
+      count: r.n,
+    })),
     generatedAt: Date.now(),
   };
   return c.json(payload);

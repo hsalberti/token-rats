@@ -61,26 +61,20 @@ export type AdminActivityResponse = z.infer<typeof AdminActivityResponse>;
 
 /* ----------------------- GET /v1/admin/referrers ------------------------- */
 /**
- * Referral attribution is not tracked yet — there is no `referrer` column on
- * `users` and no signup-attribution table. The endpoint returns
- * `tracked = false` and a best-effort fallback: the breakdown of new users
- * per CLI source (claude-code vs cursor) over the last 30 days, derived
- * from whichever source they first synced from. This is a proxy for
- * "where the user came from" until proper attribution lands.
+ * Top referrers — one row per user who has brought in at least one signup
+ * via a `?ref=<code>` link. Sourced from the `referrals` table populated at
+ * OAuth callback time (see migration 0007). Ordered by referred count desc,
+ * capped server-side.
  */
 export const AdminReferrerRow = z.object({
-  /** A label describing the source of the signal. */
-  label: z.string(),
-  /** Number of users (or events) attributed to this label. */
+  handle: z.string(),
+  avatarUrl: z.string().url().nullable(),
+  /** Number of users this referrer has brought in. */
   count: z.number().int().nonnegative(),
 });
 export type AdminReferrerRow = z.infer<typeof AdminReferrerRow>;
 
 export const AdminReferrersResponse = z.object({
-  /** True iff a real referral attribution column / table exists. */
-  tracked: z.boolean(),
-  /** Description of what `rows` represents (e.g. "First CLI source"). */
-  signal: z.string(),
   rows: z.array(AdminReferrerRow),
   generatedAt: z.number().int().positive(),
 });
