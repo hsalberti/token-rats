@@ -236,16 +236,27 @@ auth.get("/github/callback", async (c) => {
     // Don't fail login on email-fetch failure — the user just won't have one.
   }
 
+  // Country at sign-in time — used as a set-once attribution for the public
+  // country board. Validated like other cf-ipcountry reads: ISO-3166-1
+  // alpha-2, drop "XX" / "T1" sentinels. Set on INSERT and on UPDATE only
+  // when the existing value is NULL, so a VPN / travel session can't
+  // re-home an established user to a different board.
+  const cfIpCountryRaw = c.req.header("cf-ipcountry")?.trim().toUpperCase() ?? "";
+  const signupCountry =
+    cfIpCountryRaw.length === 2 && cfIpCountryRaw !== "XX" && cfIpCountryRaw !== "T1"
+      ? cfIpCountryRaw
+      : null;
+
   // Upsert user in D1
   const now = Date.now();
   const newId = crypto.randomUUID();
 
   // Try to find existing user by github_id
   const existing = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url FROM users WHERE github_id = ?",
+    "SELECT id, handle, avatar_url, country FROM users WHERE github_id = ?",
   )
     .bind(ghUser.id)
-    .first<{ id: string; handle: string; avatar_url: string | null }>();
+    .first<{ id: string; handle: string; avatar_url: string | null; country: string | null }>();
 
   let userId: string;
   let isNewUser = false;
@@ -263,18 +274,26 @@ auth.get("/github/callback", async (c) => {
         .bind(ghUser.avatar_url ?? null, existing.id)
         .run();
     }
+    // Backfill country on first login after the migration shipped. The WHERE
+    // clause makes this a no-op once stamped, so a roaming user keeps their
+    // home-country board placement.
+    if (!existing.country && signupCountry) {
+      await c.env.DB.prepare("UPDATE users SET country = ? WHERE id = ? AND country IS NULL")
+        .bind(signupCountry, existing.id)
+        .run();
+    }
     userId = existing.id;
   } else {
     isNewUser = true;
     // Insert new user; handle = github login. Email may be NULL if the user
     // declined the email scope (rare on first sign-in but possible). UTM
     // fields stamp the signup channel; null when the user didn't arrive via
-    // a tagged link.
+    // a tagged link. Country is captured at signup for the country board.
     await c.env.DB.prepare(
       `INSERT INTO users
          (id, github_id, handle, avatar_url, email,
-          signup_source, signup_medium, signup_campaign, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          signup_source, signup_medium, signup_campaign, country, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
       .bind(
         newId,
@@ -285,6 +304,7 @@ auth.get("/github/callback", async (c) => {
         utmSource,
         utmMedium,
         utmCampaign,
+        signupCountry,
         now,
       )
       .run();

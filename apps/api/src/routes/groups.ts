@@ -1,12 +1,15 @@
 /**
- * GET /v1/groups — public country-locked rooms in the viewer's country.
+ * GET /v1/groups — country-scoped public surface for the viewer's country.
  *
- * Auth optional. Returns up to 50 rooms where `is_public=1` and
- * `country = cf-ipcountry`. Each row includes member count + 30d token / cost
- * totals. Sorted by 30d cost (USD) descending — the "most-active rooms in
- * your country" surface.
+ * Auth optional. Returns two parallel boards keyed off `cf-ipcountry`:
+ *  - `groups`: up to 50 public rooms where `is_public=1` and
+ *    `country = cf-ipcountry`, ranked by trailing-30d cost.
+ *  - `userBoard`: up to 100 public users where `users.country = cf-ipcountry`,
+ *    ranked by trailing-30d tokens. Drives the "Brazil board" auto-list — no
+ *    room creation required.
  *
- * Empty / unknown `cf-ipcountry` → empty list with `country: null`.
+ * Empty / unknown `cf-ipcountry` → both lists empty with `country: null`.
+ * Banned handles are filtered out of `userBoard` (KV-backed list).
  */
 import { Hono } from "hono";
 import type { Env } from "../env.js";
@@ -29,7 +32,7 @@ function cfCountry(c: { req: { header: (k: string) => string | undefined } }): s
 groups.get("/", optionalAuth, async (c) => {
   const country = cfCountry(c);
   if (!country) {
-    return c.json({ country: null, groups: [] });
+    return c.json({ country: null, groups: [], userBoard: [] });
   }
 
   // 30-day window for aggregate totals.
@@ -76,6 +79,44 @@ groups.get("/", optionalAuth, async (c) => {
       total_cost: number;
     }>();
 
+  // Country user board — public users in this country, ranked by trailing-30d
+  // tokens. LEFT JOIN so a brand-new public user with no rollup rows still
+  // appears (zeros), making the board feel populated from day one.
+  const usersRes = await c.env.DB.prepare(
+    `SELECT u.id                              AS user_id,
+            u.handle,
+            u.avatar_url,
+            COALESCE(SUM(dr.tokens),         0) AS tokens,
+            COALESCE(SUM(dr.cost_usd_cents), 0) AS cost_usd_cents,
+            COALESCE(SUM(dr.sessions),       0) AS sessions
+       FROM users u
+       LEFT JOIN daily_rollup dr
+         ON dr.user_id = u.id
+        AND dr.day >= ?
+      WHERE u.public_profile = 1
+        AND u.country = ?
+      GROUP BY u.id, u.handle, u.avatar_url
+      ORDER BY tokens DESC, u.handle ASC
+      LIMIT 100`,
+  )
+    .bind(fromDay, country)
+    .all<{
+      user_id: string;
+      handle: string;
+      avatar_url: string | null;
+      tokens: number;
+      cost_usd_cents: number;
+      sessions: number;
+    }>();
+
+  // Drop banned handles (KV-backed banlist matches `/v1/trending`).
+  const userRows = usersRes.results ?? [];
+  const filteredUsers: typeof userRows = [];
+  for (const row of userRows) {
+    const banned = await c.env.CACHE.get(`banned:handle:${row.handle.toLowerCase()}`);
+    if (banned === null) filteredUsers.push(row);
+  }
+
   return c.json({
     country,
     groups: (result.results ?? []).map((r) => ({
@@ -85,6 +126,15 @@ groups.get("/", optionalAuth, async (c) => {
       memberCount: r.member_count,
       total30dTokens: r.total_tokens,
       total30dCostUsdCents: r.total_cost,
+    })),
+    userBoard: filteredUsers.map((row, i) => ({
+      rank: i + 1,
+      userId: row.user_id,
+      handle: row.handle,
+      avatarUrl: row.avatar_url,
+      tokens: row.tokens,
+      costUsdCents: row.cost_usd_cents,
+      sessions: row.sessions,
     })),
   });
 });

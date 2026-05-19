@@ -170,9 +170,23 @@ export const PublicGroupRow = z.object({
 });
 export type PublicGroupRow = z.infer<typeof PublicGroupRow>;
 
+/** One row on the country board — a public user ranked by trailing-30d tokens. */
+export const CountryBoardRow = z.object({
+  rank: z.number().int().positive(),
+  userId: z.string(),
+  handle: z.string(),
+  avatarUrl: z.string().url().nullable(),
+  tokens: z.number().int().nonnegative(),
+  costUsdCents: z.number().int().nonnegative(),
+  sessions: z.number().int().nonnegative(),
+});
+export type CountryBoardRow = z.infer<typeof CountryBoardRow>;
+
 export const GetGroupsResponse = z.object({
   country: z.string().min(2).max(2).nullable(),
   groups: z.array(PublicGroupRow),
+  /** Public users in the viewer's country, ranked by trailing-30d tokens. */
+  userBoard: z.array(CountryBoardRow),
 });
 export type GetGroupsResponse = z.infer<typeof GetGroupsResponse>;
 
