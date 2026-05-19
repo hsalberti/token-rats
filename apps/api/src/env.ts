@@ -19,6 +19,13 @@ export type Env = {
   STRIPE_SECRET_KEY: string;
   /** Stripe webhook signing secret (whsec_*). Used to verify incoming webhook signatures. */
   STRIPE_WEBHOOK_SECRET: string;
+  /**
+   * GitHub login (== `users.handle`) of the project owner allowed to access
+   * the `/v1/admin/*` analytics dashboard. Optional — when unset, all admin
+   * endpoints respond 403 (failure-closed). Set as a Worker secret via
+   * `wrangler secret put ADMIN_GITHUB_LOGIN`.
+   */
+  ADMIN_GITHUB_LOGIN?: string;
   /** Twitter/X OAuth client id (v1.2 Track AC). Optional — when unset, the
    *  /v1/auth/twitter/* endpoints respond 503 and the UI hides the Connect button. */
   X_OAUTH_CLIENT_ID?: string;

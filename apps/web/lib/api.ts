@@ -9,6 +9,9 @@
 
 import type {
   AcceptOrgInviteResponse,
+  AdminActivityResponse,
+  AdminReferrersResponse,
+  AdminSignupsResponse,
   CreateChallengeRequest,
   CreateChallengeResponse,
   CreateOrgInviteRequest,
@@ -431,6 +434,10 @@ export const api = {
   getProxyAnthropicKeyStatus,
   setProxyAnthropicKey,
   deleteProxyAnthropicKey,
+  // Admin analytics
+  getAdminSignups,
+  getAdminActivity,
+  getAdminReferrers,
 };
 
 // Phase 3 Track M: proxy key management
@@ -460,4 +467,21 @@ export async function deleteProxyAnthropicKey(cookieHeader?: string): Promise<{ 
     method: "DELETE",
     cookieHeader,
   });
+}
+
+// Admin analytics dashboard (project-owner only).
+
+/** Fetch total + cumulative signup time-series for the last 30 days. */
+export async function getAdminSignups(cookieHeader?: string): Promise<AdminSignupsResponse> {
+  return request<AdminSignupsResponse>(ENDPOINTS.adminSignups, { cookieHeader });
+}
+
+/** Fetch distinct active users per day for the last 30 days. */
+export async function getAdminActivity(cookieHeader?: string): Promise<AdminActivityResponse> {
+  return request<AdminActivityResponse>(ENDPOINTS.adminActivity, { cookieHeader });
+}
+
+/** Fetch the best-available signup-source breakdown. */
+export async function getAdminReferrers(cookieHeader?: string): Promise<AdminReferrersResponse> {
+  return request<AdminReferrersResponse>(ENDPOINTS.adminReferrers, { cookieHeader });
 }
