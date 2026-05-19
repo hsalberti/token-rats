@@ -25,7 +25,7 @@ import { whoamiCommand } from "./commands/whoami.js";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getVersion(): string {
-  return "0.0.3";
+  return "0.0.4";
 }
 
 function printHelp(): void {
@@ -60,6 +60,12 @@ function printHelp(): void {
   Token Rats reads usage counts only — never prompts or completions.
   The parser source is in packages/parsers/. We literally can't read
   what you typed.
+
+\x1b[1mCursor notes:\x1b[0m
+  Cursor doesn't store token counts locally, so per-request tokens
+  are *estimated* (10k in / 2k out per composer turn, claude-3-5-sonnet
+  rates). Tab autocomplete is excluded. Numbers are comparable across
+  Token Rats users but won't match cursor.com to the token.
 
 \x1b[1mExamples:\x1b[0m
   npx token-rats login

@@ -12,8 +12,8 @@ import { computeDedupeKey, parseClaudeCode, parseCodex, parseCursor } from "@tok
 import { priceOf } from "@token-rats/pricing";
 import { ApiClient, ApiError } from "../lib/api.js";
 import { loadToken } from "../lib/auth-store.js";
-import { readCursorDb } from "../lib/cursor-extract.js";
-import { discoverClaudeCodeFiles, discoverCodexFiles, discoverCursorDb } from "../lib/discover.js";
+import { extractCursorGenerations } from "../lib/cursor-extract.js";
+import { discoverClaudeCodeFiles, discoverCodexFiles } from "../lib/discover.js";
 import { dim, error, info, spinner, success, warn } from "../lib/log.js";
 
 const BATCH_SIZE = 500;
@@ -131,27 +131,32 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
   }
 
   // ── 2. Discover + parse Cursor ─────────────────────────────────────────────
+  // Cursor's AI events live in `aiService.generations` inside per-workspace
+  // state.vscdb files. Cursor does NOT store token counts on disk; the parser
+  // estimates them from request type (see packages/parsers/src/cursor.ts).
   const cursorSessions: SessionRecord[] = [];
-  const cursorDbPath = discoverCursorDb();
+  const { rows, skipped, dbCount } = await extractCursorGenerations();
 
-  if (cursorDbPath) {
-    if (opts.verbose) info(`Found Cursor DB at ${cursorDbPath}`);
-    const { rows, skipped } = await readCursorDb(cursorDbPath);
-    if (skipped) {
-      warn(skipped);
-    } else if (rows.length > 0) {
-      try {
-        const records = parseCursor(JSON.stringify(rows));
-        cursorSessions.push(...records);
-        if (opts.verbose) dim(`  Cursor DB: ${records.length} session(s)`);
-      } catch {
-        if (opts.verbose) warn("Failed to parse Cursor rows — skipping");
+  if (skipped) {
+    warn(skipped);
+  } else if (dbCount === 0) {
+    if (opts.verbose) info("No Cursor workspace storage found — skipping Cursor source");
+  } else if (rows.length > 0) {
+    if (opts.verbose) info(`Scanned ${dbCount} Cursor workspace DB(s)`);
+    try {
+      const records = parseCursor(JSON.stringify(rows));
+      cursorSessions.push(...records);
+      if (opts.verbose) {
+        dim(
+          `  Cursor: ${rows.length} generation event(s) → ${records.length} session(s)` +
+            ` (tokens estimated, see help)`,
+        );
       }
-    } else if (opts.verbose) {
-      dim("  Cursor DB: 0 rows found");
+    } catch {
+      if (opts.verbose) warn("Failed to parse Cursor rows — skipping");
     }
-  } else {
-    if (opts.verbose) info("Cursor DB not found — skipping Cursor source");
+  } else if (opts.verbose) {
+    dim(`  Scanned ${dbCount} Cursor workspace DB(s): no AI generations found`);
   }
 
   // ── 2.5. Merge Claude Code records that share the same sessionId ──────────
@@ -196,9 +201,7 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
 
   // ── 4. Dry-run short-circuit ───────────────────────────────────────────────
   if (opts.dryRun) {
-    info(
-      `[dry-run] Would upload ${allSessions.length} session(s) in ${Math.ceil(allSessions.length / BATCH_SIZE)} batch(es).`,
-    );
+    info(`[dry-run] Would upload ${allSessions.length} session(s) in ${Math.ceil(allSessions.length / BATCH_SIZE)} batch(es).`);
     if (opts.verbose) {
       for (const s of allSessions.slice(0, 10)) {
         dim(

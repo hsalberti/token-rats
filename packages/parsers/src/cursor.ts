@@ -1,66 +1,74 @@
 /**
- * parseCursor — converts Cursor request rows (exported from its sqlite cache by
- * the CLI) into SessionRecord[].
+ * parseCursor — converts Cursor generation events (exported from per-workspace
+ * sqlite caches by the CLI) into SessionRecord[].
  *
  * ## Input format
  * A JSON string (or UTF-8 Uint8Array/ArrayBuffer) containing an array of
- * CursorRow objects. One row = one Cursor AI request.
+ * CursorRow objects. One row = one Cursor AI generation event.
  *
  * Expected row shape:
  * ```ts
  * {
- *   id:               string;  // unique request id
- *   model:            string;  // Cursor-side model name, e.g. "claude-3.5-sonnet"
- *   promptTokens:     number;  // input token count
- *   completionTokens: number;  // output token count
- *   startedAt:        number;  // ms epoch
- *   endedAt:          number;  // ms epoch
+ *   id:     string;   // Cursor's generationUUID
+ *   type:   string;   // "composer" | "tab" | other Cursor-internal label
+ *   unixMs: number;   // ms epoch of the event
  * }
  * ```
  *
- * ## Model-name mapping
- * Cursor stores shortened/variant model names. `CURSOR_MODEL_MAP` translates
- * them to the canonical names in `packages/pricing/src/prices.json`.
- * Unknown model names pass through unchanged — priceOf() will return
- * costUsdCents: 0 for them, which is correct per spec.
+ * ## Why estimates, not real token counts
+ * Cursor does NOT store token counts in its local sqlite cache — the raw
+ * generation records are just `{ unixMs, generationUUID, type, textDescription }`.
+ * Real per-request token totals only live on cursor.com servers. So we
+ * estimate, conservatively, from the request type:
+ *
+ *   - "composer"        ≈ a full agentic chat turn → 10 000 input / 2 000 output
+ *     (matches the rough weight of one premium Cursor request, billed roughly
+ *     like a Claude-3.5-Sonnet call)
+ *   - everything else   → skipped (Tab autocomplete and other small models
+ *     would inflate counts without representing meaningful AI usage)
+ *
+ * Numbers in the leaderboard for Cursor are therefore *estimates*. Friends can
+ * compare relative usage but the absolute total won't match cursor.com to the
+ * token. We pin the cost using a fixed claude-3-5-sonnet rate so the dollar
+ * figure stays consistent across users and self-explanatory in the UI.
  *
  * ## Privacy
- * No prompt or completion text is ever read, stored, or returned.
+ * `textDescription` is dropped at the extractor layer (packages/cli/src/lib/
+ * cursor-extract.ts) and never reaches this parser. No prompt or completion
+ * content is read, stored, or returned anywhere in the pipeline.
  */
 
 import type { SessionRecord } from "@token-rats/contracts";
-import { priceOf } from "@token-rats/pricing";
 import { computeDedupeKey } from "./hash.js";
 
-/** Maps Cursor model names → canonical pricing-table model names. */
-const CURSOR_MODEL_MAP: Record<string, string> = {
-  // Claude models — Cursor uses abbreviated names without date suffixes
-  "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
-  "claude-3-5-sonnet": "claude-3-5-sonnet-20241022",
-  "claude-3.5-haiku": "claude-3-5-haiku-20241022",
-  "claude-3-5-haiku": "claude-3-5-haiku-20241022",
-  "claude-3.5-opus": "claude-3-opus-20240229",
-  "claude-3-opus": "claude-3-opus-20240229",
-  "claude-3-sonnet": "claude-3-sonnet-20240229",
-  "claude-3-haiku": "claude-3-haiku-20240307",
-  // GPT models — Cursor may omit date suffixes
-  "gpt-4o-mini": "gpt-4o-mini",
-  "gpt-4o": "gpt-4o",
-  "gpt-4-turbo": "gpt-4-turbo",
+/** Token estimates per Cursor request type. */
+const ESTIMATES: Record<string, { inTokens: number; outTokens: number; model: string } | null> = {
+  composer: { inTokens: 10_000, outTokens: 2_000, model: "cursor-composer" },
+  // "tab" deliberately omitted — see file header.
 };
 
-/** Raw row shape as exported from Cursor's sqlite cache by the CLI. */
+/**
+ * Cost rate, hard-pinned to claude-3-5-sonnet pricing so all users see the
+ * same dollar estimate for the same request count. Source: prices.json at the
+ * time of writing — $3/MTok input, $15/MTok output.
+ */
+const INPUT_USD_PER_MTOK = 3;
+const OUTPUT_USD_PER_MTOK = 15;
+
+function estimatedCostCents(inTokens: number, outTokens: number): number {
+  const dollars =
+    (inTokens / 1_000_000) * INPUT_USD_PER_MTOK + (outTokens / 1_000_000) * OUTPUT_USD_PER_MTOK;
+  return Math.round(dollars * 100);
+}
+
+/** Raw row shape as exported from Cursor's per-workspace sqlite caches. */
 interface CursorRow {
   id: string;
-  model: string;
-  promptTokens: number;
-  completionTokens: number;
-  startedAt: number;
-  endedAt: number;
+  type: string;
+  unixMs: number;
 }
 
 export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRecord[] {
-  // Normalise input to string
   let text: string;
   if (typeof input === "string") {
     text = input;
@@ -68,14 +76,12 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
     text = new TextDecoder().decode(input instanceof ArrayBuffer ? new Uint8Array(input) : input);
   }
 
-  // Parse outer JSON array
   let rows: unknown;
   try {
     rows = JSON.parse(text);
   } catch {
     return [];
   }
-
   if (!Array.isArray(rows)) return [];
 
   const results: SessionRecord[] = [];
@@ -84,31 +90,24 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
     if (typeof raw !== "object" || raw === null) continue;
     const row = raw as Record<string, unknown>;
 
-    // Validate required fields
-    const id = typeof row.id === "string" ? row.id : null;
+    const id = typeof row["id"] === "string" ? row["id"] : null;
     if (!id) continue;
 
-    const rawModel = typeof row.model === "string" ? row.model : "";
-    const model = rawModel.length > 0 ? (CURSOR_MODEL_MAP[rawModel] ?? rawModel) : "unknown";
+    const type = typeof row["type"] === "string" ? row["type"] : null;
+    if (!type) continue;
 
-    const inTokens = toNonNegInt(row.promptTokens);
-    const outTokens = toNonNegInt(row.completionTokens);
-
-    const startedAt =
-      typeof row.startedAt === "number" && Number.isFinite(row.startedAt) && row.startedAt > 0
-        ? row.startedAt
+    const unixMs =
+      typeof row["unixMs"] === "number" && isFinite(row["unixMs"]) && row["unixMs"] > 0
+        ? row["unixMs"]
         : null;
-    const endedAt =
-      typeof row.endedAt === "number" && Number.isFinite(row.endedAt) && row.endedAt > 0
-        ? row.endedAt
-        : null;
+    if (unixMs === null) continue;
 
-    // Both timestamps must be present
-    if (startedAt === null || endedAt === null) continue;
+    const estimate = ESTIMATES[type];
+    if (!estimate) continue; // skip unsupported types (e.g. "tab")
 
-    const { costUsdCents } = priceOf(model, inTokens, outTokens);
-
-    const dedupeKey = computeDedupeKey("cursor", model, startedAt, inTokens, outTokens);
+    const { inTokens, outTokens, model } = estimate;
+    const costUsdCents = estimatedCostCents(inTokens, outTokens);
+    const dedupeKey = computeDedupeKey("cursor", model, unixMs, inTokens, outTokens);
 
     results.push({
       id: `cursor:${id}`,
@@ -117,17 +116,11 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
       inTokens,
       outTokens,
       costUsdCents,
-      startedAt,
-      endedAt,
+      startedAt: unixMs,
+      endedAt: unixMs,
       dedupeKey,
     });
   }
 
   return results;
-}
-
-/** Coerce an unknown value to a non-negative integer, defaulting to 0. */
-function toNonNegInt(v: unknown): number {
-  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
-  return Math.max(0, Math.floor(v));
 }
