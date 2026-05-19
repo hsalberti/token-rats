@@ -27,6 +27,7 @@ export default async function ProfileSettingsPage() {
   const publicProfile = data.user.publicProfile ?? false;
   const bio = data.user.bio ?? null;
   const twitterHandle = data.user.twitterHandle ?? null;
+  const email = data.user.email ?? null;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
@@ -39,6 +40,37 @@ export default async function ProfileSettingsPage() {
 
         <h1 className="text-2xl font-bold mb-2">Profile Settings</h1>
         <p className="text-zinc-400 mb-8">Control your public presence on Token Rats.</p>
+
+        {/* Email — captured from GitHub, read-only. v1.2. */}
+        <section className="mb-6 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          <p className="mb-1 text-xs font-semibold uppercase tracking-widest text-zinc-500">
+            Email
+          </p>
+          {email ? (
+            <>
+              <p className="font-mono text-zinc-200">{email}</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Connected via GitHub. Change it in your GitHub email settings and re-sign in to update.
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-zinc-300">No email on file yet.</p>
+              <p className="mt-1 text-xs text-zinc-500">
+                Add a primary, verified email on{" "}
+                <a
+                  className="underline hover:text-zinc-300"
+                  href="https://github.com/settings/emails"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  github.com/settings/emails
+                </a>{" "}
+                and sign in again — we'll capture it automatically.
+              </p>
+            </>
+          )}
+        </section>
 
         <ProfileSettingsClient
           handle={currentUser.handle}

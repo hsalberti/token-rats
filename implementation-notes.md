@@ -92,7 +92,18 @@ Shipped. Key decisions:
 
 ### Feature #4 — Email capture
 
-_(filled in during/after implementation)_
+Shipped. Key decisions:
+
+- **Re-auth cookie is set by the API, not the web app.** Next 15 server components can read cookies but not set them — `cookies().set()` only works inside Server Actions / Route Handlers. To avoid wrapping every page in a Server Action or duplicating the route handlers, the cookie is set on the API side: `GET /v1/auth/github/start?intent=email_reauth` sets `tr_email_reauth_seen` before redirecting to GitHub. The cookie persists regardless of whether the user accepts or declines at GitHub.
+- **`requireSession()` is the chokepoint.** Every authed server component already calls it, so plugging the interstitial check here covers `/app`, `/settings/*`, `/o/*`, and `/admin` without per-page wiring. Pages that use `getSession()` (returns null vs redirecting) don't trigger the interstitial — by design, the public landing page and trending leaderboard should never bounce a viewer through OAuth.
+- **Cookie lifetime: 1 year.** "Effectively permanent" for a v1 marker. If we ever need to re-prompt (new scope, etc.) we'll bump the cookie name.
+- **Email is captured on every login, not just the first.** Per roadmap. Existing users who add a primary verified email on GitHub will get their `users.email` populated the next time they sign in — no manual reconciliation needed.
+- **Email field on `User` is `email: z.string().email().nullable().optional()`.** Optional so non-self readers (e.g. anyone looking at a public profile) can simply not include it. The /v1/me responses always set it (to a value or null); other endpoints leave it off.
+- **No top-level `/settings` page exists** — the codebase has `/settings/profile`, `/settings/notifications`, `/settings/referrals` as separate pages. I added the email row to `/settings/profile` since it's the closest match for "personal account info." If a settings hub gets built later, the section moves cleanly.
+- **Email *fetch* on login is best-effort.** A 403/500 from `/user/emails` (declined scope, transient outage) just leaves the email column unchanged; the login itself never fails because of an email-fetch issue.
+- **Cookie name `tr_email_reauth_seen`** — chosen to be obviously v1.2-specific so we can grep + retire it later. The session cookie name (`tr_session`) is unchanged.
+- **`apps/api/src/lib/email.ts` and `scheduled.ts`** are untouched, per the roadmap. They stay as no-op stubs; outbound email + the digest cron remain deferred.
+- **Cookie auto-expiry interaction with sign-out.** The user's separate logout work clears `tr_session` but not `tr_email_reauth_seen`. That's deliberate — re-sign-in with the same browser shouldn't re-trigger the interstitial.
 
 ### Feature #5 — Twitter/X handle pill
 

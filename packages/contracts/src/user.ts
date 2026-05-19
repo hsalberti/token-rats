@@ -8,6 +8,12 @@ export const User = z.object({
   bio: z.string().max(200).nullable().optional(),
   twitterHandle: z.string().max(50).nullable().optional(),
   publicProfile: z.boolean().optional(),
+  /**
+   * Primary verified GitHub email, captured at OAuth callback time. Self-only
+   * (other readers never see this field). `null` when GitHub didn't return a
+   * verified email — the user sees a banner asking them to add one.
+   */
+  email: z.string().email().nullable().optional(),
 });
 export type User = z.infer<typeof User>;
 
