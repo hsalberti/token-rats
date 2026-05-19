@@ -55,7 +55,7 @@ export default async function TrendingPage({
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
+      <header className="relative z-40 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
           <a href="/app">
             <Wordmark size="md" />
