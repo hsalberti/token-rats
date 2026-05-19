@@ -307,14 +307,14 @@ describe("GET /v1/admin/activity", () => {
 /* -------------------------------------------------------------------------- */
 
 describe("GET /v1/admin/referrers", () => {
-  it("returns tracked=false with a proxy CLI-source breakdown", async () => {
+  it("returns referrers ranked by signups brought in", async () => {
     const queue: D1Queue = {
       firsts: [{ handle: "owner" }],
       alls: [
         {
           results: [
-            { source: "claude-code", n: 17 },
-            { source: "cursor", n: 4 },
+            { handle: "alice", avatarUrl: "https://example.com/a.png", n: 17 },
+            { handle: "bob", avatarUrl: null, n: 4 },
           ],
         },
       ],
@@ -330,20 +330,22 @@ describe("GET /v1/admin/referrers", () => {
     const res = await app.fetch(await signedReq("/v1/admin/referrers", "user-1"));
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
-      tracked: boolean;
-      signal: string;
-      rows: { label: string; count: number }[];
+      rows: { handle: string; avatarUrl: string | null; count: number }[];
     };
 
-    expect(body.tracked).toBe(false);
-    expect(body.signal).toMatch(/CLI source/i);
     expect(body.rows).toEqual([
-      { label: "claude-code", count: 17 },
-      { label: "cursor", count: 4 },
+      { handle: "alice", avatarUrl: "https://example.com/a.png", count: 17 },
+      { handle: "bob", avatarUrl: null, count: 4 },
     ]);
+
+    // Locks in the JOIN — a refactor mustn't drift back to the
+    // session-source fallback we ripped out.
+    const referralSql = queue.preparedSql.find((s) => s.includes("FROM referrals"));
+    expect(referralSql).toBeDefined();
+    expect(referralSql).toContain("JOIN users u ON u.id = r.referrer_user_id");
   });
 
-  it("returns an empty rows array when there are no qualifying sessions", async () => {
+  it("returns an empty rows array when nobody has referred yet", async () => {
     const queue: D1Queue = {
       firsts: [{ handle: "owner" }],
       alls: [{ results: [] }],
@@ -357,8 +359,7 @@ describe("GET /v1/admin/referrers", () => {
 
     const res = await app.fetch(await signedReq("/v1/admin/referrers", "user-1"));
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { tracked: boolean; rows: unknown[] };
-    expect(body.tracked).toBe(false);
+    const body = (await res.json()) as { rows: unknown[] };
     expect(body.rows).toEqual([]);
   });
 });

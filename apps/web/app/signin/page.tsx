@@ -17,17 +17,39 @@ function pickRef(raw: string | string[] | undefined): string | null {
   return /^[A-Za-z0-9_-]{6,32}$/.test(v) ? v : null;
 }
 
+/** Match the API's `sanitizeUtm` charset/length so we don't ship junk. */
+function pickUtm(raw: string | string[] | undefined): string | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== "string") return null;
+  const trimmed = v.trim().toLowerCase().slice(0, 40);
+  return /^[a-z0-9._-]+$/.test(trimmed) ? trimmed : null;
+}
+
 export default async function SignInPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string | string[] }>;
+  searchParams: Promise<{
+    ref?: string | string[];
+    utm_source?: string | string[];
+    utm_medium?: string | string[];
+    utm_campaign?: string | string[];
+  }>;
 }) {
   const user = await getSession();
   if (user) redirect("/app");
 
   const params = await searchParams;
   const ref = pickRef(params.ref);
-  const startUrl = ref ? `${AUTH_GITHUB_START}?ref=${encodeURIComponent(ref)}` : AUTH_GITHUB_START;
+  const utmSource = pickUtm(params.utm_source);
+  const utmMedium = pickUtm(params.utm_medium);
+  const utmCampaign = pickUtm(params.utm_campaign);
+  const qs = new URLSearchParams();
+  if (ref) qs.set("ref", ref);
+  if (utmSource) qs.set("utm_source", utmSource);
+  if (utmMedium) qs.set("utm_medium", utmMedium);
+  if (utmCampaign) qs.set("utm_campaign", utmCampaign);
+  const q = qs.toString();
+  const startUrl = q ? `${AUTH_GITHUB_START}?${q}` : AUTH_GITHUB_START;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-6">

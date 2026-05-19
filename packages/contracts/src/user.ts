@@ -42,6 +42,14 @@ export const Profile = User.extend({
     week: z.object({ tokens: z.number().int(), costUsdCents: z.number().int() }),
     allTime: z.object({ tokens: z.number().int(), costUsdCents: z.number().int() }),
   }),
+  /** Number of users this user has brought in via their referral link. */
+  referredCount: z.number().int().nonnegative().optional(),
+  /**
+   * The profile owner's referral code. Self-only — present only when the
+   * caller is viewing their own profile, so the page can render a
+   * copy-able invite link without a separate fetch to /v1/me/referral.
+   */
+  referralCode: z.string().optional(),
 });
 export type Profile = z.infer<typeof Profile>;
 
