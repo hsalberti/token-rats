@@ -41,10 +41,10 @@ export default async function SignInPage({
 
         <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
           <div className="p-8">
-            <h2 className="mb-2 text-xl font-bold">Welcome back</h2>
+            <h2 className="mb-2 text-xl font-bold">Sign in or create an account</h2>
             <p className="mb-6 text-sm text-zinc-400">
-              Sign in to see your leaderboards, manage rooms, and track your token burn with
-              friends.
+              One click with GitHub. We&apos;ll spin up your handle, your leaderboard, and your
+              first board.
             </p>
 
             <a

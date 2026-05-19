@@ -17,7 +17,7 @@
  */
 
 import { useState } from "react";
-import { CopyButton } from "./CopyButton";
+import { InstallBlock } from "./InstallBlock";
 import { NodeInstallHint } from "./NodeInstallHint";
 import { OtherSourcePicker } from "./OtherSourcePicker";
 
@@ -95,22 +95,15 @@ function SelectedDetail({ id }: { id: SourceId }) {
     return <OtherSourcePicker />;
   }
 
-  const cmd = "npx token-rats login && npx token-rats sync";
   const sourceName = id === "claude-code" ? "Claude Code" : "Codex";
 
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-4">
-      <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-        {sourceName} quick start
-      </p>
-      <p className="mt-1 text-sm text-zinc-400">
+    <div className="space-y-3">
+      <p className="text-sm text-zinc-400">
         The CLI auto-discovers your local {sourceName} logs and uploads counts only — no prompts, no
         completions, no source code.
       </p>
-      <div className="mt-3 flex items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
-        <span className="select-all font-mono text-sm text-zinc-100">{cmd}</span>
-        <CopyButton text={cmd} label="Copy" className="ml-auto shrink-0" />
-      </div>
+      <InstallBlock />
       <NodeInstallHint />
     </div>
   );

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { PrivacyFooter } from "../../components/PrivacyFooter";
 import { UserMenu } from "../../components/UserMenu";
 import { Wordmark } from "../../components/ui/Wordmark.js";
 import { getCookieHeader, requireSession } from "../../lib/auth";
@@ -40,6 +41,7 @@ export default async function AppPage() {
       <main className="mx-auto max-w-4xl px-6 py-8">
         <DashboardClient user={user} cookieHeader={cookieHeader} viewerCountry={country} />
       </main>
+      <PrivacyFooter />
     </div>
   );
 }

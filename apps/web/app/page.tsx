@@ -78,16 +78,13 @@ export default async function HomePage({
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* Hero strip — wordmark + tagline + install snippet + sign-in. */}
+      {/* Hero — one decision. Install snippet lives below in How it works. */}
       <section className="border-b border-zinc-800 bg-zinc-900/40">
-        <div className="mx-auto max-w-3xl px-6 py-10 flex flex-col items-center text-center gap-5">
+        <div className="mx-auto max-w-3xl px-6 py-14 flex flex-col items-center text-center gap-6">
           <Wordmark size="xl" />
           <p className="max-w-md text-base text-zinc-300 sm:text-lg">
             Strava for AI token burn. Auto-sync your Claude Code &amp; Cursor logs. Flex the burn.
           </p>
-          <div className="w-full max-w-md">
-            <InstallBlock />
-          </div>
           <a
             href={startUrl}
             className="inline-flex items-center gap-2 rounded-xl bg-rat-500 px-6 py-3 text-base font-bold text-white shadow-lg shadow-rat-900/50 transition-colors hover:bg-rat-600 active:bg-rat-700"
@@ -95,6 +92,18 @@ export default async function HomePage({
             <GitHubIcon />
             Sign in with GitHub
           </a>
+          <p className="flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-xs text-zinc-500">
+            <span aria-hidden>🔒</span>
+            <span>Counts only — we literally can&apos;t read your prompts.</span>
+            <a
+              href="https://github.com/hsalberti/token-rats"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-rat-400 hover:text-rat-300"
+            >
+              Verify the CLI →
+            </a>
+          </p>
         </div>
       </section>
 
@@ -109,7 +118,7 @@ export default async function HomePage({
         <TrendingClient initialRows={rows} initialRange={range} generatedAt={generatedAt} />
       </main>
 
-      {/* How it works */}
+      {/* How it works — install snippet lives in step 01. */}
       <section className="border-y border-zinc-800 bg-zinc-900/50 py-16">
         <div className="mx-auto max-w-5xl px-6">
           <h2 className="mb-10 text-center text-2xl font-black tracking-tight">How it works</h2>
@@ -118,38 +127,22 @@ export default async function HomePage({
               number="01"
               title="Install"
               description="One command to connect your Claude Code and Cursor logs. Runs locally — no prompt content leaves your machine."
-            />
+            >
+              <div className="mt-4">
+                <InstallBlock />
+              </div>
+            </Step>
             <Step
               number="02"
-              title="Sync"
-              description="Run npx token-rats sync whenever you want. Or set up a cron. Your daily token counts upload in seconds."
+              title="Compete"
+              description="Create a board with friends, or hit the global / country leaderboards. Climb, post, repeat."
             />
             <Step
               number="03"
-              title="Flex"
-              description="See your rank in every room. Share your card. Watch your crew react. Tokenmaxxing is now a sport."
+              title="Token-maxx"
+              description="Token mog your friends, feel the agi. Accelerate. Ship. Repeat."
             />
           </div>
-        </div>
-      </section>
-
-      {/* Privacy strip */}
-      <section className="bg-zinc-900/30 py-12">
-        <div className="mx-auto max-w-2xl px-6 text-center">
-          <p className="text-2xl font-black">We literally can&apos;t read your prompts.</p>
-          <p className="mt-3 text-zinc-400">
-            Token Rats counts only — we parse token numbers from your local logs, never the content.
-            The CLI is open source so you can verify it before trusting it.
-          </p>
-          <a
-            href="https://github.com/hsalberti/token-rats"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-flex items-center gap-2 text-sm text-rat-400 hover:text-rat-300"
-          >
-            <GitHubIcon className="h-4 w-4" />
-            View source on GitHub
-          </a>
         </div>
       </section>
 
@@ -197,16 +190,19 @@ function Step({
   number,
   title,
   description,
+  children,
 }: {
   number: string;
   title: string;
   description: string;
+  children?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col gap-3">
       <div className="text-4xl font-black text-rat-700">{number}</div>
       <h3 className="text-xl font-bold">{title}</h3>
       <p className="text-zinc-400">{description}</p>
+      {children}
     </div>
   );
 }
