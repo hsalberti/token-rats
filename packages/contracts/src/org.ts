@@ -4,8 +4,12 @@ import { z } from "zod";
 /* Org plan                                                                    */
 /* -------------------------------------------------------------------------- */
 
-export const OrgPlan = z.enum(["free", "pro"]);
+export const OrgPlan = z.enum(["free", "student", "pro"]);
 export type OrgPlan = z.infer<typeof OrgPlan>;
+
+/** Approval status — v1.2 soft-create flow. Orgs start `pending`. */
+export const OrgStatus = z.enum(["pending", "approved"]);
+export type OrgStatus = z.infer<typeof OrgStatus>;
 
 export const OrgMemberRole = z.enum(["owner", "admin", "member"]);
 export type OrgMemberRole = z.infer<typeof OrgMemberRole>;
@@ -26,6 +30,11 @@ export const Org = z.object({
   seatCount: z.number().int().nonnegative(),
   githubOrgLogin: z.string().nullable(),
   createdAt: z.number().int().positive(),
+  /** v1.2: soft-create status. Approved orgs are fully usable; pending orgs are gated. */
+  status: OrgStatus,
+  requestedPlan: OrgPlan.nullable(),
+  founderEmail: z.string().email().nullable(),
+  founderName: z.string().nullable(),
 });
 export type Org = z.infer<typeof Org>;
 
@@ -90,8 +99,25 @@ export const CreateOrgRequest = z.object({
   name: z.string().min(1).max(64),
   slug: OrgSlug,
   githubOrgLogin: z.string().optional(),
+  // v1.2 soft-create — required fields, trust-on-submit.
+  founderEmail: z.string().email(),
+  founderName: z.string().min(1).max(80).optional(),
+  requestedPlan: OrgPlan,
 });
 export type CreateOrgRequest = z.infer<typeof CreateOrgRequest>;
+
+/**
+ * Founder-only PATCH /v1/orgs/:slug — only allowed while status='pending'.
+ * Body fields are individually optional; `name` is rejected (slug is fixed).
+ */
+export const PatchOrgRequest = z.object({
+  founderEmail: z.string().email().optional(),
+  founderName: z.string().min(1).max(80).optional(),
+});
+export type PatchOrgRequest = z.infer<typeof PatchOrgRequest>;
+
+export const PatchOrgResponse = z.object({ org: Org });
+export type PatchOrgResponse = z.infer<typeof PatchOrgResponse>;
 
 export const CreateOrgResponse = z.object({ org: Org });
 export type CreateOrgResponse = z.infer<typeof CreateOrgResponse>;
@@ -120,3 +146,27 @@ export type AcceptOrgInviteResponse = z.infer<typeof AcceptOrgInviteResponse>;
 
 export const GetOrgDashboardResponse = z.object({ dashboard: OrgDashboard });
 export type GetOrgDashboardResponse = z.infer<typeof GetOrgDashboardResponse>;
+
+/* -------------------------------------------------------------------------- */
+/* Admin: pending org list + approval                                          */
+/* -------------------------------------------------------------------------- */
+
+export const AdminPendingOrg = z.object({
+  id: z.string(),
+  name: z.string(),
+  slug: OrgSlug.nullable(),
+  requestedPlan: OrgPlan.nullable(),
+  founderEmail: z.string().email().nullable(),
+  founderName: z.string().nullable(),
+  founderHandle: z.string(),
+  createdAt: z.number().int().positive(),
+});
+export type AdminPendingOrg = z.infer<typeof AdminPendingOrg>;
+
+export const GetPendingOrgsResponse = z.object({
+  orgs: z.array(AdminPendingOrg),
+});
+export type GetPendingOrgsResponse = z.infer<typeof GetPendingOrgsResponse>;
+
+export const ApproveOrgResponse = z.object({ org: Org });
+export type ApproveOrgResponse = z.infer<typeof ApproveOrgResponse>;

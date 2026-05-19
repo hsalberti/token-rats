@@ -8,6 +8,7 @@ import twitterAuthRoutes from "./routes/auth-twitter.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
 import friendsRoutes from "./routes/friends.js";
+import groupsRoutes from "./routes/groups.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
 import liveRoutes from "./routes/live.js";
 import meRoutes from "./routes/me.js";
@@ -16,6 +17,7 @@ import orgsRoutes from "./routes/orgs.js";
 import profilesRoutes from "./routes/profiles.js";
 import proxyRoutes from "./routes/proxy.js";
 import pushRoutes from "./routes/push.js";
+import roomAggregatesRoutes from "./routes/room-aggregates.js";
 import roomsRoutes from "./routes/rooms.js";
 import sessionsRoutes from "./routes/sessions.js";
 import streaksRoutes from "./routes/streaks.js";
@@ -87,6 +89,18 @@ app.route("/v1/rooms", leaderboardRoutes);
 app.route("/v1/rooms", streaksRoutes);
 app.route("/v1/rooms", challengesRoutes);
 app.route("/v1/rooms", liveRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Public room aggregates (summary, heatmap, group streak)                    */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/r", roomAggregatesRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Public country-locked group discovery                                       */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/groups", groupsRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Profiles                                                                    */

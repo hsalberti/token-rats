@@ -46,6 +46,9 @@ const auth = new Hono<HonoEnv>();
 /* GET /v1/auth/github/start                                                  */
 /* -------------------------------------------------------------------------- */
 
+/** Cookie marker so we never re-show the email re-auth interstitial. */
+const EMAIL_REAUTH_COOKIE = "tr_email_reauth_seen";
+
 auth.get("/github/start", async (c) => {
   const state = randomBase64url(24);
   const stateKey = `oauth:state:${state}`;
@@ -57,13 +60,31 @@ auth.get("/github/start", async (c) => {
 
   await c.env.CACHE.put(stateKey, JSON.stringify({ ref }), { expirationTtl: 600 });
 
+  // v1.2 email-capture flow: when the web app redirects an existing user
+  // through here to grant the new `user:email` scope, we set a cookie *now*
+  // so the interstitial never fires again — even if they decline at GitHub.
+  // The cookie is checked client-side / server-component-side on the web app.
+  const intent = c.req.query("intent");
+  if (intent === "email_reauth") {
+    const domain = cookieDomainFor(c.env.WEB_ORIGIN);
+    setCookie(c, EMAIL_REAUTH_COOKIE, "1", {
+      path: "/",
+      secure: true,
+      sameSite: "Lax",
+      maxAge: 60 * 60 * 24 * 365, // 1 year — effectively permanent for a v1 marker
+      ...(domain && { domain }),
+    });
+  }
+
   // Callback lives on this Worker (not the web app), so derive from request.
   const apiOrigin = new URL(c.req.url).origin;
 
   const params = new URLSearchParams({
     client_id: c.env.GITHUB_CLIENT_ID,
     redirect_uri: `${apiOrigin}/v1/auth/github/callback`,
-    scope: "read:user",
+    // v1.2: request the `user:email` scope so the callback can grab the
+    // primary verified email. Read-only and self-only — see /v1/me.
+    scope: "read:user user:email",
     state,
   });
 
@@ -154,6 +175,32 @@ auth.get("/github/callback", async (c) => {
     return c.text("Failed to fetch GitHub user info", 502);
   }
 
+  // Fetch primary verified email (v1.2). Best-effort: if GitHub didn't grant
+  // the `user:email` scope (e.g. the user declined a re-auth), the call
+  // 404s/403s and we leave `email` as NULL. We try every login so users who
+  // add a new verified email later get their record updated automatically.
+  let primaryEmail: string | null = null;
+  try {
+    const emailRes = await fetch("https://api.github.com/user/emails", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "User-Agent": "token-rats-api/1.0",
+        Accept: "application/vnd.github+json",
+      },
+    });
+    if (emailRes.ok) {
+      const list = (await emailRes.json()) as Array<{
+        email: string;
+        primary: boolean;
+        verified: boolean;
+      }>;
+      const primary = list.find((e) => e.primary && e.verified);
+      if (primary) primaryEmail = primary.email;
+    }
+  } catch {
+    // Don't fail login on email-fetch failure — the user just won't have one.
+  }
+
   // Upsert user in D1
   const now = Date.now();
   const newId = crypto.randomUUID();
@@ -168,17 +215,26 @@ auth.get("/github/callback", async (c) => {
   let userId: string;
 
   if (existing) {
-    // Update avatar_url in case it changed
-    await c.env.DB.prepare("UPDATE users SET avatar_url = ? WHERE id = ?")
-      .bind(ghUser.avatar_url ?? null, existing.id)
-      .run();
+    // Update avatar_url + email on every login so users who add a verified
+    // email after signup get captured automatically. If GitHub didn't return
+    // an email this round (no scope grant), leave the existing email alone.
+    if (primaryEmail) {
+      await c.env.DB.prepare("UPDATE users SET avatar_url = ?, email = ? WHERE id = ?")
+        .bind(ghUser.avatar_url ?? null, primaryEmail, existing.id)
+        .run();
+    } else {
+      await c.env.DB.prepare("UPDATE users SET avatar_url = ? WHERE id = ?")
+        .bind(ghUser.avatar_url ?? null, existing.id)
+        .run();
+    }
     userId = existing.id;
   } else {
-    // Insert new user; handle = github login
+    // Insert new user; handle = github login. Email may be NULL if the user
+    // declined the email scope (rare on first sign-in but possible).
     await c.env.DB.prepare(
-      "INSERT INTO users (id, github_id, handle, avatar_url, created_at) VALUES (?, ?, ?, ?, ?)",
+      "INSERT INTO users (id, github_id, handle, avatar_url, email, created_at) VALUES (?, ?, ?, ?, ?, ?)",
     )
-      .bind(newId, ghUser.id, ghUser.login, ghUser.avatar_url ?? null, now)
+      .bind(newId, ghUser.id, ghUser.login, ghUser.avatar_url ?? null, primaryEmail, now)
       .run();
     userId = newId;
 

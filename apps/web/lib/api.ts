@@ -12,6 +12,7 @@ import type {
   AdminActivityResponse,
   AdminReferrersResponse,
   AdminSignupsResponse,
+  ApproveOrgResponse,
   CreateChallengeRequest,
   CreateChallengeResponse,
   CreateOrgInviteRequest,
@@ -25,23 +26,30 @@ import type {
   GetActivityResponse,
   GetAutobiographyResponse,
   GetChallengesResponse,
+  GetGroupStreakResponse,
+  GetGroupsResponse,
   GetHeatmapResponse,
   GetLeaderboardResponse,
   GetMeResponse,
   GetMyRoomsResponse,
   GetOrgDashboardResponse,
   GetOrgResponse,
+  GetPendingOrgsResponse,
   GetProfileResponse,
   GetReferralResponse,
   GetRoomResponse,
+  GetRoomSummaryResponse,
   GetStreaksResponse,
   GetTrendingResponse,
+  HeatmapRange,
   JoinRoomResponse,
   LeaderboardRange,
   LeaveRoomResponse,
   NotificationPrefsResponse,
   PatchMeRequest,
   PatchMeResponse,
+  PatchOrgRequest,
+  PatchOrgResponse,
   RenameRoomRequest,
   RenameRoomResponse,
   ReportAbuseRequest,
@@ -179,14 +187,45 @@ export async function getAutobiography(
   });
 }
 
-/** Get the 364-day calendar heatmap for a user's public profile. */
+/** Get the calendar heatmap for a user's public profile. Default range is 30d. */
 export async function getHeatmap(
   handle: string,
+  range: HeatmapRange = "30d",
   cookieHeader?: string,
 ): Promise<GetHeatmapResponse> {
-  return request<GetHeatmapResponse>(ENDPOINTS.profileHeatmap(handle), {
-    cookieHeader,
-  });
+  const url = `${ENDPOINTS.profileHeatmap(handle)}?range=${range}`;
+  return request<GetHeatmapResponse>(url, { cookieHeader });
+}
+
+/** Public-facing room aggregate (member count + 30d tokens + 30d cost). */
+export async function getRoomSummary(
+  code: RoomCode,
+  cookieHeader?: string,
+): Promise<GetRoomSummaryResponse> {
+  return request<GetRoomSummaryResponse>(ENDPOINTS.roomSummary(code), { cookieHeader });
+}
+
+/** Group activity heatmap for a room. */
+export async function getRoomHeatmap(
+  code: RoomCode,
+  range: HeatmapRange = "30d",
+  cookieHeader?: string,
+): Promise<GetHeatmapResponse> {
+  const url = `${ENDPOINTS.roomHeatmap(code)}?range=${range}`;
+  return request<GetHeatmapResponse>(url, { cookieHeader });
+}
+
+/** Current consecutive-day streak for a room (≥1 member active that day). */
+export async function getRoomGroupStreak(
+  code: RoomCode,
+  cookieHeader?: string,
+): Promise<GetGroupStreakResponse> {
+  return request<GetGroupStreakResponse>(ENDPOINTS.roomGroupStreak(code), { cookieHeader });
+}
+
+/** List public country-locked rooms in the caller's country. */
+export async function getGroups(cookieHeader?: string): Promise<GetGroupsResponse> {
+  return request<GetGroupsResponse>(ENDPOINTS.groups, { cookieHeader });
 }
 
 /** Approve a pending CLI device code. */
@@ -316,6 +355,17 @@ export async function patchMe(
   });
 }
 
+/** Disconnect the signed-in user's verified X/Twitter handle. */
+export async function disconnectTwitter(cookieHeader?: string): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>("/v1/me/twitter/disconnect", {
+    method: "POST",
+    cookieHeader,
+  });
+}
+
+/** URL to start the X/Twitter OAuth flow. Navigate the browser here. */
+export const TWITTER_CONNECT_URL = `${API_URL}/v1/auth/twitter/start`;
+
 /** Get the global trending leaderboard. */
 export async function getTrending(
   range: LeaderboardRange = "today",
@@ -353,7 +403,7 @@ export async function reportAbuse(
 
 // Phase 3 Track O: org plan
 
-/** Create a new org. */
+/** Soft-create a new org (v1.2). Returns 201 with the pending org row. */
 export async function createOrg(
   body: CreateOrgRequest,
   cookieHeader?: string,
@@ -361,6 +411,38 @@ export async function createOrg(
   return request<CreateOrgResponse>(ENDPOINTS.orgs, {
     method: "POST",
     body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Founder updates founder_email / founder_name while the org is pending. */
+export async function patchOrg(
+  slug: string,
+  body: PatchOrgRequest,
+  cookieHeader?: string,
+): Promise<PatchOrgResponse> {
+  return request<PatchOrgResponse>(ENDPOINTS.org(slug), {
+    method: "PATCH",
+    body: JSON.stringify(body),
+    cookieHeader,
+  });
+}
+
+/** Admin: list pending orgs (optionally filtered by `?q=`). */
+export async function getPendingOrgs(
+  q: string,
+  cookieHeader?: string,
+): Promise<GetPendingOrgsResponse> {
+  const url = q
+    ? `${ENDPOINTS.adminOrgsPending}?q=${encodeURIComponent(q)}`
+    : ENDPOINTS.adminOrgsPending;
+  return request<GetPendingOrgsResponse>(url, { cookieHeader });
+}
+
+/** Admin: flip an org from pending to approved (promotes requested_plan). */
+export async function approveOrg(slug: string, cookieHeader?: string): Promise<ApproveOrgResponse> {
+  return request<ApproveOrgResponse>(ENDPOINTS.adminOrgApprove(slug), {
+    method: "POST",
     cookieHeader,
   });
 }
@@ -416,6 +498,10 @@ export const api = {
   getProfile,
   getAutobiography,
   getHeatmap,
+  getRoomSummary,
+  getRoomHeatmap,
+  getRoomGroupStreak,
+  getGroups,
   approveCli,
   getMyRooms,
   leaveRoom,
@@ -430,6 +516,7 @@ export const api = {
   postPushTest,
   // Phase 3 Track N
   patchMe,
+  disconnectTwitter,
   getTrending,
   reportAbuse,
   getReferral,
@@ -437,10 +524,14 @@ export const api = {
   getMeFriends,
   // Phase 3 Track O
   createOrg,
+  patchOrg,
   getOrg,
   createOrgInvite,
   acceptOrgInvite,
   getOrgDashboard,
+  // v1.2 admin
+  getPendingOrgs,
+  approveOrg,
   // Phase 3 Track M
   getProxyAnthropicKeyStatus,
   setProxyAnthropicKey,

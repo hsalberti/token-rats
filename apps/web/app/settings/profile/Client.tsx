@@ -6,19 +6,23 @@
  * Lets the signed-in user:
  *   - Toggle their profile public/private
  *   - Edit their bio (max 200 chars)
- *   - Set their Twitter/X handle
+ *   - Connect / disconnect their verified X/Twitter handle (OAuth only)
  *
- * Sends PATCH /v1/me on save.
+ * Sends PATCH /v1/me on save for the toggle + bio. The X handle has its
+ * own non-form actions (Connect button = navigate to OAuth start;
+ * Disconnect = POST to /v1/me/twitter/disconnect).
  */
 
-import { patchMe } from "@/lib/api";
+import { TWITTER_CONNECT_URL, disconnectTwitter, patchMe } from "@/lib/api";
 import { useState } from "react";
+import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 
 interface Props {
   handle: string;
   initialPublicProfile: boolean;
   initialBio: string | null;
   initialTwitterHandle: string | null;
+  initialTwitterVerified: boolean;
 }
 
 function Toggle({
@@ -64,10 +68,13 @@ export function ProfileSettingsClient({
   initialPublicProfile,
   initialBio,
   initialTwitterHandle,
+  initialTwitterVerified,
 }: Props) {
   const [publicProfile, setPublicProfile] = useState(initialPublicProfile);
   const [bio, setBio] = useState(initialBio ?? "");
-  const [twitterHandle, setTwitterHandle] = useState(initialTwitterHandle ?? "");
+  const [twitterHandle, setTwitterHandle] = useState(initialTwitterHandle);
+  const [twitterVerified, setTwitterVerified] = useState(initialTwitterVerified);
+  const [twitterBusy, setTwitterBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
 
@@ -80,7 +87,6 @@ export function ProfileSettingsClient({
       await patchMe({
         publicProfile,
         bio: bio.trim() || null,
-        twitterHandle: twitterHandle.trim() || null,
       });
       setSaveStatus("saved");
     } catch {
@@ -89,6 +95,23 @@ export function ProfileSettingsClient({
       setSaving(false);
     }
   }
+
+  async function handleDisconnect() {
+    setTwitterBusy(true);
+    try {
+      await disconnectTwitter();
+      setTwitterHandle(null);
+      setTwitterVerified(false);
+    } catch {
+      // Non-fatal — leave UI alone, user can retry.
+    } finally {
+      setTwitterBusy(false);
+    }
+  }
+
+  // Connect button just navigates the browser through the OAuth start —
+  // server-side cookie auth makes this safe to do as a plain link.
+  const connectHref = TWITTER_CONNECT_URL;
 
   return (
     <form onSubmit={handleSave} className="space-y-8">
@@ -115,7 +138,6 @@ export function ProfileSettingsClient({
           />
         </div>
 
-        {/* Prominent warning */}
         {publicProfile && (
           <div className="rounded-lg border border-amber-700/50 bg-amber-900/20 px-4 py-3">
             <p className="text-sm text-amber-300 font-medium">
@@ -146,25 +168,52 @@ export function ProfileSettingsClient({
         <p className="text-xs text-zinc-600 text-right">{bio.length}/200</p>
       </section>
 
-      {/* Twitter handle */}
-      <section className="space-y-2">
-        <label htmlFor="twitter-handle" className="block text-sm font-semibold text-zinc-300">
-          Twitter / X handle
-        </label>
-        <div className="flex items-center rounded-lg bg-zinc-900 border border-zinc-800 focus-within:ring-2 focus-within:ring-orange-500 overflow-hidden">
-          <span className="px-3 py-3 text-zinc-500 text-sm select-none">@</span>
-          <input
-            id="twitter-handle"
-            type="text"
-            value={twitterHandle}
-            onChange={(e) => setTwitterHandle(e.target.value.replace(/^@/, "").slice(0, 50))}
-            disabled={saving}
-            placeholder="yourhandle"
-            maxLength={50}
-            className="flex-1 bg-transparent px-0 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none disabled:opacity-50"
-          />
+      {/* X / Twitter — OAuth only. */}
+      <section className="space-y-3 bg-zinc-900 rounded-xl p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="font-semibold text-zinc-100">X / Twitter</p>
+            <p className="text-sm text-zinc-400 mt-1">
+              Verified via OAuth and shown as a pill next to your name on profile, room member
+              lists, and friends.
+            </p>
+          </div>
+          {twitterVerified && twitterHandle && (
+            <TwitterHandlePill handle={twitterHandle} asLink={false} />
+          )}
         </div>
-        <p className="text-xs text-zinc-600">Displayed as a link on your public profile.</p>
+
+        {/* Manual-legacy banner: handle is set but not verified. */}
+        {!twitterVerified && twitterHandle && (
+          <div className="rounded-lg border border-amber-700/50 bg-amber-900/20 px-4 py-3">
+            <p className="text-sm text-amber-300 font-medium">
+              Your handle <span className="font-mono">@{twitterHandle}</span> isn't verified.
+            </p>
+            <p className="text-xs text-amber-400/80 mt-0.5">
+              Click "Connect X" below to verify via OAuth — verified handles show the pill
+              everywhere. Unverified handles are hidden from public listings.
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2">
+          <a
+            href={connectHref}
+            className="inline-flex items-center gap-2 rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-white hover:bg-rat-600 transition-colors"
+          >
+            {twitterVerified ? "Re-connect X" : "Connect X"}
+          </a>
+          {twitterVerified && (
+            <button
+              type="button"
+              onClick={() => void handleDisconnect()}
+              disabled={twitterBusy}
+              className="rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-200 hover:bg-zinc-700 transition-colors disabled:opacity-50"
+            >
+              {twitterBusy ? "Disconnecting…" : "Disconnect X"}
+            </button>
+          )}
+        </div>
       </section>
 
       {/* Actions */}

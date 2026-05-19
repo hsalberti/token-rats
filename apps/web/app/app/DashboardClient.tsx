@@ -20,15 +20,34 @@ import { ApiError, api } from "../../lib/api";
 interface Props {
   user: User;
   cookieHeader: string;
+  /** ISO alpha-2 (e.g. "DE") from cf-ipcountry, or null when unresolvable. */
+  viewerCountry: string | null;
 }
 
-export function DashboardClient({ user: _user, cookieHeader }: Props) {
+const COUNTRY_FLAGS = (cc: string): string =>
+  cc
+    .toUpperCase()
+    .split("")
+    .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
+    .join("");
+
+function countryLabel(cc: string): string {
+  try {
+    const names = new Intl.DisplayNames(["en"], { type: "region" });
+    return names.of(cc) ?? cc;
+  } catch {
+    return cc;
+  }
+}
+
+export function DashboardClient({ user: _user, cookieHeader, viewerCountry }: Props) {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [roomName, setRoomName] = useState("");
+  const [makePublic, setMakePublic] = useState(false);
   const [joinCode, setJoinCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +74,10 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
     setBusy(true);
     setError(null);
     try {
-      const data = await api.createRoom({ name: roomName.trim() }, cookieHeader);
+      const data = await api.createRoom(
+        { name: roomName.trim(), isPublic: makePublic },
+        cookieHeader,
+      );
       router.push(`/r/${data.room.code}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Failed to create room");
@@ -139,6 +161,35 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
                 className="w-full rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2.5 text-zinc-100 placeholder-zinc-500 focus:border-rat-500 focus:outline-none focus:ring-1 focus:ring-rat-500"
               />
             </div>
+
+            {/* v1.2: optional public-country room. The country is read-only —
+                it's whatever Cloudflare resolves for the creator. */}
+            {viewerCountry ? (
+              <label className="flex items-start gap-3 text-sm text-zinc-300 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={makePublic}
+                  onChange={(e) => setMakePublic(e.target.checked)}
+                  className="mt-1 h-4 w-4 accent-rat-500"
+                />
+                <span>
+                  Make this a public room for{" "}
+                  <span className="font-semibold text-zinc-100">
+                    {COUNTRY_FLAGS(viewerCountry)} {countryLabel(viewerCountry)}
+                  </span>
+                  .{" "}
+                  <span className="text-xs text-zinc-500">
+                    Listed on /groups in your country; joinable by anyone in {viewerCountry}.
+                  </span>
+                </span>
+              </label>
+            ) : (
+              <p className="text-xs text-zinc-500">
+                We couldn't detect your country, so public rooms aren't available. Try a different
+                network or VPN region.
+              </p>
+            )}
+
             {error && <p className="text-sm text-red-400">{error}</p>}
             <div className="flex gap-3">
               <Button type="submit" disabled={busy || !roomName.trim()}>

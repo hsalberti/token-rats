@@ -1,13 +1,30 @@
+import type { GroupStreak, Heatmap, HeatmapRange, RoomSummary } from "@token-rats/contracts";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ApiError, api } from "../../../lib/api";
 import { getCookieHeader, getSession } from "../../../lib/auth";
+import { RoomPublicView } from "./RoomPublicView";
 import { RoomView } from "./RoomView";
 
 export const runtime = "edge";
 
 interface Props {
   params: Promise<{ code: string }>;
+  searchParams: Promise<{ range?: string | string[] }>;
+}
+
+function pickRange(raw: string | string[] | undefined): HeatmapRange {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return v === "52w" ? "52w" : "30d";
+}
+
+/** Same normalization as the Worker — XX / T1 / missing all → null. */
+function pickCountry(raw: string | null): string | null {
+  if (!raw) return null;
+  const v = raw.trim().toUpperCase();
+  if (v.length !== 2 || v === "XX" || v === "T1") return null;
+  return v;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -25,30 +42,65 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function RoomPage({ params }: Props) {
+export default async function RoomPage({ params, searchParams }: Props) {
   const { code } = await params;
-  const [cookieHeader, session] = await Promise.all([getCookieHeader(), getSession()]);
+  const range = pickRange((await searchParams).range);
+  const [cookieHeader, session, hdrs] = await Promise.all([
+    getCookieHeader(),
+    getSession(),
+    headers(),
+  ]);
+  const viewerCountry = pickCountry(hdrs.get("cf-ipcountry"));
   const roomCode = code as Parameters<typeof api.getRoom>[0];
 
-  // Not signed in — bounce to GitHub via /join, which preserves the auto-join intent.
-  if (!session) {
-    redirect(`/join/${code}`);
+  // The summary is public — every viewer (signed in or out) sees it.
+  // A 404 here means the room doesn't exist; anything else (5xx) bubbles up.
+  let summary: RoomSummary;
+  try {
+    const res = await api.getRoomSummary(roomCode, cookieHeader);
+    summary = res.summary;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) notFound();
+    throw err;
   }
 
-  async function loadRoom() {
-    return Promise.all([
+  // Signed-out viewers see the read-only public view (stat strip + sign-in CTA).
+  if (!session) {
+    return <RoomPublicView summary={summary} signedIn={false} viewerCountry={viewerCountry} />;
+  }
+
+  async function loadFullRoom(): Promise<{
+    room: Awaited<ReturnType<typeof api.getRoom>>["room"];
+    members: Awaited<ReturnType<typeof api.getRoom>>["members"];
+    leaderboard: Awaited<ReturnType<typeof api.getLeaderboard>>["leaderboard"];
+    heatmap: Heatmap | null;
+    groupStreak: GroupStreak | null;
+  }> {
+    const [roomData, leaderboardData, heatmapRes, streakRes] = await Promise.all([
       api.getRoom(roomCode, cookieHeader),
       api.getLeaderboard(roomCode, "30d", cookieHeader),
+      api.getRoomHeatmap(roomCode, range, cookieHeader).catch(() => null),
+      api.getRoomGroupStreak(roomCode, cookieHeader).catch(() => null),
     ]);
+    return {
+      room: roomData.room,
+      members: roomData.members,
+      leaderboard: leaderboardData.leaderboard,
+      heatmap: heatmapRes?.heatmap ?? null,
+      groupStreak: streakRes?.groupStreak ?? null,
+    };
   }
 
   try {
-    const [roomData, leaderboardData] = await loadRoom();
+    const data = await loadFullRoom();
     return (
       <RoomView
-        room={roomData.room}
-        members={roomData.members}
-        initialLeaderboard={leaderboardData.leaderboard}
+        summary={summary}
+        room={data.room}
+        members={data.members}
+        initialLeaderboard={data.leaderboard}
+        heatmap={data.heatmap}
+        groupStreak={data.groupStreak}
         cookieHeader={cookieHeader}
         currentUserId={session.id}
       />
@@ -56,27 +108,30 @@ export default async function RoomPage({ params }: Props) {
   } catch (err) {
     if (err instanceof ApiError) {
       if (err.status === 404) notFound();
-      if (err.status === 401) {
-        redirect(`/join/${code}`);
-      }
+      if (err.status === 401) redirect(`/join/${code}`);
       if (err.status === 403) {
-        // Signed-in non-member — auto-join, then re-render.
+        // Signed-in non-member on a private room — auto-join (current
+        // behavior). If join itself 403s (feature #6 country mismatch),
+        // fall through to the read-only public view.
         try {
           await api.joinRoom(roomCode, cookieHeader);
+          const data = await loadFullRoom();
+          return (
+            <RoomView
+              summary={summary}
+              room={data.room}
+              members={data.members}
+              initialLeaderboard={data.leaderboard}
+              heatmap={data.heatmap}
+              groupStreak={data.groupStreak}
+              cookieHeader={cookieHeader}
+              currentUserId={session.id}
+            />
+          );
         } catch (joinErr) {
           if (joinErr instanceof ApiError && joinErr.status === 404) notFound();
-          throw joinErr;
+          return <RoomPublicView summary={summary} signedIn={true} viewerCountry={viewerCountry} />;
         }
-        const [roomData, leaderboardData] = await loadRoom();
-        return (
-          <RoomView
-            room={roomData.room}
-            members={roomData.members}
-            initialLeaderboard={leaderboardData.leaderboard}
-            cookieHeader={cookieHeader}
-            currentUserId={session.id}
-          />
-        );
       }
     }
     throw err;

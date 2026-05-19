@@ -1,18 +1,20 @@
 import { CreateRoomRequest, GetActivityQuery, RenameRoomRequest } from "@token-rats/contracts";
 /**
  * Room routes:
- *   POST  /v1/rooms                  – create a room
- *   POST  /v1/rooms/:code/join       – join a room
- *   GET   /v1/rooms/:code            – get room + members (members only)
+ *   POST  /v1/rooms                  – create a room (private by default; can be public)
+ *   POST  /v1/rooms/:code/join       – join a room (country-gated for public rooms)
+ *   GET   /v1/rooms/:code            – get room + members
+ *                                    (members-only for private; open for public)
  *   POST  /v1/rooms/:code/leave      – leave a room (owner can't leave)
  *   PATCH /v1/rooms/:code            – rename a room (owner only)
  *   GET   /v1/rooms/:code/activity   – recent activity feed
+ *   GET   /v1/groups                 – list public rooms in caller's country
  */
 import { Hono } from "hono";
 import type { Env } from "../env.js";
-import { forbidden, notFound, validationError } from "../lib/errors.js";
+import { conflict, forbidden, notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
-import { requireAuth } from "../middleware/auth.js";
+import { optionalAuth, requireAuth } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -28,6 +30,46 @@ function randomRoomCode(): string {
     .join("");
 }
 
+interface RoomRow {
+  id: string;
+  code: string;
+  name: string;
+  owner_id: string;
+  org_id: string | null;
+  created_at: number;
+  is_public: number;
+  country: string | null;
+}
+
+function roomPayload(r: RoomRow) {
+  return {
+    id: r.id,
+    code: r.code,
+    name: r.name,
+    ownerId: r.owner_id,
+    orgId: r.org_id,
+    createdAt: r.created_at,
+    isPublic: r.is_public === 1,
+    country: r.country,
+  };
+}
+
+const ROOM_SELECT = "id, code, name, owner_id, org_id, created_at, is_public, country";
+
+/** Feature #6: hard cap on public rooms per owner per country. */
+const PUBLIC_ROOMS_PER_USER_PER_COUNTRY = 3;
+
+/** Normalize a `cf-ipcountry` header value. Returns null for empty / "XX" / "T1". */
+function cfCountry(c: { req: { header: (k: string) => string | undefined } }): string | null {
+  const raw = c.req.header("cf-ipcountry");
+  if (!raw) return null;
+  const trimmed = raw.trim().toUpperCase();
+  if (trimmed.length !== 2) return null;
+  // CF returns "XX" for unknown and "T1" for Tor exit nodes.
+  if (trimmed === "XX" || trimmed === "T1") return null;
+  return trimmed;
+}
+
 /* -------------------------------------------------------------------------- */
 /* POST /v1/rooms                                                              */
 /* -------------------------------------------------------------------------- */
@@ -35,7 +77,7 @@ function randomRoomCode(): string {
 rooms.post("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
-  let body: { name: string };
+  let body: { name: string; isPublic: boolean };
   try {
     const raw: unknown = await c.req.json();
     body = CreateRoomRequest.parse(raw);
@@ -43,16 +85,39 @@ rooms.post("/", requireAuth, async (c) => {
     return validationError(c, e instanceof Error ? e.message : e);
   }
 
+  let country: string | null = null;
+  if (body.isPublic) {
+    country = cfCountry(c);
+    if (!country) {
+      return validationError(
+        c,
+        "Public rooms require a Cloudflare-resolvable country (cf-ipcountry).",
+      );
+    }
+    // 3-per-user-per-country cap.
+    const existing = await c.env.DB.prepare(
+      "SELECT COUNT(*) AS n FROM rooms WHERE owner_id = ? AND is_public = 1 AND country = ?",
+    )
+      .bind(userId, country)
+      .first<{ n: number }>();
+    if ((existing?.n ?? 0) >= PUBLIC_ROOMS_PER_USER_PER_COUNTRY) {
+      return conflict(
+        c,
+        `You can create at most ${PUBLIC_ROOMS_PER_USER_PER_COUNTRY} public rooms per country.`,
+        { error: "public_room_cap", country },
+      );
+    }
+  }
+
   const id = crypto.randomUUID();
   const code = randomRoomCode();
   const now = Date.now();
 
-  // Insert room and creator membership atomically
   await c.env.DB.batch([
     c.env.DB.prepare(
-      `INSERT INTO rooms (id, code, name, owner_id, org_id, created_at)
-       VALUES (?, ?, ?, ?, NULL, ?)`,
-    ).bind(id, code, body.name, userId, now),
+      `INSERT INTO rooms (id, code, name, owner_id, org_id, created_at, is_public, country)
+       VALUES (?, ?, ?, ?, NULL, ?, ?, ?)`,
+    ).bind(id, code, body.name, userId, now, body.isPublic ? 1 : 0, country),
     c.env.DB.prepare(
       `INSERT INTO room_members (room_id, user_id, joined_at)
        VALUES (?, ?, ?)`,
@@ -68,6 +133,8 @@ rooms.post("/", requireAuth, async (c) => {
         ownerId: userId,
         orgId: null,
         createdAt: now,
+        isPublic: body.isPublic,
+        country,
       },
     },
     201,
@@ -82,22 +149,30 @@ rooms.post("/:code/join", requireAuth, async (c) => {
   const userId = c.var.userId;
   const code = c.req.param("code");
 
-  // Find the room
-  const room = await c.env.DB.prepare(
-    "SELECT id, code, name, owner_id, org_id, created_at FROM rooms WHERE code = ?",
-  )
+  const room = await c.env.DB.prepare(`SELECT ${ROOM_SELECT} FROM rooms WHERE code = ?`)
     .bind(code)
-    .first<{
-      id: string;
-      code: string;
-      name: string;
-      owner_id: string;
-      org_id: string | null;
-      created_at: number;
-    }>();
+    .first<RoomRow>();
 
   if (!room) {
     return notFound(c, "Room not found");
+  }
+
+  // Public-room country gate. We only check at join time; once joined the
+  // user is *not* re-checked when their cf-ipcountry changes (travel / VPN).
+  if (room.is_public === 1) {
+    const viewerCountry = cfCountry(c);
+    if (!viewerCountry || viewerCountry !== room.country) {
+      return c.json(
+        {
+          error: {
+            code: "country_mismatch",
+            message: "This public room is locked to a different country.",
+            details: { expected: room.country, observed: viewerCountry },
+          },
+        },
+        403,
+      );
+    }
   }
 
   const now = Date.now();
@@ -109,8 +184,6 @@ rooms.post("/:code/join", requireAuth, async (c) => {
     .bind(room.id, userId, now)
     .run();
 
-  // Bust the leaderboard cache so the new member appears immediately instead of
-  // waiting up to 60s for the KV TTL.
   if (insert.meta.changes > 0) {
     await Promise.all(
       (["today", "7d", "30d", "all"] as const).map((r) =>
@@ -119,58 +192,46 @@ rooms.post("/:code/join", requireAuth, async (c) => {
     );
   }
 
-  return c.json({
-    room: {
-      id: room.id,
-      code: room.code,
-      name: room.name,
-      ownerId: room.owner_id,
-      orgId: room.org_id,
-      createdAt: room.created_at,
-    },
-  });
+  return c.json({ room: roomPayload(room) });
 });
 
 /* -------------------------------------------------------------------------- */
 /* GET /v1/rooms/:code                                                         */
 /* -------------------------------------------------------------------------- */
 
-rooms.get("/:code", requireAuth, async (c) => {
-  const userId = c.var.userId;
+rooms.get("/:code", optionalAuth, async (c) => {
+  const userId = c.var.userId ?? null;
   const code = c.req.param("code");
 
-  // Find room
-  const room = await c.env.DB.prepare(
-    "SELECT id, code, name, owner_id, org_id, created_at FROM rooms WHERE code = ?",
-  )
+  const room = await c.env.DB.prepare(`SELECT ${ROOM_SELECT} FROM rooms WHERE code = ?`)
     .bind(code)
-    .first<{
-      id: string;
-      code: string;
-      name: string;
-      owner_id: string;
-      org_id: string | null;
-      created_at: number;
-    }>();
+    .first<RoomRow>();
 
   if (!room) {
     return notFound(c, "Room not found");
   }
 
-  // Check membership
-  const membership = await c.env.DB.prepare(
-    "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
-  )
-    .bind(room.id, userId)
-    .first();
+  // Public rooms are open to everyone (signed-in or out). Private rooms
+  // remain member-only.
+  if (room.is_public !== 1) {
+    if (!userId) return forbidden(c, "You are not a member of this room");
 
-  if (!membership) {
-    return forbidden(c, "You are not a member of this room");
+    const membership = await c.env.DB.prepare(
+      "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
+    )
+      .bind(room.id, userId)
+      .first();
+
+    if (!membership) {
+      return forbidden(c, "You are not a member of this room");
+    }
   }
 
-  // Fetch members with user info
+  // Fetch members with user info + verified-X handle.
   const membersResult = await c.env.DB.prepare(
-    `SELECT rm.user_id, u.handle, u.avatar_url, rm.joined_at
+    `SELECT rm.user_id, u.handle, u.avatar_url, rm.joined_at,
+            CASE WHEN u.twitter_verified_at IS NOT NULL THEN u.twitter_handle ELSE NULL END
+              AS twitter_handle
      FROM room_members rm
      JOIN users u ON u.id = rm.user_id
      WHERE rm.room_id = ?
@@ -182,6 +243,7 @@ rooms.get("/:code", requireAuth, async (c) => {
       handle: string;
       avatar_url: string | null;
       joined_at: number;
+      twitter_handle: string | null;
     }>();
 
   const members = (membersResult.results ?? []).map((m) => ({
@@ -189,19 +251,10 @@ rooms.get("/:code", requireAuth, async (c) => {
     handle: m.handle,
     avatarUrl: m.avatar_url,
     joinedAt: m.joined_at,
+    twitterHandle: m.twitter_handle,
   }));
 
-  return c.json({
-    room: {
-      id: room.id,
-      code: room.code,
-      name: room.name,
-      ownerId: room.owner_id,
-      orgId: room.org_id,
-      createdAt: room.created_at,
-    },
-    members,
-  });
+  return c.json({ room: roomPayload(room), members });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -220,7 +273,6 @@ rooms.post("/:code/leave", requireAuth, async (c) => {
     return notFound(c, "Room not found");
   }
 
-  // Check membership
   const membership = await c.env.DB.prepare(
     "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
   )
@@ -231,7 +283,6 @@ rooms.post("/:code/leave", requireAuth, async (c) => {
     return forbidden(c, "You are not a member of this room");
   }
 
-  // Owner cannot leave — must delete the room (out of scope v1)
   if (room.owner_id === userId) {
     return forbidden(c, "Room owners cannot leave. Delete the room instead.");
   }
@@ -259,18 +310,9 @@ rooms.patch("/:code", requireAuth, async (c) => {
     return validationError(c, e instanceof Error ? e.message : e);
   }
 
-  const room = await c.env.DB.prepare(
-    "SELECT id, code, name, owner_id, org_id, created_at FROM rooms WHERE code = ?",
-  )
+  const room = await c.env.DB.prepare(`SELECT ${ROOM_SELECT} FROM rooms WHERE code = ?`)
     .bind(code)
-    .first<{
-      id: string;
-      code: string;
-      name: string;
-      owner_id: string;
-      org_id: string | null;
-      created_at: number;
-    }>();
+    .first<RoomRow>();
 
   if (!room) {
     return notFound(c, "Room not found");
@@ -283,14 +325,7 @@ rooms.patch("/:code", requireAuth, async (c) => {
   await c.env.DB.prepare("UPDATE rooms SET name = ? WHERE id = ?").bind(body.name, room.id).run();
 
   return c.json({
-    room: {
-      id: room.id,
-      code: room.code,
-      name: body.name,
-      ownerId: room.owner_id,
-      orgId: room.org_id,
-      createdAt: room.created_at,
-    },
+    room: { ...roomPayload(room), name: body.name },
   });
 });
 
@@ -318,7 +353,6 @@ rooms.get("/:code/activity", requireAuth, async (c) => {
     return notFound(c, "Room not found");
   }
 
-  // Check membership
   const membership = await c.env.DB.prepare(
     "SELECT 1 FROM room_members WHERE room_id = ? AND user_id = ?",
   )

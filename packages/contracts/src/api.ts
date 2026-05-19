@@ -27,6 +27,7 @@ export type {
   OrgMemberRole,
   OrgPlan,
   OrgSlug,
+  OrgStatus,
   OrgInvite,
   OrgDashboard,
   OrgSpendByUser,
@@ -37,6 +38,11 @@ export type {
   CreateOrgInviteResponse,
   AcceptOrgInviteResponse,
   GetOrgDashboardResponse,
+  PatchOrgRequest,
+  PatchOrgResponse,
+  AdminPendingOrg,
+  GetPendingOrgsResponse,
+  ApproveOrgResponse,
 } from "./org.js";
 export {
   CreateOrgRequest,
@@ -62,6 +68,8 @@ export type UploadSessionsResponse = z.infer<typeof UploadSessionsResponse>;
 /* ----------------------------- POST /v1/rooms ---------------------------- */
 export const CreateRoomRequest = z.object({
   name: z.string().min(1).max(64),
+  /** v1.2: when true the room is publicly listed in /groups for its country. */
+  isPublic: z.boolean().default(false),
 });
 export type CreateRoomRequest = z.infer<typeof CreateRoomRequest>;
 
@@ -104,15 +112,85 @@ export const HeatmapDay = z.object({
 });
 export type HeatmapDay = z.infer<typeof HeatmapDay>;
 
+/** Range for heatmap queries — 30d is the default everywhere. */
+export const HeatmapRange = z.enum(["30d", "52w"]);
+export type HeatmapRange = z.infer<typeof HeatmapRange>;
+
 export const Heatmap = z.object({
+  range: HeatmapRange,
   from: z.string(), // YYYY-MM-DD UTC, inclusive
   to: z.string(), // YYYY-MM-DD UTC, inclusive
   days: z.array(HeatmapDay),
 });
 export type Heatmap = z.infer<typeof Heatmap>;
 
+export const GetHeatmapQuery = z.object({
+  range: HeatmapRange.default("30d"),
+});
+export type GetHeatmapQuery = z.infer<typeof GetHeatmapQuery>;
+
 export const GetHeatmapResponse = z.object({ heatmap: Heatmap });
 export type GetHeatmapResponse = z.infer<typeof GetHeatmapResponse>;
+
+/* ---------------- GET /v1/r/:code/summary ------------------------------- */
+/**
+ * Lightweight public-facing room aggregate. Returned without auth — the
+ * member count + 30-day token + 30-day cost totals are intentionally visible
+ * to anyone with the room URL.
+ */
+export const RoomSummary = z.object({
+  code: z.string(),
+  name: z.string(),
+  /** Future: true once feature #6 lands. Always false for now. */
+  isPublic: z.boolean(),
+  /** ISO country code (e.g. "DE") when isPublic is true; null otherwise. */
+  country: z.string().nullable(),
+  memberCount: z.number().int().nonnegative(),
+  total30dTokens: z.number().int().nonnegative(),
+  total30dCostUsdCents: z.number().int().nonnegative(),
+});
+export type RoomSummary = z.infer<typeof RoomSummary>;
+
+export const GetRoomSummaryResponse = z.object({ summary: RoomSummary });
+export type GetRoomSummaryResponse = z.infer<typeof GetRoomSummaryResponse>;
+
+/* ---------------- GET /v1/groups ---------------------------------------- */
+/**
+ * Lists up to 50 public rooms in the viewer's `cf-ipcountry`. Auth optional;
+ * signed-out viewers see the same list but with the join button replaced by
+ * a sign-in CTA on the web side.
+ */
+export const PublicGroupRow = z.object({
+  code: z.string(),
+  name: z.string(),
+  country: z.string().min(2).max(2),
+  memberCount: z.number().int().nonnegative(),
+  total30dTokens: z.number().int().nonnegative(),
+  total30dCostUsdCents: z.number().int().nonnegative(),
+});
+export type PublicGroupRow = z.infer<typeof PublicGroupRow>;
+
+export const GetGroupsResponse = z.object({
+  country: z.string().min(2).max(2).nullable(),
+  groups: z.array(PublicGroupRow),
+});
+export type GetGroupsResponse = z.infer<typeof GetGroupsResponse>;
+
+/* ---------------- GET /v1/r/:code/group-streak -------------------------- */
+/**
+ * The number of consecutive UTC days (counting back from yesterday) on which
+ * at least one room member had `daily_rollup.tokens > 0`. Today (in progress)
+ * does not count.
+ */
+export const GroupStreak = z.object({
+  currentStreak: z.number().int().nonnegative(),
+  /** Yesterday in YYYY-MM-DD UTC. */
+  asOf: z.string(),
+});
+export type GroupStreak = z.infer<typeof GroupStreak>;
+
+export const GetGroupStreakResponse = z.object({ groupStreak: GroupStreak });
+export type GetGroupStreakResponse = z.infer<typeof GetGroupStreakResponse>;
 
 /* -------------------- Phase 2 Track G+H new endpoints -------------------- */
 
@@ -215,6 +293,12 @@ export const ENDPOINTS = {
   profile: (handle: string) => `/v1/u/${handle}`,
   autobiography: (handle: string) => `/v1/u/${handle}/autobiography`,
   profileHeatmap: (handle: string) => `/v1/u/${handle}/heatmap`,
+  // v1.2 room aggregates — auth optional, accessible to non-members.
+  roomSummary: (code: RoomCode) => `/v1/r/${code}/summary`,
+  roomHeatmap: (code: RoomCode) => `/v1/r/${code}/heatmap`,
+  roomGroupStreak: (code: RoomCode) => `/v1/r/${code}/group-streak`,
+  // v1.2 public country-locked groups list
+  groups: "/v1/groups",
   authGithubStart: "/v1/auth/github/start",
   authGithubCallback: "/v1/auth/github/callback",
   authLogout: "/v1/auth/logout",
@@ -255,6 +339,9 @@ export const ENDPOINTS = {
   adminSignups: "/v1/admin/signups",
   adminActivity: "/v1/admin/activity",
   adminReferrers: "/v1/admin/referrers",
+  // Admin org approval (v1.2)
+  adminOrgsPending: "/v1/admin/orgs/pending",
+  adminOrgApprove: (slug: string) => `/v1/admin/orgs/${slug}/approve`,
 } as const;
 
 // Re-export streak/challenge types for convenience

@@ -274,11 +274,12 @@ function weekStart(yyyy_mm_dd: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/* GET /v1/u/:handle/heatmap                                                  */
+/* GET /v1/u/:handle/heatmap?range=30d|52w                                    */
 /* -------------------------------------------------------------------------- */
-/* Returns the last 364 days of `(day, tokens, sessions)` for the calendar    */
-/* heatmap on the public profile. Same visibility gates as the main profile.  */
-/* Missing days are omitted; the client fills zeros. ~1KB payload max.        */
+/* Returns the requested range of `(day, tokens, sessions)` for the calendar  */
+/* heatmap. 30d (default) = trailing 30 days; 52w = trailing 364 days. Same   */
+/* visibility gates as the main profile. Missing days are omitted; the client */
+/* fills zeros.                                                               */
 /* -------------------------------------------------------------------------- */
 
 profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
@@ -298,11 +299,14 @@ profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
     return notFound(c, "This profile is private");
   }
 
-  // 53 weeks × 7 days = 371; use 364 (52 × 7) so the column count is exactly
-  // a year and the start aligns to a Monday after the client's bucket math.
+  const rangeParam = new URL(c.req.url).searchParams.get("range") ?? "30d";
+  const range: "30d" | "52w" = rangeParam === "52w" ? "52w" : "30d";
+  // 30d → 29 days back so today + 29 = 30 cells; 52w → 363 days back so 52×7.
+  const daysBack = range === "52w" ? 363 : 29;
+
   const today = new Date();
   const from = new Date(today);
-  from.setUTCDate(from.getUTCDate() - 363);
+  from.setUTCDate(from.getUTCDate() - daysBack);
   const fromDay = from.toISOString().slice(0, 10);
 
   const result = await c.env.DB.prepare(
@@ -325,6 +329,7 @@ profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
 
   return c.json({
     heatmap: {
+      range,
       from: fromDay,
       to: today.toISOString().slice(0, 10),
       days,

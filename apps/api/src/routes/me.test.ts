@@ -40,27 +40,22 @@ describe("PatchMeRequest validation", () => {
     if (result.success) expect(result.data.bio).toBeNull();
   });
 
-  it("accepts a twitterHandle", () => {
+  // v1.2: twitterHandle is no longer a mutable field on PATCH /v1/me —
+  // the only way to set it is the X OAuth flow, and the only way to clear
+  // it is POST /v1/me/twitter/disconnect. Zod strips extra keys by default,
+  // so passing twitterHandle is now silently ignored.
+  it("strips twitterHandle from the parsed body", () => {
     const result = PatchMeRequest.safeParse({ twitterHandle: "vibedev" });
     expect(result.success).toBe(true);
+    if (result.success) {
+      expect((result.data as Record<string, unknown>).twitterHandle).toBeUndefined();
+    }
   });
 
-  it("rejects twitterHandle longer than 50 chars", () => {
-    const result = PatchMeRequest.safeParse({ twitterHandle: "x".repeat(51) });
-    expect(result.success).toBe(false);
-  });
-
-  it("accepts twitterHandle: null (clear the handle)", () => {
-    const result = PatchMeRequest.safeParse({ twitterHandle: null });
-    expect(result.success).toBe(true);
-    if (result.success) expect(result.data.twitterHandle).toBeNull();
-  });
-
-  it("accepts all three fields together", () => {
+  it("accepts the two valid fields together", () => {
     const result = PatchMeRequest.safeParse({
       publicProfile: true,
       bio: "Shipping fast",
-      twitterHandle: "tokenrat",
     });
     expect(result.success).toBe(true);
   });

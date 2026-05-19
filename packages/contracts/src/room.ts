@@ -15,6 +15,10 @@ export const Room = z.object({
   ownerId: z.string(),
   orgId: z.string().nullable(),
   createdAt: z.number().int().positive(),
+  /** v1.2: public country-locked groups. `country` is set iff `isPublic` is true. */
+  isPublic: z.boolean(),
+  /** ISO-3166-1 alpha-2 (`cf-ipcountry` of the creator). Null on private rooms. */
+  country: z.string().min(2).max(2).nullable(),
 });
 export type Room = z.infer<typeof Room>;
 
@@ -23,5 +27,7 @@ export const RoomMember = z.object({
   handle: z.string(),
   avatarUrl: z.string().url().nullable(),
   joinedAt: z.number().int().positive(),
+  /** OAuth-verified X handle, when present. Manual handles are not surfaced. */
+  twitterHandle: z.string().max(50).nullable().optional(),
 });
 export type RoomMember = z.infer<typeof RoomMember>;

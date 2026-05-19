@@ -8,6 +8,7 @@
 
 import type { FriendRow, FriendsResponse, LeaderboardRange } from "@token-rats/contracts";
 import { useState, useTransition } from "react";
+import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { Avatar } from "../../../components/ui/Avatar";
 import { getMeFriends } from "../../../lib/api";
 
@@ -118,17 +119,7 @@ function FriendRowItem({ friend, fade }: { friend: FriendRow; fade: boolean }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="truncate font-bold">@{friend.handle}</span>
-            {friend.twitterHandle ? (
-              <a
-                href={`https://x.com/${friend.twitterHandle}`}
-                target="_blank"
-                rel="noreferrer noopener"
-                onClick={(e) => e.stopPropagation()}
-                className="rounded-md bg-zinc-800 px-1.5 py-0.5 font-mono text-[11px] text-zinc-400 hover:bg-zinc-700 hover:text-zinc-200"
-              >
-                𝕏 @{friend.twitterHandle}
-              </a>
-            ) : null}
+            <TwitterHandlePill handle={friend.twitterHandle} />
           </div>
           <div className="mt-0.5 truncate text-xs text-zinc-500">
             <SharedRoomsSummary rooms={friend.sharedRooms} />
