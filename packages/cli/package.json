@@ -1,20 +1,30 @@
 {
   "name": "token-rats",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Sync your Claude Code + Cursor token usage to your Token Rats leaderboard.",
   "license": "MIT",
   "type": "module",
   "bin": {
     "token-rats": "./dist/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hsalberti/token-rats.git",
     "directory": "packages/cli"
   },
   "homepage": "https://tokenrats.com",
-  "keywords": ["claude", "claude-code", "cursor", "tokens", "leaderboard", "ai-usage"],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "cursor",
+    "tokens",
+    "leaderboard",
+    "ai-usage"
+  ],
   "publishConfig": {
     "access": "public"
   },
@@ -26,7 +36,6 @@
     "prepublishOnly": "node build.mjs"
   },
   "optionalDependencies": {
-    "better-sqlite3": "^9.4.3",
     "chokidar": "^3.6.0",
     "clipboardy": "^4.0.0",
     "open": "^10.1.0"
@@ -37,9 +46,13 @@
     "@token-rats/pricing": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "22.10.2",
+    "@types/sql.js": "^1.4.11",
     "esbuild": "^0.24.2",
     "tsx": "4.19.2",
     "typescript": "5.7.2",
     "vitest": "2.1.8"
+  },
+  "dependencies": {
+    "sql.js": "^1.14.1"
   }
 }
