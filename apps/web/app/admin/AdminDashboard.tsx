@@ -145,7 +145,8 @@ function CumulativeChart({ series }: { series: AdminSignupsResponse["series"] })
         aria-label="Cumulative signups over the last 30 days"
         className="block h-auto w-full min-w-[480px]"
       >
-        <title>Cumulative signups over the last 30 days</title>
+        {/* React 19 hoists nested <title> to <head>; aria-label on <svg> above
+            already covers accessibility. */}
         {/* Gridlines */}
         {tickLabels.map((t) => (
           <line
@@ -171,11 +172,16 @@ function CumulativeChart({ series }: { series: AdminSignupsResponse["series"] })
         />
         {/* Points */}
         {series.map((d, i) => (
-          <circle key={d.day} cx={x(i)} cy={y(d.cumulative)} r={2.5} fill="rgb(249 115 22)">
-            <title>
-              {d.day}: {d.cumulative} total ({d.newUsers > 0 ? `+${d.newUsers}` : "no change"})
-            </title>
-          </circle>
+          <circle
+            key={d.day}
+            cx={x(i)}
+            cy={y(d.cumulative)}
+            r={2.5}
+            fill="rgb(249 115 22)"
+            aria-label={`${d.day}: ${d.cumulative} total (${
+              d.newUsers > 0 ? `+${d.newUsers}` : "no change"
+            })`}
+          />
         ))}
         {/* Y-axis labels */}
         {tickLabels.map((t) => (

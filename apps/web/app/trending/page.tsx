@@ -52,6 +52,14 @@ export default async function TrendingPage({
   } catch {
     // Empty board on error — better than crashing.
   }
+  // Format server-side to keep SSR/CSR aligned — see /app/page.tsx for the
+  // full reasoning behind the en-US pin.
+  const generatedAtLabel = new Date(generatedAt).toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -80,7 +88,11 @@ export default async function TrendingPage({
           </a>
         </div>
 
-        <TrendingClient initialRows={rows} initialRange={range} generatedAt={generatedAt} />
+        <TrendingClient
+          initialRows={rows}
+          initialRange={range}
+          generatedAtLabel={generatedAtLabel}
+        />
       </main>
     </div>
   );
