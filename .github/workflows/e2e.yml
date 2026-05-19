@@ -1,0 +1,51 @@
+name: e2e
+
+# Path-filtered Playwright smoke suite — v1.2 feature #8.
+#
+# Runs only when PRs touch the web app or the shared contracts package,
+# because those are the surfaces whose UI behavior the specs gate on. PRs
+# that only touch apps/api/** or packages/cli/** skip this job by design.
+
+on:
+  pull_request:
+    paths:
+      - "apps/web/**"
+      - "packages/contracts/**"
+      - ".github/workflows/e2e.yml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/web/**"
+      - "packages/contracts/**"
+      - ".github/workflows/e2e.yml"
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright browsers
+        run: pnpm --filter @token-rats/web exec playwright install --with-deps ${{ matrix.browser }}
+      - name: Boot dev stack (api + web)
+        run: |
+          pnpm --filter @token-rats/api dev &
+          pnpm --filter @token-rats/web dev &
+          # Crude wait — the web dev server prints "Ready" once it binds 3000.
+          for i in $(seq 1 60); do
+            if curl -s -o /dev/null http://127.0.0.1:3000; then break; fi
+            sleep 1
+          done
+      - name: Run Playwright (${{ matrix.browser }})
+        run: pnpm --filter @token-rats/web exec playwright test --project=${{ matrix.browser }}
+        env:
+          CI: "1"
