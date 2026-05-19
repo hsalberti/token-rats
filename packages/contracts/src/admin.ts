@@ -34,10 +34,15 @@ export type AdminSignupsResponse = z.infer<typeof AdminSignupsResponse>;
 /**
  * Distinct active users per UTC day for the last 30 days.
  *
- * "Active" is defined as: has at least one row in `daily_rollup` for that
- * day, i.e. they synced at least one CLI session on that day. This is the
- * strongest activity signal available — login events are not persisted
- * (auth only mints cookies), and webapp views are not logged.
+ * "Active" is defined as: has a `daily_rollup` row for that day **on or
+ * after** the user's signup day. The signup-day clamp matters because the
+ * CLI uploads the user's local log history on first sync — those
+ * pre-signup sessions are real local work, but they don't represent
+ * platform engagement, so they're filtered out of admin activity.
+ *
+ * This is the strongest platform-activity signal available — login events
+ * are not persisted (auth only mints cookies), and webapp views are not
+ * logged.
  */
 export const AdminActivityDay = z.object({
   day: z.string(), // YYYY-MM-DD UTC

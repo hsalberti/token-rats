@@ -38,7 +38,7 @@ export default async function RoomPage({ params }: Props) {
   async function loadRoom() {
     return Promise.all([
       api.getRoom(roomCode, cookieHeader),
-      api.getLeaderboard(roomCode, "today", cookieHeader),
+      api.getLeaderboard(roomCode, "30d", cookieHeader),
     ]);
   }
 

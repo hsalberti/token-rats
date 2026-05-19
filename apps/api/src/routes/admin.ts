@@ -135,14 +135,24 @@ admin.get("/activity", async (c) => {
     });
   }
 
-  // daily_rollup.day is already YYYY-MM-DD UTC.
-  // "Active" = at least one rollup row for that day, i.e. they synced ≥1
-  // session on that day. (See contracts/admin.ts for rationale.)
+  // daily_rollup.day is already YYYY-MM-DD UTC, derived from each CLI
+  // session's `started_at` (the time the user ran Claude Code / Cursor
+  // locally). The CLI uploads the user's *local log history* on first
+  // sync, which can predate signup by weeks or months. For platform
+  // analytics, that pre-signup history is not "the user was active on
+  // the platform" — it's "the user uploaded an old log on signup day."
+  //
+  // Clamp `day >= signup day` so a user only counts as platform-active
+  // starting the UTC day their account was created. Personal heatmaps
+  // (profiles) deliberately don't clamp — there we want the full
+  // historical view of the user's own work.
   const perDay = await c.env.DB.prepare(
-    `SELECT day, COUNT(DISTINCT user_id) AS n
-     FROM daily_rollup
-     WHERE day >= ?
-     GROUP BY day`,
+    `SELECT dr.day, COUNT(DISTINCT dr.user_id) AS n
+     FROM daily_rollup dr
+     JOIN users u ON u.id = dr.user_id
+     WHERE dr.day >= ?
+       AND dr.day >= strftime('%Y-%m-%d', u.created_at / 1000, 'unixepoch')
+     GROUP BY dr.day`,
   )
     .bind(firstDay)
     .all<{ day: string; n: number }>();
@@ -157,9 +167,14 @@ admin.get("/activity", async (c) => {
     activeUsers: byDay.get(day) ?? 0,
   }));
 
-  // 30-day distinct active users (any day in the window).
+  // 30-day distinct active users (any day in the window, clamped to the
+  // user's signup day for the same reason as above).
   const totalRow = await c.env.DB.prepare(
-    "SELECT COUNT(DISTINCT user_id) AS n FROM daily_rollup WHERE day >= ?",
+    `SELECT COUNT(DISTINCT dr.user_id) AS n
+     FROM daily_rollup dr
+     JOIN users u ON u.id = dr.user_id
+     WHERE dr.day >= ?
+       AND dr.day >= strftime('%Y-%m-%d', u.created_at / 1000, 'unixepoch')`,
   )
     .bind(firstDay)
     .first<{ n: number }>();

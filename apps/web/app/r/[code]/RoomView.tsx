@@ -84,7 +84,6 @@ function buildShareText(opts: {
 
   const lines = [
     `[TR🔶🐭] ${roomName} — ${SHARE_RANGE_LABELS[range]}`,
-    "",
     ...top.map((r, i) => `${MEDALS[i]} @${r.handle} ${fmtTokens(r.tokens)}`),
     "",
     `${fmtTokens(totalTokens)} tokens burned`,
@@ -103,7 +102,7 @@ export function RoomView({
 }: Props) {
   const [room, setRoom] = useState<Room>(initialRoom);
   const [activeTab, setActiveTab] = useState<Tab>("leaderboard");
-  const [range, setRange] = useState<LeaderboardRange>("today");
+  const [range, setRange] = useState<LeaderboardRange>("30d");
   const [leaderboard, setLeaderboard] = useState<Leaderboard>(initialLeaderboard);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [copied, setCopied] = useState(false);

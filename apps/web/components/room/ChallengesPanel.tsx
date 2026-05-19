@@ -12,19 +12,22 @@ interface ChallengesPanelProps {
   onCreateChallenge: (kind: ChallengeKind, durationDays: number) => Promise<void>;
 }
 
-const KIND_LABELS: Record<ChallengeKind, string> = {
-  "most-tokens": "Most Tokens",
-  "most-sessions": "Most Sessions",
-  "longest-streak": "Longest Streak",
-};
-
 const KIND_DESCRIPTIONS: Record<ChallengeKind, string> = {
-  "most-tokens": "Burn the most tokens in the window",
+  "most-tokens": "Burn the most tokens this month",
   "most-sessions": "Run the most synced sessions",
   "longest-streak": "Keep a daily streak the longest",
 };
 
 const KINDS: ChallengeKind[] = ["most-tokens", "most-sessions", "longest-streak"];
+
+function labelForKind(kind: ChallengeKind, startsAt = Date.now()): string {
+  if (kind === "most-tokens") {
+    const month = new Date(startsAt).toLocaleString("en-US", { month: "long" });
+    return `${month} Madness`;
+  }
+  if (kind === "most-sessions") return "Most Sessions";
+  return "Longest Streak";
+}
 
 function fmtScore(kind: ChallengeKind, score: number): string {
   if (kind === "most-tokens") {
@@ -51,7 +54,7 @@ function ChallengeCard({ challenge }: { challenge: ChallengeWithLeaderboard }) {
       <div className="flex items-start justify-between gap-2">
         <div>
           <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-            {KIND_LABELS[challenge.kind]}
+            {labelForKind(challenge.kind, challenge.startsAt)}
           </span>
           <p className="mt-0.5 text-sm text-zinc-400">
             {fmtDate(challenge.startsAt)} – {fmtDate(challenge.endsAt)}
@@ -114,7 +117,7 @@ export function ChallengesPanel({
 }: ChallengesPanelProps) {
   const [creating, setCreating] = useState(false);
   const [selectedKind, setSelectedKind] = useState<ChallengeKind>("most-tokens");
-  const [durationDays, setDurationDays] = useState(7);
+  const [durationDays, setDurationDays] = useState(30);
   const [busy, setBusy] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -174,7 +177,7 @@ export function ChallengesPanel({
                         : "border-zinc-700 text-zinc-400 hover:border-zinc-500",
                     ].join(" ")}
                   >
-                    <p className="font-semibold">{KIND_LABELS[k]}</p>
+                    <p className="font-semibold">{labelForKind(k)}</p>
                     <p className="mt-0.5 text-xs opacity-70">{KIND_DESCRIPTIONS[k]}</p>
                   </button>
                 ))}

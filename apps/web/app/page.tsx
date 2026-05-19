@@ -217,6 +217,9 @@ export default async function HomePage({
             >
               Mission
             </a>
+            <a href="/changelog" className="hover:text-zinc-300">
+              Changelog
+            </a>
             <a
               href="https://twitter.com/hsalberti"
               target="_blank"
