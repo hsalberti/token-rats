@@ -19,4 +19,9 @@ export type Env = {
   STRIPE_SECRET_KEY: string;
   /** Stripe webhook signing secret (whsec_*). Used to verify incoming webhook signatures. */
   STRIPE_WEBHOOK_SECRET: string;
+  /** Twitter/X OAuth client id (v1.2 Track AC). Optional — when unset, the
+   *  /v1/auth/twitter/* endpoints respond 503 and the UI hides the Connect button. */
+  X_OAUTH_CLIENT_ID?: string;
+  /** Twitter/X OAuth client secret (v1.2 Track AC). Worker secret. */
+  X_OAUTH_CLIENT_SECRET?: string;
 };

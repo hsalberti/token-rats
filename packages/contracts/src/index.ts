@@ -9,3 +9,4 @@ export * from "./notifications.js";
 export * from "./live.js";
 export * from "./org.js";
 export * from "./referral.js";
+export * from "./friends.js";

@@ -18,6 +18,7 @@ import type {
   CreateOrgResponse,
   CreateRoomRequest,
   CreateRoomResponse,
+  FriendsResponse,
   GetActivityResponse,
   GetAutobiographyResponse,
   GetChallengesResponse,
@@ -315,6 +316,15 @@ export async function getReferral(cookieHeader?: string): Promise<GetReferralRes
   return request<GetReferralResponse>(ENDPOINTS.meReferral, { cookieHeader });
 }
 
+/** Get the signed-in user's friends — everyone they share a private room with. */
+export async function getMeFriends(
+  range: LeaderboardRange = "7d",
+  cookieHeader?: string,
+): Promise<FriendsResponse> {
+  const url = `${ENDPOINTS.meFriends}?range=${range}`;
+  return request<FriendsResponse>(url, { cookieHeader });
+}
+
 /** Submit an abuse report against a public handle. */
 export async function reportAbuse(
   body: ReportAbuseRequest,
@@ -409,6 +419,8 @@ export const api = {
   getTrending,
   reportAbuse,
   getReferral,
+  // v1.2 Track AD
+  getMeFriends,
   // Phase 3 Track O
   createOrg,
   getOrg,

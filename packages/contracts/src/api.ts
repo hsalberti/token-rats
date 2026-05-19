@@ -238,6 +238,8 @@ export const ENDPOINTS = {
   reportAbuse: "/v1/abuse/report",
   // Affiliate / referral tracking
   meReferral: "/v1/me/referral",
+  // v1.2 Track AD — friends derived from shared private rooms
+  meFriends: "/v1/me/friends",
   // Phase 3 Track O — Org plan
   orgs: "/v1/orgs",
   org: (slug: string) => `/v1/orgs/${slug}`,
