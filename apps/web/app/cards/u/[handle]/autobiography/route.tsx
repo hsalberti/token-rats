@@ -5,7 +5,7 @@
  */
 import { ImageResponse } from "next/og";
 import type { NextRequest } from "next/server";
-import { api, ApiError } from "../../../../../lib/api";
+import { ApiError, api } from "../../../../../lib/api";
 
 export const runtime = "edge";
 
@@ -83,162 +83,150 @@ export async function GET(
   const monthTokens = data?.monthTokens ?? 0;
 
   const image = new ImageResponse(
-    (
+    <div
+      style={{
+        width: 1200,
+        height: 630,
+        background: "#09090b",
+        display: "flex",
+        flexDirection: "column",
+        padding: "48px 60px",
+        fontFamily: "system-ui, sans-serif",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
+      {/* Background glow */}
       <div
         style={{
-          width: 1200,
-          height: 630,
-          background: "#09090b",
+          position: "absolute",
+          bottom: -120,
+          left: -60,
+          width: 500,
+          height: 500,
+          borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 60%)",
+        }}
+      />
+
+      {/* Header row */}
+      <div
+        style={{
           display: "flex",
-          flexDirection: "column",
-          padding: "48px 60px",
-          fontFamily: "system-ui, sans-serif",
-          position: "relative",
-          overflow: "hidden",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 32,
         }}
       >
-        {/* Background glow */}
         <div
           style={{
-            position: "absolute",
-            bottom: -120,
-            left: -60,
-            width: 500,
-            height: 500,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(249,115,22,0.12) 0%, transparent 60%)",
-          }}
-        />
-
-        {/* Header row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 32,
-          }}
-        >
-          <div
-            style={{
-              fontSize: 20,
-              fontWeight: 900,
-              color: "#f97316",
-              letterSpacing: "-0.02em",
-            }}
-          >
-            Token Rats
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              background: "rgba(249,115,22,0.1)",
-              border: "1px solid rgba(249,115,22,0.3)",
-              borderRadius: 999,
-              padding: "4px 14px",
-            }}
-          >
-            <div style={{ fontSize: 14 }}>🐀</div>
-            <div
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "#f97316",
-                letterSpacing: "0.1em",
-                textTransform: "uppercase",
-              }}
-            >
-              Token Autobiography
-            </div>
-          </div>
-        </div>
-
-        {/* Handle */}
-        <div
-          style={{
-            fontSize: 60,
+            fontSize: 20,
             fontWeight: 900,
-            color: "#f4f4f5",
-            letterSpacing: "-0.04em",
-            lineHeight: 1,
-            marginBottom: 32,
+            color: "#f97316",
+            letterSpacing: "-0.02em",
           }}
         >
-          {`@${data?.handle ?? handle}`}
+          Token Rats
         </div>
-
-        {/* Stats grid: 3 columns × 2 rows */}
-        <div style={{ display: "flex", gap: 14, flex: 1 }}>
-          {/* Column 1 */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-            {/* All-time tokens */}
-            <StatBlock
-              label="All-time tokens"
-              value={fmtTokens(totalTokens)}
-              sub={fmtCost(totalCost)}
-              accent
-            />
-            {/* Biggest session */}
-            <StatBlock
-              label="Best single session"
-              value={fmtTokens(biggestSession)}
-              sub="tokens in one go"
-            />
-          </div>
-
-          {/* Column 2 */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-            {/* This month */}
-            <StatBlock
-              label="This month"
-              value={fmtTokens(monthTokens)}
-              sub={fmtCost(monthCost)}
-            />
-            {/* Dominant model */}
-            <StatBlock
-              label="Favourite model"
-              value={dominantModel}
-              sub="by token volume"
-            />
-          </div>
-
-          {/* Column 3 */}
-          <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
-            {/* Coffee equivalence */}
-            <StatBlock
-              label="Coffees this month"
-              value={coffees < 1 ? `<1` : `${Math.floor(coffees)}`}
-              sub={`at $5/cup · ${fmtCost(monthCost)}`}
-            />
-            {/* Most active day */}
-            <StatBlock
-              label="Most active day"
-              value={mostActiveDay}
-              sub={`${sessionsPerDay.toFixed(1)} sessions/day avg`}
-            />
-          </div>
-        </div>
-
-        {/* Footer */}
         <div
           style={{
-            marginTop: 24,
             display: "flex",
-            justifyContent: "space-between",
             alignItems: "center",
+            gap: 8,
+            background: "rgba(249,115,22,0.1)",
+            border: "1px solid rgba(249,115,22,0.3)",
+            borderRadius: 999,
+            padding: "4px 14px",
           }}
         >
-          <div style={{ fontSize: 15, color: "#52525b" }}>
-            {`tokenrats.com/u/${handle}`}
-          </div>
-          <div style={{ fontSize: 15, color: "#52525b" }}>
-            counts only — we can&apos;t read your prompts
+          <div style={{ fontSize: 14 }}>🐀</div>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 700,
+              color: "#f97316",
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+            }}
+          >
+            Token Autobiography
           </div>
         </div>
       </div>
-    ),
+
+      {/* Handle */}
+      <div
+        style={{
+          fontSize: 60,
+          fontWeight: 900,
+          color: "#f4f4f5",
+          letterSpacing: "-0.04em",
+          lineHeight: 1,
+          marginBottom: 32,
+        }}
+      >
+        {`@${data?.handle ?? handle}`}
+      </div>
+
+      {/* Stats grid: 3 columns × 2 rows */}
+      <div style={{ display: "flex", gap: 14, flex: 1 }}>
+        {/* Column 1 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+          {/* All-time tokens */}
+          <StatBlock
+            label="All-time tokens"
+            value={fmtTokens(totalTokens)}
+            sub={fmtCost(totalCost)}
+            accent
+          />
+          {/* Biggest session */}
+          <StatBlock
+            label="Best single session"
+            value={fmtTokens(biggestSession)}
+            sub="tokens in one go"
+          />
+        </div>
+
+        {/* Column 2 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+          {/* This month */}
+          <StatBlock label="This month" value={fmtTokens(monthTokens)} sub={fmtCost(monthCost)} />
+          {/* Dominant model */}
+          <StatBlock label="Favourite model" value={dominantModel} sub="by token volume" />
+        </div>
+
+        {/* Column 3 */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 14, flex: 1 }}>
+          {/* Coffee equivalence */}
+          <StatBlock
+            label="Coffees this month"
+            value={coffees < 1 ? "<1" : `${Math.floor(coffees)}`}
+            sub={`at $5/cup · ${fmtCost(monthCost)}`}
+          />
+          {/* Most active day */}
+          <StatBlock
+            label="Most active day"
+            value={mostActiveDay}
+            sub={`${sessionsPerDay.toFixed(1)} sessions/day avg`}
+          />
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div
+        style={{
+          marginTop: 24,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        <div style={{ fontSize: 15, color: "#52525b" }}>{`tokenrats.com/u/${handle}`}</div>
+        <div style={{ fontSize: 15, color: "#52525b" }}>
+          counts only — we can&apos;t read your prompts
+        </div>
+      </div>
+    </div>,
     {
       width: 1200,
       height: 630,
@@ -296,11 +284,7 @@ function StatBlock({
       >
         {value}
       </div>
-      {sub && (
-        <div style={{ fontSize: 13, color: "#71717a" }}>
-          {sub}
-        </div>
-      )}
+      {sub && <div style={{ fontSize: 13, color: "#71717a" }}>{sub}</div>}
     </div>
   );
 }

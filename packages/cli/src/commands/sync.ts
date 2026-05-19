@@ -13,11 +13,7 @@ import { priceOf } from "@token-rats/pricing";
 import { ApiClient, ApiError } from "../lib/api.js";
 import { loadToken } from "../lib/auth-store.js";
 import { readCursorDb } from "../lib/cursor-extract.js";
-import {
-  discoverClaudeCodeFiles,
-  discoverCodexFiles,
-  discoverCursorDb,
-} from "../lib/discover.js";
+import { discoverClaudeCodeFiles, discoverCodexFiles, discoverCursorDb } from "../lib/discover.js";
 import { dim, error, info, spinner, success, warn } from "../lib/log.js";
 
 const BATCH_SIZE = 500;
@@ -200,7 +196,9 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
 
   // ── 4. Dry-run short-circuit ───────────────────────────────────────────────
   if (opts.dryRun) {
-    info(`[dry-run] Would upload ${allSessions.length} session(s) in ${Math.ceil(allSessions.length / BATCH_SIZE)} batch(es).`);
+    info(
+      `[dry-run] Would upload ${allSessions.length} session(s) in ${Math.ceil(allSessions.length / BATCH_SIZE)} batch(es).`,
+    );
     if (opts.verbose) {
       for (const s of allSessions.slice(0, 10)) {
         dim(

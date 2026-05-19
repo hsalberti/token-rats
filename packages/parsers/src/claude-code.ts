@@ -87,22 +87,21 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
 
     // Identify the session — real Claude Code uses camelCase `sessionId`;
     // older test fixtures use `session_id`. Accept both.
-    const sidCamel = ev["sessionId"];
-    const sidSnake = ev["session_id"];
+    const sidCamel = ev.sessionId;
+    const sidSnake = ev.session_id;
     const sessionId =
       typeof sidCamel === "string" ? sidCamel : typeof sidSnake === "string" ? sidSnake : null;
     if (!sessionId) continue;
 
     // Timestamp: real logs are ISO-8601 strings, fixtures are ms-epoch numbers.
-    const rawTs = ev["timestamp"];
+    const rawTs = ev.timestamp;
     let timestamp = 0;
-    if (typeof rawTs === "number" && isFinite(rawTs)) {
+    if (typeof rawTs === "number" && Number.isFinite(rawTs)) {
       timestamp = rawTs;
     } else if (typeof rawTs === "string") {
       const parsed = Date.parse(rawTs);
       if (!Number.isNaN(parsed)) timestamp = parsed;
     }
-
 
     // Upsert accumulator
     let acc = sessions.get(sessionId);
@@ -125,23 +124,23 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     }
 
     // Only assistant messages carry usage + model info
-    if (ev["type"] !== "assistant") continue;
+    if (ev.type !== "assistant") continue;
 
-    const message = ev["message"];
+    const message = ev.message;
     if (typeof message !== "object" || message === null) continue;
     const msg = message as Record<string, unknown>;
 
     // Model: last one seen per session wins
-    if (typeof msg["model"] === "string" && msg["model"].length > 0) {
-      acc.model = msg["model"];
+    if (typeof msg.model === "string" && msg.model.length > 0) {
+      acc.model = msg.model;
     }
 
     // Token counts — all optional
-    const usage = msg["usage"];
+    const usage = msg.usage;
     if (typeof usage === "object" && usage !== null) {
       const u = usage as Record<string, unknown>;
-      const inputTokens = toNonNegInt(u["input_tokens"]);
-      const outputTokens = toNonNegInt(u["output_tokens"]);
+      const inputTokens = toNonNegInt(u.input_tokens);
+      const outputTokens = toNonNegInt(u.output_tokens);
       acc.inTokens += inputTokens;
       acc.outTokens += outputTokens;
     }
@@ -184,6 +183,6 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
 
 /** Coerce an unknown value to a non-negative integer, defaulting to 0. */
 function toNonNegInt(v: unknown): number {
-  if (typeof v !== "number" || !isFinite(v)) return 0;
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
   return Math.max(0, Math.floor(v));
 }

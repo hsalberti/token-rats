@@ -36,7 +36,9 @@ describe("ApiClient retry logic", () => {
   });
 
   it("succeeds immediately on 200", async () => {
-    fetchSpy.mockResolvedValueOnce(makeResponse(200, { user: { id: "1", handle: "alice", avatarUrl: null } }));
+    fetchSpy.mockResolvedValueOnce(
+      makeResponse(200, { user: { id: "1", handle: "alice", avatarUrl: null } }),
+    );
 
     const client = new ApiClient({ apiUrl: "https://test.local" });
     // @ts-expect-error — accessing private method for test purposes
@@ -58,10 +60,9 @@ describe("ApiClient retry logic", () => {
     // Shorten delays for test speed by stubbing setTimeout
     vi.useFakeTimers();
 
-    const promise = client.post<{ accepted: number; duplicates: number }>(
-      "/v1/sessions",
-      { sessions: [] },
-    );
+    const promise = client.post<{ accepted: number; duplicates: number }>("/v1/sessions", {
+      sessions: [],
+    });
 
     // Advance timers past the 1s delay between retries
     await vi.runAllTimersAsync();
@@ -82,10 +83,9 @@ describe("ApiClient retry logic", () => {
     const client = new ApiClient({ apiUrl: "https://test.local" });
     vi.useFakeTimers();
 
-    const promise = client.post<{ accepted: number; duplicates: number }>(
-      "/v1/sessions",
-      { sessions: [] },
-    );
+    const promise = client.post<{ accepted: number; duplicates: number }>("/v1/sessions", {
+      sessions: [],
+    });
 
     await vi.runAllTimersAsync();
     const result = await promise;

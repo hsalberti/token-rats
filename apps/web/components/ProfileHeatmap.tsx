@@ -99,9 +99,7 @@ export function ProfileHeatmap({ heatmap }: ProfileHeatmapProps) {
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
-          Activity
-        </h2>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">Activity</h2>
         <p className="font-mono text-xs text-zinc-500">
           last 364 days · max day {fmtTokens(maxTokens)} tokens
         </p>
@@ -147,16 +145,7 @@ export function ProfileHeatmap({ heatmap }: ProfileHeatmapProps) {
             const y = COL_LABEL_H + cell.row * (CELL + GAP);
             const fill = COLORS[bucket(cell.tokens, maxTokens)];
             return (
-              <rect
-                key={cell.day}
-                x={x}
-                y={y}
-                width={CELL}
-                height={CELL}
-                rx={2}
-                ry={2}
-                fill={fill}
-              >
+              <rect key={cell.day} x={x} y={y} width={CELL} height={CELL} rx={2} ry={2} fill={fill}>
                 <title>
                   {cell.day} · {fmtTokens(cell.tokens)} tokens
                 </title>
@@ -168,11 +157,7 @@ export function ProfileHeatmap({ heatmap }: ProfileHeatmapProps) {
         <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
           <span>Less</span>
           {COLORS.map((c) => (
-            <span
-              key={c}
-              className="inline-block h-3 w-3 rounded-sm"
-              style={{ background: c }}
-            />
+            <span key={c} className="inline-block h-3 w-3 rounded-sm" style={{ background: c }} />
           ))}
           <span>More</span>
         </div>

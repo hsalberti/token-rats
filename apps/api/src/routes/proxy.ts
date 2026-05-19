@@ -13,14 +13,14 @@
  * TransformStream that only inspects SSE usage events).
  */
 
+import { priceOf } from "@token-rats/pricing";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
-import type { AuthVariables } from "../middleware/auth.js";
-import { requireAuth, extractUserId } from "../middleware/auth.js";
-import { validationError, authRequired } from "../lib/errors.js";
+import { authRequired, validationError } from "../lib/errors.js";
 import { recordSession } from "../lib/ingest.js";
-import { priceOf } from "@token-rats/pricing";
+import type { AuthVariables } from "../middleware/auth.js";
+import { extractUserId, requireAuth } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -35,10 +35,7 @@ const AES_ALG = { name: "AES-GCM", length: 256 } as const;
 /** Derive a 256-bit AES-GCM key from the SESSION_SIGNING_KEY string. */
 async function deriveAesKey(signingKey: string): Promise<CryptoKey> {
   // Hash the signing key to get exactly 32 bytes of key material.
-  const keyBytes = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(signingKey),
-  );
+  const keyBytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(signingKey));
   return crypto.subtle.importKey("raw", keyBytes, AES_ALG, false, ["encrypt", "decrypt"]);
 }
 
@@ -57,7 +54,10 @@ function b64toBuf(b64: string): Uint8Array {
 }
 
 /** Encrypt a plaintext string. Returns { ciphertext, iv } both base64. */
-async function encryptKey(plaintext: string, signingKey: string): Promise<{ ciphertext: string; iv: string }> {
+async function encryptKey(
+  plaintext: string,
+  signingKey: string,
+): Promise<{ ciphertext: string; iv: string }> {
   const aesKey = await deriveAesKey(signingKey);
   const iv = crypto.getRandomValues(new Uint8Array(12)); // 96-bit IV for GCM
   const cipherBuf = await crypto.subtle.encrypt(
@@ -162,7 +162,16 @@ proxy.post("/anthropic/v1/messages", async (c) => {
   // Resolve the Anthropic API key
   const anthropicKey = await resolveAnthropicKey(c.env, userId);
   if (!anthropicKey) {
-    return c.json({ error: { code: "missing_anthropic_key", message: "No Anthropic API key configured. POST /v1/proxy/keys/anthropic to register one." } }, 400);
+    return c.json(
+      {
+        error: {
+          code: "missing_anthropic_key",
+          message:
+            "No Anthropic API key configured. POST /v1/proxy/keys/anthropic to register one.",
+        },
+      },
+      400,
+    );
   }
 
   // Build upstream request headers — forward everything EXCEPT Authorization
@@ -171,14 +180,11 @@ proxy.post("/anthropic/v1/messages", async (c) => {
   for (const [name, value] of c.req.raw.headers.entries()) {
     const lower = name.toLowerCase();
     if (lower === "authorization") continue; // strip Token Rats auth
-    if (lower === "host") continue;          // let fetch set correct host
+    if (lower === "host") continue; // let fetch set correct host
     upstreamHeaders.set(name, value);
   }
   upstreamHeaders.set("x-api-key", anthropicKey);
-  upstreamHeaders.set(
-    "anthropic-version",
-    c.req.header("anthropic-version") ?? "2023-06-01",
-  );
+  upstreamHeaders.set("anthropic-version", c.req.header("anthropic-version") ?? "2023-06-01");
 
   // Forward the raw body bytes unchanged — we never read the content.
   const bodyBytes = await c.req.arrayBuffer();
@@ -238,31 +244,34 @@ proxy.post("/anthropic/v1/messages", async (c) => {
 
     // Pipe upstream body through our transform, then record the session
     // after the stream closes (via a promise chain on the pipe).
-    const pipePromise = upstream.body.pipeTo(writable).then(() => {
-      if (acc.input_tokens > 0 || acc.output_tokens > 0) {
-        const endedAt = Date.now();
-        const { costUsdCents } = priceOf(acc.model, acc.input_tokens, acc.output_tokens);
-        const sessionId = crypto.randomUUID();
-        const dedupeKey = `proxy:${userId}:${sessionId}`;
+    const pipePromise = upstream.body
+      .pipeTo(writable)
+      .then(() => {
+        if (acc.input_tokens > 0 || acc.output_tokens > 0) {
+          const endedAt = Date.now();
+          const { costUsdCents } = priceOf(acc.model, acc.input_tokens, acc.output_tokens);
+          const sessionId = crypto.randomUUID();
+          const dedupeKey = `proxy:${userId}:${sessionId}`;
 
-        return recordSession(c.env, userId, {
-          id: sessionId,
-          source: "claude-code", // closest fit for raw-API usage
-          model: acc.model,
-          inTokens: acc.input_tokens,
-          outTokens: acc.output_tokens,
-          costUsdCents,
-          startedAt,
-          endedAt,
-          dedupeKey,
-        });
-      }
-    }).catch((err) => {
-      // Non-fatal for the user (we already returned upstream's bytes), but
-      // a silent drop means proxy burn never reaches the leaderboard. Log so
-      // it shows up in tail.
-      console.error("[proxy] streaming recordSession failed", { userId, err });
-    });
+          return recordSession(c.env, userId, {
+            id: sessionId,
+            source: "claude-code", // closest fit for raw-API usage
+            model: acc.model,
+            inTokens: acc.input_tokens,
+            outTokens: acc.output_tokens,
+            costUsdCents,
+            startedAt,
+            endedAt,
+            dedupeKey,
+          });
+        }
+      })
+      .catch((err) => {
+        // Non-fatal for the user (we already returned upstream's bytes), but
+        // a silent drop means proxy burn never reaches the leaderboard. Log so
+        // it shows up in tail.
+        console.error("[proxy] streaming recordSession failed", { userId, err });
+      });
 
     // Use waitUntil so the record call doesn't block the response
     // (pipePromise resolves after the stream closes anyway, but this is clean)
@@ -274,56 +283,55 @@ proxy.post("/anthropic/v1/messages", async (c) => {
       status: upstream.status,
       headers: responseHeaders,
     });
-  } else {
-    // --- Non-streaming path ---
-    const responseBody = await upstream.arrayBuffer();
-
-    // Parse usage from JSON response — counts only, no content stored
-    let inTokens = 0;
-    let outTokens = 0;
-    let model = requestedModel;
-    try {
-      const json = JSON.parse(new TextDecoder().decode(responseBody)) as {
-        model?: string;
-        usage?: { input_tokens?: number; output_tokens?: number };
-      };
-      if (json.model) model = json.model;
-      if (json.usage) {
-        inTokens = json.usage.input_tokens ?? 0;
-        outTokens = json.usage.output_tokens ?? 0;
-      }
-    } catch {
-      // Non-JSON upstream error — pass through
-    }
-
-    if (inTokens > 0 || outTokens > 0) {
-      const now = Date.now();
-      const { costUsdCents } = priceOf(model, inTokens, outTokens);
-      const sessionId = crypto.randomUUID();
-
-      // Fire-and-forget — don't let DB errors affect the response
-      c.executionCtx?.waitUntil(
-        recordSession(c.env, userId, {
-          id: sessionId,
-          source: "claude-code",
-          model,
-          inTokens,
-          outTokens,
-          costUsdCents,
-          startedAt: now,
-          endedAt: now,
-          dedupeKey: `proxy:${userId}:${sessionId}`,
-        }).catch((err) => {
-          console.error("[proxy] non-stream recordSession failed", { userId, err });
-        }),
-      );
-    }
-
-    return new Response(responseBody, {
-      status: upstream.status,
-      headers: new Headers(upstream.headers),
-    });
   }
+  // --- Non-streaming path ---
+  const responseBody = await upstream.arrayBuffer();
+
+  // Parse usage from JSON response — counts only, no content stored
+  let inTokens = 0;
+  let outTokens = 0;
+  let model = requestedModel;
+  try {
+    const json = JSON.parse(new TextDecoder().decode(responseBody)) as {
+      model?: string;
+      usage?: { input_tokens?: number; output_tokens?: number };
+    };
+    if (json.model) model = json.model;
+    if (json.usage) {
+      inTokens = json.usage.input_tokens ?? 0;
+      outTokens = json.usage.output_tokens ?? 0;
+    }
+  } catch {
+    // Non-JSON upstream error — pass through
+  }
+
+  if (inTokens > 0 || outTokens > 0) {
+    const now = Date.now();
+    const { costUsdCents } = priceOf(model, inTokens, outTokens);
+    const sessionId = crypto.randomUUID();
+
+    // Fire-and-forget — don't let DB errors affect the response
+    c.executionCtx?.waitUntil(
+      recordSession(c.env, userId, {
+        id: sessionId,
+        source: "claude-code",
+        model,
+        inTokens,
+        outTokens,
+        costUsdCents,
+        startedAt: now,
+        endedAt: now,
+        dedupeKey: `proxy:${userId}:${sessionId}`,
+      }).catch((err) => {
+        console.error("[proxy] non-stream recordSession failed", { userId, err });
+      }),
+    );
+  }
+
+  return new Response(responseBody, {
+    status: upstream.status,
+    headers: new Headers(upstream.headers),
+  });
 });
 
 /* -------------------------------------------------------------------------- */
@@ -364,9 +372,7 @@ proxy.post("/keys/anthropic", requireAuth, async (c) => {
 
 proxy.delete("/keys/anthropic", requireAuth, async (c) => {
   const userId = c.var.userId;
-  await c.env.DB.prepare("DELETE FROM user_anthropic_keys WHERE user_id = ?")
-    .bind(userId)
-    .run();
+  await c.env.DB.prepare("DELETE FROM user_anthropic_keys WHERE user_id = ?").bind(userId).run();
   return c.json({ stored: false });
 });
 
@@ -376,9 +382,7 @@ proxy.delete("/keys/anthropic", requireAuth, async (c) => {
 
 proxy.get("/keys/anthropic", requireAuth, async (c) => {
   const userId = c.var.userId;
-  const row = await c.env.DB.prepare(
-    "SELECT 1 FROM user_anthropic_keys WHERE user_id = ?",
-  )
+  const row = await c.env.DB.prepare("SELECT 1 FROM user_anthropic_keys WHERE user_id = ?")
     .bind(userId)
     .first();
   return c.json({ stored: row !== null });

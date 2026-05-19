@@ -1,13 +1,21 @@
 /**
  * Extracts Cursor AI request rows from the Cursor sqlite cache.
  *
- * Uses node:sqlite (Node ≥22) if available, with a fallback to
- * better-sqlite3 (optional dependency). If neither is present,
- * returns an empty array with a friendly warning.
+ * Driver chain, in order — first one that succeeds wins:
+ *   1. `node:sqlite`     (built into Node ≥22.5, zero install cost)
+ *   2. `sql.js`          (WebAssembly SQLite, bundled in the published CLI)
+ *   3. `better-sqlite3`  (native C++ addon, opt-in via `token-rats install-cursor`)
+ *
+ * sql.js is the lean default: pure JS install, no compile step, works on any
+ * Node version we support. better-sqlite3 is roughly 5-10× faster on large
+ * Cursor DBs but requires a platform-specific native build, so it's gated
+ * behind an explicit install step.
  *
  * Output rows match the shape parseCursor() expects:
  *   { id, model, promptTokens, completionTokens, startedAt, endedAt }
  */
+
+import { readFile } from "node:fs/promises";
 
 export interface CursorRow {
   id: string;
@@ -29,10 +37,7 @@ type DbFactory = () => DbInstance;
 async function tryNodeSqlite(dbPath: string): Promise<CursorRow[] | null> {
   // node:sqlite is experimental in Node 22; use a dynamic import so TypeScript
   // compiles fine on older @types/node versions that lack the module.
-  let DatabaseConstructor: new (
-    path: string,
-    opts?: Record<string, unknown>,
-  ) => DbInstance;
+  let DatabaseConstructor: new (path: string, opts?: Record<string, unknown>) => DbInstance;
 
   try {
     const mod = await import("node:sqlite");
@@ -46,12 +51,58 @@ async function tryNodeSqlite(dbPath: string): Promise<CursorRow[] | null> {
   return readWithDb(() => new DatabaseConstructor(dbPath, { readOnly: true }));
 }
 
+/** Attempt to read rows from the Cursor DB using sql.js (pure-WASM SQLite). */
+async function trySqlJs(dbPath: string): Promise<CursorRow[] | null> {
+  let initSqlJs: (config?: Record<string, unknown>) => Promise<{
+    Database: new (data?: Uint8Array) => {
+      exec: (sql: string) => Array<{ columns: string[]; values: unknown[][] }>;
+      close: () => void;
+    };
+  }>;
+
+  try {
+    const mod = await import("sql.js");
+    // sql.js's CJS default export is the init function.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    initSqlJs = ((mod as any).default ?? mod) as typeof initSqlJs;
+  } catch {
+    return null;
+  }
+
+  let SQL: Awaited<ReturnType<typeof initSqlJs>>;
+  let fileBytes: Buffer;
+  try {
+    SQL = await initSqlJs();
+    fileBytes = await readFile(dbPath);
+  } catch {
+    return null;
+  }
+
+  // Wrap sql.js's exec()-based API to match the DbInstance shape used by readWithDb.
+  const sqlDb = new SQL.Database(new Uint8Array(fileBytes));
+  const adapter: DbInstance = {
+    prepare: (sql: string) => ({
+      all: () => {
+        const results = sqlDb.exec(sql);
+        if (results.length === 0) return [];
+        const { columns, values } = results[0]!;
+        return values.map((row) => {
+          const obj: Record<string, unknown> = {};
+          for (let i = 0; i < columns.length; i++) {
+            obj[columns[i]!] = row[i];
+          }
+          return obj;
+        });
+      },
+    }),
+    close: () => sqlDb.close(),
+  };
+  return readWithDb(() => adapter);
+}
+
 /** Attempt to read rows from the Cursor DB using better-sqlite3. */
 async function tryBetterSqlite3(dbPath: string): Promise<CursorRow[] | null> {
-  let Database: new (
-    path: string,
-    opts?: Record<string, unknown>,
-  ) => DbInstance;
+  let Database: new (path: string, opts?: Record<string, unknown>) => DbInstance;
 
   try {
     const mod = await import("better-sqlite3");
@@ -130,14 +181,14 @@ function normalizeRows(rows: unknown[]): CursorRow[] {
     if (typeof raw !== "object" || raw === null) continue;
     const r = raw as Record<string, unknown>;
 
-    const id = typeof r["id"] === "string" ? r["id"] : null;
+    const id = typeof r.id === "string" ? r.id : null;
     if (!id) continue;
 
-    const model = typeof r["model"] === "string" ? r["model"] : "unknown";
-    const promptTokens = toNonNegInt(r["promptTokens"] ?? r["prompt_tokens"]);
-    const completionTokens = toNonNegInt(r["completionTokens"] ?? r["completion_tokens"]);
-    const startedAt = toPositiveMs(r["startedAt"] ?? r["started_at"]);
-    const endedAt = toPositiveMs(r["endedAt"] ?? r["ended_at"]);
+    const model = typeof r.model === "string" ? r.model : "unknown";
+    const promptTokens = toNonNegInt(r.promptTokens ?? r.prompt_tokens);
+    const completionTokens = toNonNegInt(r.completionTokens ?? r.completion_tokens);
+    const startedAt = toPositiveMs(r.startedAt ?? r.started_at);
+    const endedAt = toPositiveMs(r.endedAt ?? r.ended_at);
 
     if (startedAt === null || endedAt === null) continue;
 
@@ -147,12 +198,12 @@ function normalizeRows(rows: unknown[]): CursorRow[] {
 }
 
 function toNonNegInt(v: unknown): number {
-  if (typeof v !== "number" || !isFinite(v)) return 0;
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0;
   return Math.max(0, Math.floor(v));
 }
 
 function toPositiveMs(v: unknown): number | null {
-  if (typeof v !== "number" || !isFinite(v) || v <= 0) return null;
+  if (typeof v !== "number" || !Number.isFinite(v) || v <= 0) return null;
   return v;
 }
 
@@ -163,13 +214,22 @@ function toPositiveMs(v: unknown): number | null {
 export async function readCursorDb(
   dbPath: string,
 ): Promise<{ rows: CursorRow[]; skipped: string | null }> {
-  // Try node:sqlite first (no native addon, available in Node ≥22)
+  // 1. node:sqlite — built into Node ≥22.5, fastest path with zero install cost.
   const fromNodeSqlite = await tryNodeSqlite(dbPath);
   if (fromNodeSqlite !== null) {
     return { rows: fromNodeSqlite, skipped: null };
   }
 
-  // Fall back to better-sqlite3
+  // 2. sql.js — WebAssembly SQLite, bundled with the published CLI.
+  //    This is the default path on Node <22.5.
+  const fromSqlJs = await trySqlJs(dbPath);
+  if (fromSqlJs !== null) {
+    return { rows: fromSqlJs, skipped: null };
+  }
+
+  // 3. better-sqlite3 — native C++ addon, only present if the user explicitly
+  //    installed it via `token-rats install-cursor`. Faster than sql.js on
+  //    very large Cursor DBs.
   const fromBetter = await tryBetterSqlite3(dbPath);
   if (fromBetter !== null) {
     return { rows: fromBetter, skipped: null };
@@ -177,6 +237,8 @@ export async function readCursorDb(
 
   return {
     rows: [],
-    skipped: "Could not open Cursor DB (no sqlite driver available). Skipping Cursor source.",
+    skipped:
+      "Could not open Cursor DB (sqlite drivers unavailable). " +
+      "Run `npx token-rats install-cursor` for native speed, or upgrade to Node ≥22.5.",
   };
 }

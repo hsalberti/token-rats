@@ -4,10 +4,10 @@
  * Domain=<apex> so it's shared between the web origin and the api.* subdomain.
  */
 
+import type { User } from "@token-rats/contracts";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getMe } from "./api";
-import type { User } from "@token-rats/contracts";
 
 export const SESSION_COOKIE = "tr_session";
 

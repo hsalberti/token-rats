@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import { requireSession, getCookieHeader } from "../../lib/auth";
 import { Avatar } from "../../components/ui/Avatar";
+import { getCookieHeader, requireSession } from "../../lib/auth";
 import { DashboardClient } from "./DashboardClient";
 
 export const runtime = "edge";

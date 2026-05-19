@@ -9,10 +9,10 @@
  * - Preserves the #!/usr/bin/env node shebang and sets chmod +x.
  */
 
-import { build } from "esbuild";
 import { chmodSync, mkdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { build } from "esbuild";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const entryPoint = resolve(__dirname, "src/index.ts");
@@ -27,9 +27,12 @@ await build({
   platform: "node",
   target: "node20",
   format: "esm",
-  // Keep runtime deps and built-ins external
+  // Keep runtime deps and built-ins external. sql.js ships a WASM file that
+  // resolves relative to the installed package on disk, so it must remain a
+  // real `require()` — esbuild can't inline it.
   external: [
     "better-sqlite3",
+    "sql.js",
     "clipboardy",
     "open",
     "node:*",

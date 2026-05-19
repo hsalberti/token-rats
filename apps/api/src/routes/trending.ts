@@ -6,12 +6,12 @@
  * Banned handles are excluded.
  */
 
+import { GetTrendingQuery } from "@token-rats/contracts";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
-import type { AuthVariables } from "../middleware/auth.js";
-import { GetTrendingQuery } from "@token-rats/contracts";
 import { validationError } from "../lib/errors.js";
+import type { AuthVariables } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -80,7 +80,7 @@ trending.get("/", async (c) => {
       sessions: number;
     }>();
 
-  const rows = (result.results ?? []);
+  const rows = result.results ?? [];
 
   // 4. Filter banned handles
   const filtered: typeof rows = [];

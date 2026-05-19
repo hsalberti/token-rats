@@ -7,10 +7,10 @@
 
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
-import { getCookieHeader } from "../../../lib/auth";
-import { getOrgMembership } from "../../../lib/org-auth";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
+import { getCookieHeader } from "../../../lib/auth";
+import { getOrgMembership } from "../../../lib/org-auth";
 
 export const runtime = "edge";
 
@@ -57,17 +57,14 @@ export default async function OrgOverviewPage({ params }: Props) {
             <h1 className="text-3xl font-black tracking-tight">{org.name}</h1>
             <p className="mt-1 text-sm text-zinc-500">
               {org.slug ? `tokenrats.com/o/${org.slug}` : ""} &middot;{" "}
-              <span
-                className={
-                  org.plan === "pro"
-                    ? "font-semibold text-rat-400"
-                    : "text-zinc-500"
-                }
-              >
+              <span className={org.plan === "pro" ? "font-semibold text-rat-400" : "text-zinc-500"}>
                 {org.plan === "pro" ? "Pro" : "Free"} plan
               </span>
               {org.seatCount > 0 && (
-                <> &middot; {org.seatCount} seat{org.seatCount !== 1 ? "s" : ""}</>
+                <>
+                  {" "}
+                  &middot; {org.seatCount} seat{org.seatCount !== 1 ? "s" : ""}
+                </>
               )}
             </p>
           </div>
@@ -132,9 +129,7 @@ export default async function OrgOverviewPage({ params }: Props) {
           >
             <span className="text-2xl">📊</span>
             <span className="font-bold">Spend dashboard</span>
-            <span className="text-sm text-zinc-500">
-              Burn by person, model, and day
-            </span>
+            <span className="text-sm text-zinc-500">Burn by person, model, and day</span>
           </a>
           {(membership.role === "owner" || membership.role === "admin") && (
             <a

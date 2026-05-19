@@ -15,6 +15,7 @@
  *   token-rats help      Show this help
  */
 
+import { installCursorCommand } from "./commands/install-cursor.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
 import { syncCommand } from "./commands/sync.js";
@@ -24,7 +25,7 @@ import { whoamiCommand } from "./commands/whoami.js";
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 function getVersion(): string {
-  return "0.0.1";
+  return "0.0.3";
 }
 
 function printHelp(): void {
@@ -35,12 +36,14 @@ function printHelp(): void {
   token-rats <command> [flags]
 
 \x1b[1mCommands:\x1b[0m
-  login      Authenticate with Token Rats (opens browser)
-  sync       Read local Claude Code + Cursor logs and upload counts
-  watch      Watch logs in real-time; upload new sessions as they appear
-  whoami     Show the currently signed-in account
-  logout     Clear your stored credentials
-  help       Show this help message
+  login           Authenticate with Token Rats (opens browser)
+  sync            Read local Claude Code + Cursor logs and upload counts
+  watch           Watch logs in real-time; upload new sessions as they appear
+  whoami          Show the currently signed-in account
+  logout          Clear your stored credentials
+  install-cursor  Install better-sqlite3 globally for faster Cursor reads
+                  (sql.js works out of the box — this is opt-in speed-up)
+  help            Show this help message
 
 \x1b[1mFlags (all commands):\x1b[0m
   --api-url <url>   Override API URL (default: https://api.tokenrats.com)
@@ -149,9 +152,13 @@ async function main(): Promise<void> {
       logoutCommand();
       break;
 
+    case "install-cursor":
+      await installCursorCommand();
+      break;
+
     default:
       console.error(`\x1b[31mUnknown command: ${command}\x1b[0m`);
-      console.error(`Run \x1b[1mtoken-rats help\x1b[0m for a list of commands.`);
+      console.error("Run \x1b[1mtoken-rats help\x1b[0m for a list of commands.");
       process.exit(1);
   }
 }

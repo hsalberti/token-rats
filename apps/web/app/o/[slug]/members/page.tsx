@@ -5,8 +5,8 @@
  * renders the member list. The invite form is a client component.
  */
 
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getCookieHeader } from "../../../../lib/auth";
 import { requireOrgAdmin } from "../../../../lib/org-auth";
 import { MembersClient } from "./MembersClient";
@@ -35,10 +35,7 @@ export default async function OrgMembersPage({ params }: Props) {
     <div className="min-h-screen bg-zinc-950">
       <header className="border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <a
-            href={`/o/${slug}`}
-            className="text-sm text-zinc-500 hover:text-zinc-300"
-          >
+          <a href={`/o/${slug}`} className="text-sm text-zinc-500 hover:text-zinc-300">
             ← {org.name}
           </a>
           <a href="/" className="text-lg font-black tracking-tight">

@@ -1,11 +1,11 @@
+import type { Heatmap } from "@token-rats/contracts";
 import type { Metadata } from "next";
-import { getCookieHeader, getSession } from "../../../lib/auth";
-import { api, ApiError } from "../../../lib/api";
+import { ProfileHeatmap } from "../../../components/ProfileHeatmap";
+import { SourceTiles } from "../../../components/SourcePill";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
-import { SourceTiles } from "../../../components/SourcePill";
-import { ProfileHeatmap } from "../../../components/ProfileHeatmap";
-import type { Heatmap } from "@token-rats/contracts";
+import { ApiError, api } from "../../../lib/api";
+import { getCookieHeader, getSession } from "../../../lib/auth";
 
 export const runtime = "edge";
 
@@ -157,12 +157,7 @@ export default async function ProfilePage({ params }: Props) {
                 rel="noopener noreferrer"
                 className="mt-2 inline-flex items-center gap-1.5 text-sm font-semibold text-rat-400 hover:text-rat-300 transition-colors"
               >
-                <svg
-                  className="h-4 w-4"
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                  aria-hidden="true"
-                >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
                   <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
                 </svg>
                 @{profile.twitterHandle}
@@ -193,9 +188,7 @@ export default async function ProfilePage({ params }: Props) {
 
         {/* Per-source tiles (Track Q in roadmap-providers.md). Shown only
             when the user has actually synced something. */}
-        {profile.sources && profile.sources.length > 0 && (
-          <SourceTiles sources={profile.sources} />
-        )}
+        {profile.sources && profile.sources.length > 0 && <SourceTiles sources={profile.sources} />}
 
         {/* GitHub-style activity heatmap — last 364 days of daily_rollup.
             Best-effort; if the API call errored, `heatmap` is null and we

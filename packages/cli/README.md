@@ -86,7 +86,3 @@ Authentication uses a device-code flow:
 Token Rats is open source. The CLI source is in [`packages/cli/`](.) and the parsers are in [`packages/parsers/`](../parsers/). You can inspect exactly what is read from your disk and what is sent to the server.
 
 **Privacy posture:** Token Rats reads usage counts only — never prompts or completions. The parser source is in `packages/parsers/`. We literally can't read what you typed.
-
-## License
-
-MIT
