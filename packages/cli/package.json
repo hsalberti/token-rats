@@ -7,24 +7,14 @@
   "bin": {
     "token-rats": "./dist/index.js"
   },
-  "files": [
-    "dist",
-    "README.md"
-  ],
+  "files": ["dist", "README.md"],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hsalberti/token-rats.git",
     "directory": "packages/cli"
   },
   "homepage": "https://tokenrats.com",
-  "keywords": [
-    "claude",
-    "claude-code",
-    "cursor",
-    "tokens",
-    "leaderboard",
-    "ai-usage"
-  ],
+  "keywords": ["claude", "claude-code", "cursor", "tokens", "leaderboard", "ai-usage"],
   "publishConfig": {
     "access": "public"
   },
