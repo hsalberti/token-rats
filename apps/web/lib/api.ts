@@ -12,6 +12,7 @@ import type {
   CreateChallengeResponse,
   CreateRoomRequest,
   CreateRoomResponse,
+  DeleteRoomResponse,
   GetActivityResponse,
   GetAutobiographyResponse,
   GetChallengesResponse,
@@ -213,6 +214,17 @@ export async function renameRoom(
   });
 }
 
+/** Delete a room (owner only). */
+export async function deleteRoom(
+  code: RoomCode,
+  cookieHeader?: string,
+): Promise<DeleteRoomResponse> {
+  return request<DeleteRoomResponse>(ENDPOINTS.deleteRoom(code), {
+    method: "DELETE",
+    cookieHeader,
+  });
+}
+
 /** Get recent activity feed for a room. */
 export async function getRoomActivity(
   code: RoomCode,
@@ -393,6 +405,7 @@ export const api = {
   getMyRooms,
   leaveRoom,
   renameRoom,
+  deleteRoom,
   getRoomActivity,
   getRoomStreaks,
   createChallenge,

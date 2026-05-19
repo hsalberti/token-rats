@@ -5,6 +5,7 @@
  *   GET   /v1/rooms/:code            – get room + members (members only)
  *   POST  /v1/rooms/:code/leave      – leave a room (owner can't leave)
  *   PATCH /v1/rooms/:code            – rename a room (owner only)
+ *   DELETE /v1/rooms/:code           – delete a room (owner only)
  *   GET   /v1/rooms/:code/activity   – recent activity feed
  */
 import { Hono } from "hono";
@@ -298,6 +299,43 @@ rooms.patch("/:code", requireAuth, async (c) => {
       createdAt: room.created_at,
     },
   });
+});
+
+/* -------------------------------------------------------------------------- */
+/* DELETE /v1/rooms/:code   (owner only)                                       */
+/* -------------------------------------------------------------------------- */
+
+rooms.delete("/:code", requireAuth, async (c) => {
+  const userId = c.var.userId;
+  const code = c.req.param("code");
+
+  const room = await c.env.DB.prepare("SELECT id, code, owner_id FROM rooms WHERE code = ?")
+    .bind(code)
+    .first<{ id: string; code: string; owner_id: string }>();
+
+  if (!room) {
+    return notFound(c, "Room not found");
+  }
+
+  if (room.owner_id !== userId) {
+    return forbidden(c, "Only the room owner can delete the room");
+  }
+
+  // No ON DELETE CASCADE in the schema, so clear child rows first.
+  await c.env.DB.batch([
+    c.env.DB.prepare("DELETE FROM challenges WHERE room_id = ?").bind(room.id),
+    c.env.DB.prepare("DELETE FROM room_members WHERE room_id = ?").bind(room.id),
+    c.env.DB.prepare("DELETE FROM rooms WHERE id = ?").bind(room.id),
+  ]);
+
+  // Bust any cached leaderboards for this room code.
+  await Promise.all(
+    (["today", "7d", "30d", "all"] as const).map((r) =>
+      c.env.CACHE.delete(`lb:${room.code}:${r}`),
+    ),
+  );
+
+  return c.json({ ok: true });
 });
 
 /* -------------------------------------------------------------------------- */

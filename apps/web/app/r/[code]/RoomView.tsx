@@ -74,6 +74,7 @@ export function RoomView({
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [renamingRoom, setRenamingRoom] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   // Activity tab state
   const [activity, setActivity] = useState<ActivityRow[]>([]);
@@ -219,6 +220,22 @@ export function RoomView({
     setRoom(data.room);
   }
 
+  async function handleDeleteRoom() {
+    const confirmed = window.confirm(
+      `Delete "${room.name}"? This permanently removes the room and its leaderboard for all members.`,
+    );
+    if (!confirmed) return;
+    setDeleting(true);
+    try {
+      await api.deleteRoom(room.code as Parameters<typeof api.deleteRoom>[0], cookieHeader);
+      window.location.href = "/app";
+    } catch (e) {
+      setDeleting(false);
+      const msg = e instanceof ApiError ? e.message : "Failed to delete room";
+      window.alert(msg);
+    }
+  }
+
   function handleInvite() {
     copyText(`https://tokenrats.com/join/${room.code}`);
     setCopied(true);
@@ -302,6 +319,16 @@ export function RoomView({
             <Button variant="secondary" size="sm" onClick={handleInvite}>
               {copied ? "Copied!" : "Copy invite link"}
             </Button>
+            {isOwner && (
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteRoom}
+                disabled={deleting}
+              >
+                {deleting ? "Deleting…" : "Delete room"}
+              </Button>
+            )}
           </div>
         </div>
 

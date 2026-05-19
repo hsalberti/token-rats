@@ -134,6 +134,10 @@ export type RenameRoomRequest = z.infer<typeof RenameRoomRequest>;
 export const RenameRoomResponse = z.object({ room: Room });
 export type RenameRoomResponse = z.infer<typeof RenameRoomResponse>;
 
+/* DELETE /v1/rooms/:code  (owner only) */
+export const DeleteRoomResponse = z.object({ ok: z.boolean() });
+export type DeleteRoomResponse = z.infer<typeof DeleteRoomResponse>;
+
 /* GET /v1/rooms/:code/activity?limit=20 */
 export const GetActivityQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -218,6 +222,7 @@ export const ENDPOINTS = {
   meRooms: "/v1/me/rooms",
   leaveRoom: (code: RoomCode) => `/v1/rooms/${code}/leave`,
   renameRoom: (code: RoomCode) => `/v1/rooms/${code}`,
+  deleteRoom: (code: RoomCode) => `/v1/rooms/${code}`,
   roomActivity: (code: RoomCode) => `/v1/rooms/${code}/activity`,
   roomStreaks: (code: RoomCode) => `/v1/rooms/${code}/streaks`,
   roomChallenges: (code: RoomCode) => `/v1/rooms/${code}/challenges`,
