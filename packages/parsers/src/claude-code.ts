@@ -36,9 +36,17 @@
  * - `inTokens`  = Σ(input_tokens)   — uncached input only, matching Claude
  *                                     Code's `/stats` and `/usage` displays.
  *                                     Cache creation/read tokens are excluded
- *                                     because they would inflate totals by 10–100×
- *                                     (every tool call re-reads the whole cache).
+ *                                     from `inTokens` because they would inflate
+ *                                     leaderboard totals by 10–100× (every tool
+ *                                     call re-reads the whole cache). They are
+ *                                     reported separately in `cacheReadTokens`
+ *                                     and `cacheWriteTokens` so analytics keep
+ *                                     full visibility without distorting headline
+ *                                     numbers.
  * - `outTokens` = Σ(output_tokens)
+ * - `cacheReadTokens`  = Σ(cache_read_input_tokens)
+ * - `cacheWriteTokens` = Σ(cache_creation_input_tokens)
+ * - `provider` = "anthropic"
  *
  * ## Privacy
  * No prompt or completion text is ever read, stored, or returned.
@@ -55,6 +63,8 @@ interface SessionAcc {
   endedAt: number;
   inTokens: number;
   outTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
   model: string;
 }
 
@@ -112,6 +122,8 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
         endedAt: timestamp,
         inTokens: 0,
         outTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
         model: "",
       };
       sessions.set(sessionId, acc);
@@ -139,10 +151,10 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     const usage = msg.usage;
     if (typeof usage === "object" && usage !== null) {
       const u = usage as Record<string, unknown>;
-      const inputTokens = toNonNegInt(u.input_tokens);
-      const outputTokens = toNonNegInt(u.output_tokens);
-      acc.inTokens += inputTokens;
-      acc.outTokens += outputTokens;
+      acc.inTokens += toNonNegInt(u.input_tokens);
+      acc.outTokens += toNonNegInt(u.output_tokens);
+      acc.cacheReadTokens += toNonNegInt(u.cache_read_input_tokens);
+      acc.cacheWriteTokens += toNonNegInt(u.cache_creation_input_tokens);
     }
   }
 
@@ -168,9 +180,12 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     results.push({
       id: `claude-code:${acc.sessionId}`,
       source: "claude-code",
+      provider: "anthropic",
       model,
       inTokens: acc.inTokens,
       outTokens: acc.outTokens,
+      cacheReadTokens: acc.cacheReadTokens,
+      cacheWriteTokens: acc.cacheWriteTokens,
       costUsdCents,
       startedAt,
       endedAt,

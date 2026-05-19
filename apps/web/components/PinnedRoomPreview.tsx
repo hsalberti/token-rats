@@ -11,6 +11,7 @@
 import type { LeaderboardRow, Room } from "@token-rats/contracts";
 import { useEffect, useState } from "react";
 import { getLeaderboard } from "../lib/api";
+import { SourceBadges } from "./SourceBadge";
 import { Avatar } from "./ui/Avatar";
 
 interface Props {
@@ -120,11 +121,14 @@ function PreviewRow({ row, isViewer }: { row: LeaderboardRow; isViewer: boolean 
         {row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}
       </span>
       <Avatar src={row.avatarUrl} handle={row.handle} size="xs" />
-      <span className="flex-1 truncate min-w-0 text-sm font-semibold text-zinc-100">
-        {isViewer ? "You" : `@${row.handle}`}
-        {isViewer && (
-          <span className="ml-1.5 text-xs font-normal text-zinc-500">@{row.handle}</span>
-        )}
+      <span className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-sm font-semibold text-zinc-100">
+        <span className="truncate">
+          {isViewer ? "You" : `@${row.handle}`}
+          {isViewer && (
+            <span className="ml-1.5 text-xs font-normal text-zinc-500">@{row.handle}</span>
+          )}
+        </span>
+        <SourceBadges sources={row.topSources} />
       </span>
       <div className="shrink-0 text-right">
         <p className="text-sm font-bold text-zinc-100">{fmtTokens(row.tokens)}</p>
