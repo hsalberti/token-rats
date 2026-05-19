@@ -15,6 +15,7 @@ import notificationsRoutes from "./routes/notifications.js";
 import orgsRoutes from "./routes/orgs.js";
 import profilesRoutes from "./routes/profiles.js";
 import proxyRoutes from "./routes/proxy.js";
+import roomAggregatesRoutes from "./routes/room-aggregates.js";
 import pushRoutes from "./routes/push.js";
 import roomsRoutes from "./routes/rooms.js";
 import sessionsRoutes from "./routes/sessions.js";
@@ -87,6 +88,12 @@ app.route("/v1/rooms", leaderboardRoutes);
 app.route("/v1/rooms", streaksRoutes);
 app.route("/v1/rooms", challengesRoutes);
 app.route("/v1/rooms", liveRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Public room aggregates (summary, heatmap, group streak)                    */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/r", roomAggregatesRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Profiles                                                                    */

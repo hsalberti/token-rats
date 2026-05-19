@@ -104,15 +104,63 @@ export const HeatmapDay = z.object({
 });
 export type HeatmapDay = z.infer<typeof HeatmapDay>;
 
+/** Range for heatmap queries — 30d is the default everywhere. */
+export const HeatmapRange = z.enum(["30d", "52w"]);
+export type HeatmapRange = z.infer<typeof HeatmapRange>;
+
 export const Heatmap = z.object({
+  range: HeatmapRange,
   from: z.string(), // YYYY-MM-DD UTC, inclusive
   to: z.string(), // YYYY-MM-DD UTC, inclusive
   days: z.array(HeatmapDay),
 });
 export type Heatmap = z.infer<typeof Heatmap>;
 
+export const GetHeatmapQuery = z.object({
+  range: HeatmapRange.default("30d"),
+});
+export type GetHeatmapQuery = z.infer<typeof GetHeatmapQuery>;
+
 export const GetHeatmapResponse = z.object({ heatmap: Heatmap });
 export type GetHeatmapResponse = z.infer<typeof GetHeatmapResponse>;
+
+/* ---------------- GET /v1/r/:code/summary ------------------------------- */
+/**
+ * Lightweight public-facing room aggregate. Returned without auth — the
+ * member count + 30-day token + 30-day cost totals are intentionally visible
+ * to anyone with the room URL.
+ */
+export const RoomSummary = z.object({
+  code: z.string(),
+  name: z.string(),
+  /** Future: true once feature #6 lands. Always false for now. */
+  isPublic: z.boolean(),
+  /** ISO country code (e.g. "DE") when isPublic is true; null otherwise. */
+  country: z.string().nullable(),
+  memberCount: z.number().int().nonnegative(),
+  total30dTokens: z.number().int().nonnegative(),
+  total30dCostUsdCents: z.number().int().nonnegative(),
+});
+export type RoomSummary = z.infer<typeof RoomSummary>;
+
+export const GetRoomSummaryResponse = z.object({ summary: RoomSummary });
+export type GetRoomSummaryResponse = z.infer<typeof GetRoomSummaryResponse>;
+
+/* ---------------- GET /v1/r/:code/group-streak -------------------------- */
+/**
+ * The number of consecutive UTC days (counting back from yesterday) on which
+ * at least one room member had `daily_rollup.tokens > 0`. Today (in progress)
+ * does not count.
+ */
+export const GroupStreak = z.object({
+  currentStreak: z.number().int().nonnegative(),
+  /** Yesterday in YYYY-MM-DD UTC. */
+  asOf: z.string(),
+});
+export type GroupStreak = z.infer<typeof GroupStreak>;
+
+export const GetGroupStreakResponse = z.object({ groupStreak: GroupStreak });
+export type GetGroupStreakResponse = z.infer<typeof GetGroupStreakResponse>;
 
 /* -------------------- Phase 2 Track G+H new endpoints -------------------- */
 
@@ -215,6 +263,10 @@ export const ENDPOINTS = {
   profile: (handle: string) => `/v1/u/${handle}`,
   autobiography: (handle: string) => `/v1/u/${handle}/autobiography`,
   profileHeatmap: (handle: string) => `/v1/u/${handle}/heatmap`,
+  // v1.2 room aggregates — auth optional, accessible to non-members.
+  roomSummary: (code: RoomCode) => `/v1/r/${code}/summary`,
+  roomHeatmap: (code: RoomCode) => `/v1/r/${code}/heatmap`,
+  roomGroupStreak: (code: RoomCode) => `/v1/r/${code}/group-streak`,
   authGithubStart: "/v1/auth/github/start",
   authGithubCallback: "/v1/auth/github/callback",
   authCliExchange: "/v1/auth/cli/exchange",

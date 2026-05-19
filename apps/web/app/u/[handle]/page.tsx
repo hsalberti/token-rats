@@ -1,6 +1,6 @@
-import type { Heatmap } from "@token-rats/contracts";
+import type { Heatmap, HeatmapRange } from "@token-rats/contracts";
 import type { Metadata } from "next";
-import { ProfileHeatmap } from "../../../components/ProfileHeatmap";
+import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
 import { SourceTiles } from "../../../components/SourcePill";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
@@ -11,6 +11,12 @@ export const runtime = "edge";
 
 interface Props {
   params: Promise<{ handle: string }>;
+  searchParams: Promise<{ range?: string | string[] }>;
+}
+
+function pickRange(raw: string | string[] | undefined): HeatmapRange {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return v === "52w" ? "52w" : "30d";
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -43,8 +49,9 @@ function fmtCost(cents: number) {
   })}`;
 }
 
-export default async function ProfilePage({ params }: Props) {
+export default async function ProfilePage({ params, searchParams }: Props) {
   const { handle } = await params;
+  const range = pickRange((await searchParams).range);
   const cookieHeader = await getCookieHeader();
   const currentUser = await getSession();
 
@@ -80,7 +87,7 @@ export default async function ProfilePage({ params }: Props) {
   // Heatmap is best-effort: a render error here shouldn't break the profile.
   if (!isPrivate) {
     try {
-      const data = await api.getHeatmap(handle, cookieHeader);
+      const data = await api.getHeatmap(handle, range, cookieHeader);
       heatmap = data.heatmap;
     } catch {
       heatmap = null;
@@ -190,10 +197,11 @@ export default async function ProfilePage({ params }: Props) {
             when the user has actually synced something. */}
         {profile.sources && profile.sources.length > 0 && <SourceTiles sources={profile.sources} />}
 
-        {/* GitHub-style activity heatmap — last 364 days of daily_rollup.
-            Best-effort; if the API call errored, `heatmap` is null and we
-            skip the block silently. */}
-        {heatmap && heatmap.days.length > 0 && <ProfileHeatmap heatmap={heatmap} />}
+        {/* Activity heatmap with a 30d/52w toggle. Default is 30d. Best-effort;
+            if the API call errored, `heatmap` is null and we skip the block. */}
+        {heatmap && heatmap.days.length > 0 && (
+          <ProfileHeatmapClient handle={handle} initial={heatmap} />
+        )}
 
         {/* Badges / tagline */}
         <Card>

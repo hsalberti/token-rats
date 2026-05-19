@@ -25,6 +25,7 @@ import type {
   GetActivityResponse,
   GetAutobiographyResponse,
   GetChallengesResponse,
+  GetGroupStreakResponse,
   GetHeatmapResponse,
   GetLeaderboardResponse,
   GetMeResponse,
@@ -34,8 +35,10 @@ import type {
   GetProfileResponse,
   GetReferralResponse,
   GetRoomResponse,
+  GetRoomSummaryResponse,
   GetStreaksResponse,
   GetTrendingResponse,
+  HeatmapRange,
   JoinRoomResponse,
   LeaderboardRange,
   LeaveRoomResponse,
@@ -168,14 +171,40 @@ export async function getAutobiography(
   });
 }
 
-/** Get the 364-day calendar heatmap for a user's public profile. */
+/** Get the calendar heatmap for a user's public profile. Default range is 30d. */
 export async function getHeatmap(
   handle: string,
+  range: HeatmapRange = "30d",
   cookieHeader?: string,
 ): Promise<GetHeatmapResponse> {
-  return request<GetHeatmapResponse>(ENDPOINTS.profileHeatmap(handle), {
-    cookieHeader,
-  });
+  const url = `${ENDPOINTS.profileHeatmap(handle)}?range=${range}`;
+  return request<GetHeatmapResponse>(url, { cookieHeader });
+}
+
+/** Public-facing room aggregate (member count + 30d tokens + 30d cost). */
+export async function getRoomSummary(
+  code: RoomCode,
+  cookieHeader?: string,
+): Promise<GetRoomSummaryResponse> {
+  return request<GetRoomSummaryResponse>(ENDPOINTS.roomSummary(code), { cookieHeader });
+}
+
+/** Group activity heatmap for a room. */
+export async function getRoomHeatmap(
+  code: RoomCode,
+  range: HeatmapRange = "30d",
+  cookieHeader?: string,
+): Promise<GetHeatmapResponse> {
+  const url = `${ENDPOINTS.roomHeatmap(code)}?range=${range}`;
+  return request<GetHeatmapResponse>(url, { cookieHeader });
+}
+
+/** Current consecutive-day streak for a room (≥1 member active that day). */
+export async function getRoomGroupStreak(
+  code: RoomCode,
+  cookieHeader?: string,
+): Promise<GetGroupStreakResponse> {
+  return request<GetGroupStreakResponse>(ENDPOINTS.roomGroupStreak(code), { cookieHeader });
 }
 
 /** Approve a pending CLI device code. */
@@ -405,6 +434,9 @@ export const api = {
   getProfile,
   getAutobiography,
   getHeatmap,
+  getRoomSummary,
+  getRoomHeatmap,
+  getRoomGroupStreak,
   approveCli,
   getMyRooms,
   leaveRoom,

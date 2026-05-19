@@ -4,15 +4,19 @@ import type {
   ActivityRow,
   ChallengeKind,
   ChallengeWithLeaderboard,
+  GroupStreak,
+  Heatmap,
   Leaderboard,
   LeaderboardRange,
   LiveEvent,
   Room,
   RoomCode,
   RoomMember,
+  RoomSummary,
   StreakRow,
 } from "@token-rats/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { HeatmapWithToggle } from "../../../components/HeatmapWithToggle";
 import { SourceBadges } from "../../../components/SourceBadge";
 import { ActivityFeed } from "../../../components/room/ActivityFeed";
 import { ChallengesPanel } from "../../../components/room/ChallengesPanel";
@@ -25,9 +29,12 @@ import { ApiError, api } from "../../../lib/api";
 import { useRoomLive } from "../../../lib/use-room-live";
 
 interface Props {
+  summary: RoomSummary;
   room: Room;
   members: RoomMember[];
   initialLeaderboard: Leaderboard;
+  heatmap: Heatmap | null;
+  groupStreak: GroupStreak | null;
   cookieHeader: string;
   currentUserId?: string;
 }
@@ -94,9 +101,12 @@ function buildShareText(opts: {
 }
 
 export function RoomView({
+  summary,
   room: initialRoom,
   members: _members,
   initialLeaderboard,
+  heatmap,
+  groupStreak,
   cookieHeader,
   currentUserId,
 }: Props) {
@@ -383,16 +393,38 @@ export function RoomView({
           </div>
         </div>
 
-        {/* Stat strip */}
+        {/* Stat strip — driven by RoomSummary (public, 30d window). */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          <StatCard label="Members" value={`${leaderboard.rows.length}`} />
-          <StatCard label="Total tokens" value={fmtTokens(totalTokens)} />
+          <StatCard label="Members" value={`${summary.memberCount}`} />
+          <StatCard label="30d tokens" value={fmtTokens(summary.total30dTokens)} primary />
           <StatCard
-            label="Total spent"
-            value={fmtCost(leaderboard.rows.reduce((s, r) => s + r.costUsdCents, 0))}
+            label="30d spent"
+            value={fmtCost(summary.total30dCostUsdCents)}
             className="col-span-2 sm:col-span-1"
           />
         </div>
+
+        {/* Group streak pill */}
+        {groupStreak && groupStreak.currentStreak > 0 && (
+          <div className="inline-flex items-center gap-2 rounded-full border border-rat-500/40 bg-rat-500/10 px-3 py-1 text-sm font-semibold text-rat-400">
+            <span aria-hidden>🔥</span>
+            <span>
+              {groupStreak.currentStreak}-day group streak
+            </span>
+          </div>
+        )}
+
+        {/* Group activity heatmap */}
+        {heatmap && heatmap.days.length > 0 && (
+          <HeatmapWithToggle
+            initial={heatmap}
+            title="Group activity"
+            fetcher={async (r) => {
+              const res = await api.getRoomHeatmap(room.code as RoomCode, r);
+              return res.heatmap;
+            }}
+          />
+        )}
 
         {/* Tab bar */}
         <div className="flex gap-1 rounded-xl border border-zinc-800 bg-zinc-900 p-1 w-fit">
@@ -473,16 +505,20 @@ export function RoomView({
 function StatCard({
   label,
   value,
+  primary = false,
   className = "",
 }: {
   label: string;
   value: string;
+  primary?: boolean;
   className?: string;
 }) {
   return (
     <div className={`rounded-xl border border-zinc-800 bg-zinc-900 p-4 ${className}`}>
       <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
-      <p className="mt-1 text-2xl font-black text-rat-400">{value}</p>
+      <p className={`mt-1 text-2xl font-black ${primary ? "text-rat-400" : "text-zinc-100"}`}>
+        {value}
+      </p>
     </div>
   );
 }
