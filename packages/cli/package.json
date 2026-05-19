@@ -2,7 +2,7 @@
   "name": "token-rats",
   "version": "0.0.2",
   "description": "Sync your Claude Code + Cursor token usage to your Token Rats leaderboard.",
-  "license": "MIT",
+  "license": "UNLICENSED",
   "type": "module",
   "bin": {
     "token-rats": "./dist/index.js"

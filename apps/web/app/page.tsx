@@ -195,6 +195,14 @@ export default async function HomePage() {
             >
               Mission
             </a>
+            <a
+              href="https://twitter.com/hsalberti"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-zinc-300"
+            >
+              made by @hsalberti
+            </a>
             <span>Counts only — we can&apos;t read your prompts.</span>
           </div>
         </div>
