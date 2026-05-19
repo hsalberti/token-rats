@@ -29,6 +29,12 @@ import {
   validationError,
 } from "../lib/errors.js";
 import { rateLimit } from "../lib/rate-limit.js";
+import {
+  ensureReferralCode,
+  isValidReferralCodeFormat,
+  recordReferral,
+  referrerIdForCode,
+} from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -44,8 +50,12 @@ auth.get("/github/start", async (c) => {
   const state = randomBase64url(24);
   const stateKey = `oauth:state:${state}`;
 
-  // Store state in KV with 10-minute TTL
-  await c.env.CACHE.put(stateKey, "1", { expirationTtl: 600 });
+  // Optional affiliate / referral code carried through OAuth via KV state.
+  // Only stored if format-valid; we'll re-validate against the DB on callback.
+  const refRaw = c.req.query("ref");
+  const ref = refRaw && isValidReferralCodeFormat(refRaw) ? refRaw : null;
+
+  await c.env.CACHE.put(stateKey, JSON.stringify({ ref }), { expirationTtl: 600 });
 
   // Callback lives on this Worker (not the web app), so derive from request.
   const apiOrigin = new URL(c.req.url).origin;
@@ -81,6 +91,19 @@ auth.get("/github/callback", async (c) => {
   }
   // Delete immediately (one-time use)
   await c.env.CACHE.delete(stateKey);
+
+  // Older state records were just "1"; new records are JSON `{ ref: string | null }`.
+  let refCode: string | null = null;
+  if (stateVal.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(stateVal) as { ref?: string | null };
+      if (typeof parsed.ref === "string" && isValidReferralCodeFormat(parsed.ref)) {
+        refCode = parsed.ref;
+      }
+    } catch {
+      // ignore — treat as no ref
+    }
+  }
 
   // Exchange code for access token
   let accessToken: string;
@@ -158,6 +181,21 @@ auth.get("/github/callback", async (c) => {
       .bind(newId, ghUser.id, ghUser.login, ghUser.avatar_url ?? null, now)
       .run();
     userId = newId;
+
+    // Allocate this user's own referral code up front so they can share immediately.
+    try {
+      await ensureReferralCode(c.env.DB, userId);
+    } catch {
+      // Non-fatal — code can be allocated lazily on first /v1/me/referral read.
+    }
+
+    // If they arrived via someone else's ref link, record the directed edge.
+    if (refCode) {
+      const referrerId = await referrerIdForCode(c.env.DB, refCode);
+      if (referrerId) {
+        await recordReferral(c.env.DB, userId, referrerId, now);
+      }
+    }
   }
 
   // Mint session token

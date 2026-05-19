@@ -18,6 +18,7 @@
 
 import { useState } from "react";
 import { CopyButton } from "./CopyButton";
+import { NodeInstallHint } from "./NodeInstallHint";
 import { OtherSourcePicker } from "./OtherSourcePicker";
 
 type SourceId = "claude-code" | "codex" | "other";
@@ -110,6 +111,7 @@ function SelectedDetail({ id }: { id: SourceId }) {
         <span className="select-all font-mono text-sm text-zinc-100">{cmd}</span>
         <CopyButton text={cmd} label="Copy" className="ml-auto shrink-0" />
       </div>
+      <NodeInstallHint />
     </div>
   );
 }

@@ -15,6 +15,7 @@
 import type { AutobiographyStats } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { NodeInstallHint } from "../../components/NodeInstallHint";
 import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
 import { ApiError, api } from "../../lib/api";
 import { getCookieHeader, requireSession } from "../../lib/auth";
@@ -156,6 +157,7 @@ function NoSessionsView({ handle }: { handle: string }) {
               <span className="text-zinc-300">npx token-rats sync</span>
             </div>
           </div>
+          <NodeInstallHint />
         </div>
 
         <div className="flex gap-4">

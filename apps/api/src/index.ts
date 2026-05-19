@@ -4,8 +4,10 @@ import type { Env } from "./env.js";
 import type { AuthVariables } from "./middleware/auth.js";
 import abuseRoutes from "./routes/abuse.js";
 import adminRoutes from "./routes/admin.js";
+import twitterAuthRoutes from "./routes/auth-twitter.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
+import friendsRoutes from "./routes/friends.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
 import liveRoutes from "./routes/live.js";
 import meRoutes from "./routes/me.js";
@@ -54,10 +56,21 @@ app.get("/healthz", (c) => c.json({ ok: true, ts: Date.now() }));
 app.route("/v1/auth", authRoutes);
 
 /* -------------------------------------------------------------------------- */
+/* v1.2 Track AC — Twitter/X OAuth                                             */
+/* Mounted at /v1 so it can register both /v1/auth/twitter/* and               */
+/* /v1/me/twitter/disconnect without splitting across files.                   */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1", twitterAuthRoutes);
+
+/* -------------------------------------------------------------------------- */
 /* Identity                                                                    */
 /* -------------------------------------------------------------------------- */
 
 app.route("/v1/me", meRoutes);
+// v1.2 Track AD — friends derived from shared private rooms.
+// Mounted on the me namespace so the path is `/v1/me/friends`.
+app.route("/v1/me", friendsRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Session ingest                                                              */

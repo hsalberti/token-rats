@@ -26,4 +26,9 @@ export type Env = {
    * `wrangler secret put ADMIN_GITHUB_LOGIN`.
    */
   ADMIN_GITHUB_LOGIN?: string;
+  /** Twitter/X OAuth client id (v1.2 Track AC). Optional — when unset, the
+   *  /v1/auth/twitter/* endpoints respond 503 and the UI hides the Connect button. */
+  X_OAUTH_CLIENT_ID?: string;
+  /** Twitter/X OAuth client secret (v1.2 Track AC). Worker secret. */
+  X_OAUTH_CLIENT_SECRET?: string;
 };

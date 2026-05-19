@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Leaderboard, LeaderboardRange, LeaderboardRow } from "./leaderboard.js";
+import { ReferralStats } from "./referral.js";
 import { Room, type RoomCode, RoomMember } from "./room.js";
 import { SessionRecord } from "./session.js";
 import {
@@ -188,6 +189,10 @@ export const GetTrendingResponse = z.object({
 });
 export type GetTrendingResponse = z.infer<typeof GetTrendingResponse>;
 
+/* ------------------------- GET /v1/me/referral --------------------------- */
+export const GetReferralResponse = z.object({ referral: ReferralStats });
+export type GetReferralResponse = z.infer<typeof GetReferralResponse>;
+
 /* -------------------- POST /v1/abuse/report ------------------------------ */
 export const ReportAbuseRequest = z.object({
   targetHandle: z.string().min(1).max(100),
@@ -231,6 +236,10 @@ export const ENDPOINTS = {
   patchMe: "/v1/me",
   trending: "/v1/trending",
   reportAbuse: "/v1/abuse/report",
+  // Affiliate / referral tracking
+  meReferral: "/v1/me/referral",
+  // v1.2 Track AD — friends derived from shared private rooms
+  meFriends: "/v1/me/friends",
   // Phase 3 Track O — Org plan
   orgs: "/v1/orgs",
   org: (slug: string) => `/v1/orgs/${slug}`,

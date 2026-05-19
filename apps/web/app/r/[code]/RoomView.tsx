@@ -108,6 +108,9 @@ export function RoomView({
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
   const [copied, setCopied] = useState(false);
   const [renamingRoom, setRenamingRoom] = useState(false);
+  // Cached referral code for tagging invite links so we can credit whoever
+  // shared the room when a new friend signs up.
+  const [inviterRef, setInviterRef] = useState<string | null>(null);
 
   // Activity tab state
   const [activity, setActivity] = useState<ActivityRow[]>([]);
@@ -274,6 +277,28 @@ export function RoomView({
     setTimeout(() => setCopied(false), 2000);
   }
 
+  async function handleInvite() {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://tokenrats.com";
+
+    let ref = inviterRef;
+    if (!ref) {
+      try {
+        const data = await api.getReferral();
+        ref = data.referral.code;
+        setInviterRef(ref);
+      } catch {
+        // Non-fatal — fall back to an un-tagged invite link.
+      }
+    }
+
+    const url = ref
+      ? `${origin}/join/${room.code}?ref=${encodeURIComponent(ref)}`
+      : `${origin}/join/${room.code}`;
+    copyText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
   // Build streak lookup by userId for leaderboard augmentation
   const streakByUser = new Map(streaks.map((s) => [s.userId, s]));
 
@@ -351,7 +376,10 @@ export function RoomView({
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="secondary" size="sm" onClick={handleShare}>
-              {copied ? "Copied!" : "Share"}
+              {copied ? "Copied!" : "Share recap"}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={handleInvite}>
+              {copied ? "Copied!" : "Copy invite link"}
             </Button>
           </div>
         </div>

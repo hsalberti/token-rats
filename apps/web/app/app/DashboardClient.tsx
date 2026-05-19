@@ -81,9 +81,17 @@ export function DashboardClient({ user: _user, cookieHeader }: Props) {
   return (
     <div className="space-y-8">
       {/* Welcome */}
-      <div>
-        <h1 className="text-3xl font-black tracking-tight">Your rooms</h1>
-        <p className="mt-1 text-zinc-400">Create a room, invite friends, climb the board.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-black tracking-tight">Your rooms</h1>
+          <p className="mt-1 text-zinc-400">Create a room, invite friends, climb the board.</p>
+        </div>
+        <a
+          href="/settings/referrals"
+          className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-semibold text-zinc-300 hover:border-rat-700 hover:text-rat-400 transition-colors"
+        >
+          Invite friends →
+        </a>
       </div>
 
       {/* Action buttons */}

@@ -21,6 +21,7 @@ import type {
   CreateOrgResponse,
   CreateRoomRequest,
   CreateRoomResponse,
+  FriendsResponse,
   GetActivityResponse,
   GetAutobiographyResponse,
   GetChallengesResponse,
@@ -31,6 +32,7 @@ import type {
   GetOrgDashboardResponse,
   GetOrgResponse,
   GetProfileResponse,
+  GetReferralResponse,
   GetRoomResponse,
   GetStreaksResponse,
   GetTrendingResponse,
@@ -312,6 +314,20 @@ export async function getTrending(
   return request<GetTrendingResponse>(url, { cookieHeader });
 }
 
+/** Get the signed-in user's referral code, count, and recent referrals. */
+export async function getReferral(cookieHeader?: string): Promise<GetReferralResponse> {
+  return request<GetReferralResponse>(ENDPOINTS.meReferral, { cookieHeader });
+}
+
+/** Get the signed-in user's friends — everyone they share a private room with. */
+export async function getMeFriends(
+  range: LeaderboardRange = "7d",
+  cookieHeader?: string,
+): Promise<FriendsResponse> {
+  const url = `${ENDPOINTS.meFriends}?range=${range}`;
+  return request<FriendsResponse>(url, { cookieHeader });
+}
+
 /** Submit an abuse report against a public handle. */
 export async function reportAbuse(
   body: ReportAbuseRequest,
@@ -405,6 +421,9 @@ export const api = {
   patchMe,
   getTrending,
   reportAbuse,
+  getReferral,
+  // v1.2 Track AD
+  getMeFriends,
   // Phase 3 Track O
   createOrg,
   getOrg,
