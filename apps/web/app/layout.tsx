@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Footer } from "../components/ui/Footer.js";
+import { getServerLocale } from "../lib/server-locale";
 import "./globals.css";
 
 export const runtime = "edge";
@@ -49,9 +50,10 @@ export const viewport: Viewport = {
   themeColor: "#f97316",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getServerLocale();
   return (
-    <html lang="en" className="dark">
+    <html lang={locale} className="dark">
       <body className="flex min-h-screen flex-col bg-zinc-950 text-zinc-100 antialiased">
         <div className="flex-1">{children}</div>
         <Footer />

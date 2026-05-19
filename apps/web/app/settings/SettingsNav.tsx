@@ -5,15 +5,20 @@
  * Renders inside the settings layout so any sub-page picks it up.
  */
 
+import { type I18nKey, type Locale, t } from "@/lib/i18n";
 import { usePathname } from "next/navigation";
 
-const TABS = [
-  { href: "/settings/profile", label: "Profile" },
-  { href: "/settings/notifications", label: "Notifications" },
-  { href: "/settings/referrals", label: "Invite friends" },
+interface Props {
+  locale: Locale;
+}
+
+const TABS: { href: string; key: I18nKey }[] = [
+  { href: "/settings/profile", key: "settings.tab.profile" },
+  { href: "/settings/notifications", key: "settings.tab.notifications" },
+  { href: "/settings/referrals", key: "settings.tab.referrals" },
 ];
 
-export function SettingsNav() {
+export function SettingsNav({ locale }: Props) {
   const pathname = usePathname();
 
   return (
@@ -21,18 +26,18 @@ export function SettingsNav() {
       aria-label="Settings sections"
       className="mt-4 flex w-fit gap-1 rounded-xl border border-zinc-800 bg-zinc-900 p-1"
     >
-      {TABS.map((t) => {
-        const active = pathname?.startsWith(t.href);
+      {TABS.map((tab) => {
+        const active = pathname?.startsWith(tab.href);
         return (
           <a
-            key={t.href}
-            href={t.href}
+            key={tab.href}
+            href={tab.href}
             className={[
               "rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors",
               active ? "bg-rat-500 text-white shadow" : "text-zinc-400 hover:text-zinc-200",
             ].join(" ")}
           >
-            {t.label}
+            {t(locale, tab.key)}
           </a>
         );
       })}

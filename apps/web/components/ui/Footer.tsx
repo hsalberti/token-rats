@@ -1,6 +1,9 @@
+import { t } from "../../lib/i18n";
+import { getServerLocale } from "../../lib/server-locale";
 import { Wordmark } from "./Wordmark.js";
 
-export function Footer() {
+export async function Footer() {
+  const locale = await getServerLocale();
   return (
     <footer className="border-t border-zinc-800 px-6 py-8">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
@@ -34,7 +37,7 @@ export function Footer() {
             @tokenratsx
           </a>
           <span>
-            made by{" "}
+            {t(locale, "footer.madeBy")}{" "}
             <a
               href="https://twitter.com/hsalberti"
               target="_blank"

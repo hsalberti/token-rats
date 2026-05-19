@@ -22,6 +22,8 @@ import { AutobiographyReveal } from "../../components/onboarding/AutobiographyRe
 import { Wordmark } from "../../components/ui/Wordmark.js";
 import { ApiError, api } from "../../lib/api";
 import { getCookieHeader, requireSession } from "../../lib/auth";
+import { type Locale, t } from "../../lib/i18n";
+import { getServerLocale } from "../../lib/server-locale";
 
 export const runtime = "edge";
 
@@ -34,6 +36,7 @@ export default async function OnboardingPage() {
   // Require auth — redirects to /signin if not logged in
   const user = await requireSession();
   const cookieHeader = await getCookieHeader();
+  const locale = await getServerLocale();
 
   // Fetch autobiography stats
   let stats: AutobiographyStats | undefined;
@@ -50,7 +53,7 @@ export default async function OnboardingPage() {
 
   // No sessions yet — show a friendly nudge
   if (!stats || stats.totalSessions === 0) {
-    return <NoSessionsView handle={user.handle} />;
+    return <NoSessionsView handle={user.handle} locale={locale} />;
   }
 
   // Autobiography card URL for OG meta
@@ -116,7 +119,7 @@ export default async function OnboardingPage() {
 
 // ---- No-sessions fallback ---------------------------------------------------
 
-function NoSessionsView({ handle }: { handle: string }) {
+function NoSessionsView({ handle, locale }: { handle: string; locale: Locale }) {
   return (
     <div className="min-h-screen bg-zinc-950 flex flex-col">
       {/* Header */}
@@ -136,23 +139,17 @@ function NoSessionsView({ handle }: { handle: string }) {
         <div className="text-6xl">🐀</div>
         <div className="space-y-3">
           <h1 className="text-2xl font-black tracking-tight">
-            @{handle}, you haven&apos;t synced yet.
+            {t(locale, "onb.noSync.greeting", { handle })}
           </h1>
-          <p className="text-zinc-400">
-            Run{" "}
-            <code className="rounded bg-zinc-800 px-1.5 py-0.5 text-rat-400 font-mono text-sm">
-              npx token-rats sync
-            </code>{" "}
-            to upload your Claude Code + Cursor usage, then come back here.
-          </p>
+          <p className="text-zinc-400">{t(locale, "onb.noSync.body")}</p>
         </div>
 
         <div className="w-full space-y-3 text-left">
           <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
-            Quick start
+            {t(locale, "onb.quickStart")}
           </p>
-          <InstallBlock />
-          <NodeInstallHint />
+          <InstallBlock locale={locale} />
+          <NodeInstallHint locale={locale} />
         </div>
 
         <div className="flex gap-4">
@@ -160,13 +157,13 @@ function NoSessionsView({ handle }: { handle: string }) {
             href="/app"
             className="inline-flex items-center gap-2 rounded-lg bg-rat-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-rat-600 transition-colors"
           >
-            Go to dashboard
+            {t(locale, "onb.gotoDash")}
           </a>
           <a
             href="/onboarding"
             className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-5 py-2.5 text-sm font-semibold text-zinc-100 hover:bg-zinc-700 transition-colors"
           >
-            Refresh
+            {t(locale, "onb.refresh")}
           </a>
         </div>
       </main>

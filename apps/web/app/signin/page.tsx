@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { Wordmark } from "../../components/ui/Wordmark.js";
 import { AUTH_GITHUB_START } from "../../lib/api";
 import { getSession } from "../../lib/auth";
+import { t } from "../../lib/i18n";
+import { getServerLocale } from "../../lib/server-locale";
 
 export const runtime = "edge";
 
@@ -25,6 +27,7 @@ export default async function SignInPage({
   const user = await getSession();
   if (user) redirect("/app");
 
+  const locale = await getServerLocale();
   const params = await searchParams;
   const ref = pickRef(params.ref);
   const startUrl = ref ? `${AUTH_GITHUB_START}?ref=${encodeURIComponent(ref)}` : AUTH_GITHUB_START;
@@ -36,37 +39,32 @@ export default async function SignInPage({
           <h1>
             <Wordmark size="lg" />
           </h1>
-          <p className="mt-2 text-zinc-400">Strava for AI token burn.</p>
+          <p className="mt-2 text-zinc-400">{t(locale, "signin.tagline")}</p>
         </div>
 
         <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900">
           <div className="p-8">
-            <h2 className="mb-2 text-xl font-bold">Sign in or create an account</h2>
-            <p className="mb-6 text-sm text-zinc-400">
-              One click with GitHub. We&apos;ll spin up your handle, your leaderboard, and your
-              first board.
-            </p>
+            <h2 className="mb-2 text-xl font-bold">{t(locale, "signin.title")}</h2>
+            <p className="mb-6 text-sm text-zinc-400">{t(locale, "signin.sub")}</p>
 
             <a
               href={startUrl}
               className="flex w-full items-center justify-center gap-3 rounded-xl bg-zinc-100 px-6 py-3.5 text-base font-bold text-zinc-900 transition-colors hover:bg-white active:bg-zinc-200"
             >
               <GitHubIcon />
-              Sign in with GitHub
+              {t(locale, "landing.signin")}
             </a>
           </div>
 
           <div className="border-t border-zinc-800 px-8 py-4">
-            <p className="text-center text-xs text-zinc-600">
-              We only read your public GitHub profile. We literally can&apos;t read your prompts.
-            </p>
+            <p className="text-center text-xs text-zinc-600">{t(locale, "signin.privacy")}</p>
           </div>
         </div>
 
         <p className="mt-6 text-center text-sm text-zinc-600">
-          No account?{" "}
+          {t(locale, "signin.noAccount")}{" "}
           <a href={startUrl} className="text-rat-400 hover:text-rat-300">
-            Signing in creates one.
+            {t(locale, "signin.noAccountCta")}
           </a>
         </p>
       </div>
