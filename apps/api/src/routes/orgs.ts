@@ -111,9 +111,7 @@ orgs.post("/", requireAuth, async (c) => {
   if (!caller) return notFound(c, "User not found");
 
   // Slug uniqueness — check across both active and pending orgs.
-  const slugConflict = await c.env.DB.prepare(
-    "SELECT id, status FROM orgs WHERE slug = ?",
-  )
+  const slugConflict = await c.env.DB.prepare("SELECT id, status FROM orgs WHERE slug = ?")
     .bind(body.slug)
     .first<{ id: string; status: string }>();
 
@@ -168,9 +166,10 @@ orgs.post("/", requireAuth, async (c) => {
       `INSERT INTO orgs (id, name, slug, plan, seat_count, github_org_login, created_at, status)
        VALUES (?, ?, ?, ?, 0, ?, ?, 'pending')`,
     ).bind(id, body.name, body.slug, plan, body.githubOrgLogin ?? null, now),
-    c.env.DB.prepare(
-      `INSERT INTO org_members (org_id, user_id, role) VALUES (?, ?, 'owner')`,
-    ).bind(id, userId),
+    c.env.DB.prepare(`INSERT INTO org_members (org_id, user_id, role) VALUES (?, ?, 'owner')`).bind(
+      id,
+      userId,
+    ),
   ]);
 
   // Mirror into the waitlists table so the admin queue is a single read of
@@ -347,9 +346,7 @@ orgs.post("/:slug/accept", requireAuth, async (c) => {
   if (!org) return notFound(c, "Org not found");
 
   // Look up the accepting user's handle (for GitHub login match)
-  const user = await c.env.DB.prepare(
-    "SELECT id, handle FROM users WHERE id = ?",
-  )
+  const user = await c.env.DB.prepare("SELECT id, handle FROM users WHERE id = ?")
     .bind(userId)
     .first<{ id: string; handle: string }>();
 
@@ -375,9 +372,7 @@ orgs.post("/:slug/accept", requireAuth, async (c) => {
 
   // Mark invite accepted and add org membership (idempotent via INSERT OR IGNORE)
   await c.env.DB.batch([
-    c.env.DB.prepare(
-      "UPDATE org_invites SET accepted_at = ? WHERE id = ?",
-    ).bind(now, invite.id),
+    c.env.DB.prepare("UPDATE org_invites SET accepted_at = ? WHERE id = ?").bind(now, invite.id),
     c.env.DB.prepare(
       "INSERT OR IGNORE INTO org_members (org_id, user_id, role) VALUES (?, ?, 'member')",
     ).bind(org.id, userId),
@@ -435,10 +430,7 @@ orgs.get("/:slug/dashboard", requireAuth, async (c) => {
      GROUP BY s.model
      ORDER BY cost_usd_cents DESC`,
   )
-    .bind(
-      org.id,
-      now.getTime() - MONTH_MS,
-    )
+    .bind(org.id, now.getTime() - MONTH_MS)
     .all<{
       model: string;
       tokens: number;

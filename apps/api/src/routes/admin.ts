@@ -41,9 +41,11 @@ function parseAdminHandles(raw: string | undefined): Set<string> {
 /** Gate: the caller's `users.handle` (GitHub login) must be in ADMIN_HANDLES.
  *  Returns the caller's handle on success; null on rejection (caller already
  *  responded via the helper). */
-async function requireAdmin(
-  c: { env: Env; var: AuthVariables; json: (body: unknown, status: 403 | 404) => Response },
-): Promise<string | null> {
+async function requireAdmin(c: {
+  env: Env;
+  var: AuthVariables;
+  json: (body: unknown, status: 403 | 404) => Response;
+}): Promise<string | null> {
   const userId = c.var.userId;
   const row = await c.env.DB.prepare("SELECT handle FROM users WHERE id = ?")
     .bind(userId)
@@ -189,9 +191,7 @@ admin.post("/orgs/:slug/approve", requireAuth, async (c) => {
 
   const finalPlan = planOverride ?? org.plan;
 
-  await c.env.DB.prepare(
-    `UPDATE orgs SET status = 'active', plan = ? WHERE id = ?`,
-  )
+  await c.env.DB.prepare(`UPDATE orgs SET status = 'active', plan = ? WHERE id = ?`)
     .bind(finalPlan, org.id)
     .run();
 
@@ -238,9 +238,7 @@ admin.get("/waitlists", requireAuth, async (c) => {
       created_at: number;
     }>();
 
-  const totalRow = await c.env.DB.prepare(
-    "SELECT COUNT(*) AS total FROM waitlists WHERE topic = ?",
-  )
+  const totalRow = await c.env.DB.prepare("SELECT COUNT(*) AS total FROM waitlists WHERE topic = ?")
     .bind(topic)
     .first<{ total: number }>();
 

@@ -137,9 +137,7 @@ function makeDb(store: Store): D1Database {
 
     // SELECT role from org_members
     if (/^SELECT role FROM org_members WHERE org_id = \? AND user_id = \?$/.test(trimmed)) {
-      const row = store.orgMembers.find(
-        (m) => m.org_id === params[0] && m.user_id === params[1],
-      );
+      const row = store.orgMembers.find((m) => m.org_id === params[0] && m.user_id === params[1]);
       return { first: row ? { role: row.role } : null, all: [], changes: 0 };
     }
 
@@ -153,9 +151,7 @@ function makeDb(store: Store): D1Database {
         string | null,
         number,
       ];
-      const exists = store.waitlists.some(
-        (w) => w.topic === topic && w.email === email,
-      );
+      const exists = store.waitlists.some((w) => w.topic === topic && w.email === email);
       if (exists) return { first: null, all: [], changes: 0 };
       store.waitlists.push({
         id,
@@ -212,7 +208,10 @@ function makeDb(store: Store): D1Database {
     }
 
     // Admin: list pending orgs with founder JOIN
-    if (/^SELECT o\.id, o\.name, o\.slug, o\.plan/.test(trimmed) && /WHERE o\.status = 'pending'/.test(trimmed)) {
+    if (
+      /^SELECT o\.id, o\.name, o\.slug, o\.plan/.test(trimmed) &&
+      /WHERE o\.status = 'pending'/.test(trimmed)
+    ) {
       const limit = params[0] as number;
       const offset = params[1] as number;
       const rows = store.orgs
@@ -220,9 +219,7 @@ function makeDb(store: Store): D1Database {
         .sort((a, b) => b.created_at - a.created_at)
         .slice(offset, offset + limit)
         .map((o) => {
-          const owner = store.orgMembers.find(
-            (m) => m.org_id === o.id && m.role === "owner",
-          );
+          const owner = store.orgMembers.find((m) => m.org_id === o.id && m.role === "owner");
           const u = owner ? store.users.find((x) => x.id === owner.user_id) : undefined;
           const w = u
             ? store.waitlists.find((x) => x.topic === "orgs" && x.github_login === u.handle)
@@ -383,10 +380,7 @@ function makeAppWithAuth(store: Store, adminHandles?: string) {
     CACHE: undefined,
   } as unknown as Env;
 
-  return async (
-    path: string,
-    init: RequestInit & { userId?: string } = {},
-  ): Promise<Response> => {
+  return async (path: string, init: RequestInit & { userId?: string } = {}): Promise<Response> => {
     const headers = new Headers(init.headers);
     if (init.userId) {
       headers.set("Cookie", await authCookie(init.userId, TEST_SIGNING_KEY));

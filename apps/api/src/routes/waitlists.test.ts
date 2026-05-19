@@ -65,9 +65,7 @@ function makeDb(store: Store): D1Database {
         string | null,
         number,
       ];
-      const exists = store.waitlists.some(
-        (w) => w.topic === topic && w.email === email,
-      );
+      const exists = store.waitlists.some((w) => w.topic === topic && w.email === email);
       if (exists) return { first: null, all: [], changes: 0 };
       store.waitlists.push({
         id,

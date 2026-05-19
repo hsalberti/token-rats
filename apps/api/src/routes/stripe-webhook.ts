@@ -29,8 +29,8 @@ const stripeWebhook = new Hono<HonoEnv>();
 
 interface StripeSubscription {
   id: string;
-  status: string;       // active | trialing | past_due | canceled | unpaid | ...
-  customer: string;     // stripe_customer_id
+  status: string; // active | trialing | past_due | canceled | unpaid | ...
+  customer: string; // stripe_customer_id
   quantity: number | null;
   items?: {
     data?: Array<{ quantity?: number }>;
@@ -55,11 +55,7 @@ stripeWebhook.post("/", async (c) => {
     return c.json({ error: "Missing Stripe-Signature header" }, 400);
   }
 
-  const result = await verifyStripeSignature(
-    rawBody,
-    sigHeader,
-    c.env.STRIPE_WEBHOOK_SECRET,
-  );
+  const result = await verifyStripeSignature(rawBody, sigHeader, c.env.STRIPE_WEBHOOK_SECRET);
 
   if (!result.ok) {
     return c.json({ error: `Signature verification failed: ${result.reason}` }, 400);
@@ -85,22 +81,15 @@ stripeWebhook.post("/", async (c) => {
 
     // Determine quantity (seat count)
     // Stripe stores quantity on the subscription line items; fall back to top-level quantity
-    const quantity =
-      subscription.items?.data?.[0]?.quantity ??
-      subscription.quantity ??
-      0;
+    const quantity = subscription.items?.data?.[0]?.quantity ?? subscription.quantity ?? 0;
 
     // Map subscription status → plan tier
     // "active" and "trialing" = pro; anything else = free
     const plan =
-      subscription.status === "active" || subscription.status === "trialing"
-        ? "pro"
-        : "free";
+      subscription.status === "active" || subscription.status === "trialing" ? "pro" : "free";
 
     // Find the org by stripe_customer_id
-    const org = await c.env.DB.prepare(
-      "SELECT id, plan FROM orgs WHERE stripe_customer_id = ?",
-    )
+    const org = await c.env.DB.prepare("SELECT id, plan FROM orgs WHERE stripe_customer_id = ?")
       .bind(subscription.customer)
       .first<{ id: string; plan: string }>();
 
