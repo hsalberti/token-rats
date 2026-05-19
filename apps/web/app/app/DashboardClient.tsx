@@ -27,26 +27,23 @@ interface Props {
   cookieHeader: string;
   /** ISO alpha-2 (e.g. "DE") from cf-ipcountry, or null when unresolvable. */
   viewerCountry: string | null;
+  /**
+   * Pre-computed `${flag} ${countryName}` rendered by the server. We can't
+   * call `new Intl.DisplayNames([locale])` on the client safely — the
+   * Cloudflare Worker's ICU data may differ from the browser's, producing a
+   * hydration mismatch on the dashboard right after sign-in.
+   */
+  viewerCountryDisplay: string | null;
   locale: Locale;
 }
 
-const COUNTRY_FLAGS = (cc: string): string =>
-  cc
-    .toUpperCase()
-    .split("")
-    .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
-    .join("");
-
-function countryLabel(cc: string, locale: Locale): string {
-  try {
-    const names = new Intl.DisplayNames([locale], { type: "region" });
-    return names.of(cc) ?? cc;
-  } catch {
-    return cc;
-  }
-}
-
-export function DashboardClient({ user, cookieHeader, viewerCountry, locale }: Props) {
+export function DashboardClient({
+  user,
+  cookieHeader,
+  viewerCountry,
+  viewerCountryDisplay,
+  locale,
+}: Props) {
   const router = useRouter();
   const [rooms, setRooms] = useState<Room[]>([]);
   const [roomsLoading, setRoomsLoading] = useState(true);
@@ -151,8 +148,8 @@ export function DashboardClient({ user, cookieHeader, viewerCountry, locale }: P
           body={t(locale, "dash.cardB.body")}
           icon={<GlobeIcon />}
           cta={
-            viewerCountry
-              ? `${COUNTRY_FLAGS(viewerCountry)} ${t(locale, "dash.cardB.ctaCountry", { country: countryLabel(viewerCountry, locale) })}`
+            viewerCountry && viewerCountryDisplay
+              ? t(locale, "dash.cardB.ctaCountry", { country: viewerCountryDisplay })
               : t(locale, "dash.cardB.ctaGlobal")
           }
           href={viewerCountry ? "/groups" : "/trending"}
@@ -194,10 +191,7 @@ export function DashboardClient({ user, cookieHeader, viewerCountry, locale }: P
                 />
                 <span>
                   {t(locale, "dash.makePublicPrefix")}{" "}
-                  <span className="font-semibold text-zinc-100">
-                    {COUNTRY_FLAGS(viewerCountry)} {countryLabel(viewerCountry, locale)}
-                  </span>
-                  .{" "}
+                  <span className="font-semibold text-zinc-100">{viewerCountryDisplay}</span>.{" "}
                   <span className="text-xs text-zinc-500">
                     {t(locale, "dash.makePublicSuffix", { country: viewerCountry })}
                   </span>

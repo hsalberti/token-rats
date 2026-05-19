@@ -112,7 +112,7 @@ function buildSteps(s: AutobiographyStats): Step[] {
       id: "sessions",
       emoji: "🧠",
       label: "Total sessions synced",
-      value: s.totalSessions.toLocaleString(),
+      value: s.totalSessions.toLocaleString("en-US"),
       sub: s.firstSyncDate ? `since ${s.firstSyncDate}` : "and counting",
       flavor: "Every session is a step forward.",
     },
@@ -142,7 +142,10 @@ export function AutobiographyReveal({ stats, handle }: Props) {
     return () => clearTimeout(t);
   }, [visibleCount, steps.length]);
 
-  const shareUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/u/${handle}?og=autobiography`;
+  // Render a same-origin path during SSR (the browser resolves it relative
+  // to the current location anyway). Using `window.location.origin` here
+  // would diverge from SSR's empty-string fallback and hydration-mismatch.
+  const shareUrl = `/u/${handle}?og=autobiography`;
 
   function handleCopyLink() {
     const url = `${window.location.origin}/u/${handle}?og=autobiography`;
