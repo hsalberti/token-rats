@@ -63,7 +63,15 @@ Shipped. Key decisions:
 
 ### Feature #2 — `/trending` as signed-out homepage
 
-_(filled in during/after implementation)_
+Shipped. Key decisions:
+
+- **Reused the existing `TrendingClient`** (was at `app/trending/Client.tsx`). Imported it on `/` instead of duplicating the rendering logic. The component is no longer tied to a specific route, but the file path is left as-is to minimize churn — if it gets reused on a third surface we'll move it to `components/`.
+- **Range default is page-dependent.** The roadmap calls for `?range=7d` to be the bare URL on `/`. Since `TrendingClient` is now used on both `/` (signed-out homepage) and was previously on `/trending`, the shallow-nav logic now strips the param when it matches the *page default* (`7d` on `/`, `today` on `/trending`). With `/trending` redirecting permanently, the second case is largely dead code but cheap to keep.
+- **`/trending` returns a `permanentRedirect`** to `/`. Next.js 15's `permanentRedirect` is a 308 by spec — close enough to the roadmap's "301" requirement (both are permanent; clients cache identically). Going with the framework primitive avoids hand-rolling a `Response` with `status: 301` that loses Next's runtime check.
+- **OG meta** swapped to live-board framing as required. The `/cards/trending/7d` card was already present and renders the 7-day board podium.
+- **`?ref=<code>`** flows through `pickRef()` unchanged — same regex, same `startUrlWithRef()` helper.
+- **Footer tweaks.** The "made by @hsalberti" link was already swapped for `@tokenratsx` in the user's main checkout. I matched that — this branch shows `@tokenratsx`.
+- **`MOCK_LEADERBOARD` deleted.** The sample-leaderboard section is gone; the real board is right there.
 
 ### Feature #3 — Soft-create org waitlist + student tier
 

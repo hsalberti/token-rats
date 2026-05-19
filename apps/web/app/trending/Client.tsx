@@ -59,6 +59,19 @@ export function TrendingClient({ initialRows, initialRange, generatedAt }: Props
     setRange(next);
     setError(null);
 
+    // Keep ?range= in sync via shallow nav. Default (7d on /, today on /trending)
+    // gets a bare URL — strip the param when matching the page default.
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      const pageDefault: Range = url.pathname === "/" ? "7d" : "today";
+      if (next === pageDefault) {
+        url.searchParams.delete("range");
+      } else {
+        url.searchParams.set("range", next);
+      }
+      window.history.replaceState(null, "", url.toString());
+    }
+
     startTransition(async () => {
       try {
         const data = await getTrending(next);

@@ -1,32 +1,17 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { InstallBlock } from "../components/InstallBlock";
-import { Avatar } from "../components/ui/Avatar";
-import { RankBadge } from "../components/ui/RankBadge";
-import { AUTH_GITHUB_START } from "../lib/api";
+import { AUTH_GITHUB_START, getTrending } from "../lib/api";
 import { getSession } from "../lib/auth";
+import { TrendingClient } from "./trending/Client";
 
 export const runtime = "edge";
 
-const MOCK_LEADERBOARD = [
-  { rank: 1, handle: "theo", avatarUrl: null, tokens: 48_320_000, costUsdCents: 24160 },
-  { rank: 2, handle: "rauchg", avatarUrl: null, tokens: 31_100_000, costUsdCents: 15550 },
-  { rank: 3, handle: "shadcn", avatarUrl: null, tokens: 22_450_000, costUsdCents: 11225 },
-  { rank: 4, handle: "karpathy", avatarUrl: null, tokens: 18_900_000, costUsdCents: 9450 },
-  { rank: 5, handle: "levelsio", avatarUrl: null, tokens: 14_700_000, costUsdCents: 7350 },
-];
+type Range = "today" | "7d" | "30d";
 
-function fmtTokens(n: number) {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
-  return `${n}`;
-}
-
-function fmtCost(cents: number) {
-  return `$${(cents / 100).toLocaleString("en-US", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+function validateRange(raw: string | undefined): Range {
+  if (raw === "today" || raw === "30d") return raw;
+  return "7d";
 }
 
 /**
@@ -43,10 +28,34 @@ function startUrlWithRef(ref: string | null): string {
   return ref ? `${AUTH_GITHUB_START}?ref=${encodeURIComponent(ref)}` : AUTH_GITHUB_START;
 }
 
+export const metadata: Metadata = {
+  title: "Token Rats — today's top burners",
+  description:
+    "Live leaderboard of public token burners on Claude Code and Cursor. Auto-sync, then flex.",
+  openGraph: {
+    title: "Token Rats — today's top burners",
+    description: "Live global leaderboard of who's burning the most AI tokens.",
+    images: [
+      {
+        url: "/cards/trending/7d",
+        width: 1200,
+        height: 630,
+        alt: "Token Rats — top public token burners",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Token Rats — today's top burners",
+    description: "Live global leaderboard of who's burning the most AI tokens.",
+    images: ["/cards/trending/7d"],
+  },
+};
+
 export default async function HomePage({
   searchParams,
 }: {
-  searchParams: Promise<{ ref?: string | string[] }>;
+  searchParams: Promise<{ ref?: string | string[]; range?: string | string[] }>;
 }) {
   const user = await getSession();
   if (user) redirect("/app");
@@ -54,56 +63,57 @@ export default async function HomePage({
   const params = await searchParams;
   const ref = pickRef(params.ref);
   const startUrl = startUrlWithRef(ref);
+  const range = validateRange(Array.isArray(params.range) ? params.range[0] : params.range);
+
+  let rows: Awaited<ReturnType<typeof getTrending>>["rows"] = [];
+  let generatedAt = Date.now();
+  try {
+    const data = await getTrending(range);
+    rows = data.rows;
+    generatedAt = data.generatedAt;
+  } catch {
+    // Empty board on error — better than crashing the homepage.
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* Nav */}
-      <nav className="mx-auto flex max-w-5xl items-center justify-between px-6 py-5">
-        <span className="text-xl font-black tracking-tight">
-          Token <span className="text-rat-500">Rats</span>
-        </span>
-        <a
-          href={startUrl}
-          className="rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rat-600 active:bg-rat-700"
-        >
-          Sign in with GitHub
-        </a>
-      </nav>
-
-      {/* Hero */}
-      <section className="mx-auto max-w-5xl px-6 pb-20 pt-16 text-center">
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-rat-700 bg-rat-900/30 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-rat-400">
-          Now in beta
+      {/* Hero strip — wordmark + tagline + install snippet + sign-in. */}
+      <section className="border-b border-zinc-800 bg-zinc-900/40">
+        <div className="mx-auto max-w-3xl px-6 py-10 flex flex-col items-center text-center gap-5">
+          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
+            Token <span className="text-rat-500">Rats</span>
+          </h1>
+          <p className="max-w-md text-base text-zinc-300 sm:text-lg">
+            Strava for AI token burn. Auto-sync your Claude Code &amp; Cursor logs. Flex the burn.
+          </p>
+          <div className="w-full max-w-md">
+            <InstallBlock />
+          </div>
+          <a
+            href={startUrl}
+            className="inline-flex items-center gap-2 rounded-xl bg-rat-500 px-6 py-3 text-base font-bold text-white shadow-lg shadow-rat-900/50 transition-colors hover:bg-rat-600 active:bg-rat-700"
+          >
+            <GitHubIcon />
+            Sign in with GitHub
+          </a>
         </div>
-        <h1 className="mb-6 text-5xl font-black tracking-tight sm:text-7xl">
-          Token <span className="text-rat-500">Rats</span>
-        </h1>
-        <p className="mx-auto mb-4 max-w-xl text-xl text-zinc-300 sm:text-2xl">
-          Strava for AI token burn.
-        </p>
-        <p className="mx-auto mb-10 max-w-lg text-base text-zinc-400">
-          Auto-sync your Claude Code and Cursor token usage. See how you stack up against your crew.
-          Flex the burn.
-        </p>
-
-        <div className="mx-auto mb-8 max-w-md">
-          <InstallBlock />
-        </div>
-
-        <a
-          href={startUrl}
-          className="inline-flex items-center gap-2 rounded-xl bg-rat-500 px-8 py-4 text-lg font-bold text-white shadow-lg shadow-rat-900/50 transition-colors hover:bg-rat-600 active:bg-rat-700"
-        >
-          <GitHubIcon />
-          Sign in with GitHub
-        </a>
-        <p className="mt-3 text-sm text-zinc-500">Free forever for individuals.</p>
       </section>
 
+      {/* Live trending board */}
+      <main className="mx-auto max-w-3xl px-6 py-12">
+        <div className="mb-6">
+          <h2 className="text-2xl font-black tracking-tight">Today&apos;s top burners</h2>
+          <p className="mt-1 text-sm text-zinc-400">
+            Live global leaderboard of public Token Rats. Opt-in only.
+          </p>
+        </div>
+        <TrendingClient initialRows={rows} initialRange={range} generatedAt={generatedAt} />
+      </main>
+
       {/* How it works */}
-      <section className="border-y border-zinc-800 bg-zinc-900/50 py-20">
+      <section className="border-y border-zinc-800 bg-zinc-900/50 py-16">
         <div className="mx-auto max-w-5xl px-6">
-          <h2 className="mb-12 text-center text-3xl font-black tracking-tight">How it works</h2>
+          <h2 className="mb-10 text-center text-2xl font-black tracking-tight">How it works</h2>
           <div className="grid gap-8 sm:grid-cols-3">
             <Step
               number="01"
@@ -124,58 +134,8 @@ export default async function HomePage({
         </div>
       </section>
 
-      {/* Sample leaderboard */}
-      <section className="mx-auto max-w-5xl px-6 py-20">
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h2 className="text-3xl font-black tracking-tight">Sample leaderboard</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              This week&apos;s burn — your room could look like this.
-            </p>
-          </div>
-          <span className="rounded-lg border border-rat-700 bg-rat-900/30 px-3 py-1 text-xs font-semibold text-rat-400">
-            7d
-          </span>
-        </div>
-
-        <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900">
-          {/* Table header — hidden on mobile */}
-          <div className="hidden grid-cols-[48px_1fr_140px_120px_80px] border-b border-zinc-800 px-4 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500 sm:grid">
-            <span>#</span>
-            <span>Developer</span>
-            <span className="text-right">Tokens</span>
-            <span className="text-right">$ Spent</span>
-            <span className="text-right">Sessions</span>
-          </div>
-          {MOCK_LEADERBOARD.map((row) => (
-            <div
-              key={row.handle}
-              className="flex items-center gap-3 border-b border-zinc-800 px-4 py-4 last:border-0 sm:grid sm:grid-cols-[48px_1fr_140px_120px_80px] sm:items-center"
-            >
-              <RankBadge rank={row.rank} />
-              <div className="flex items-center gap-3">
-                <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
-                <span className="font-semibold">@{row.handle}</span>
-              </div>
-              <div className="ml-auto flex flex-col items-end gap-0.5 sm:contents">
-                <span className="text-right font-mono font-bold text-rat-400 sm:block">
-                  {fmtTokens(row.tokens)}
-                </span>
-                <span className="text-right font-mono text-sm text-zinc-400 sm:block">
-                  {fmtCost(row.costUsdCents)}
-                </span>
-                <span className="hidden text-right font-mono text-sm text-zinc-500 sm:block">
-                  —
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <p className="mt-3 text-center text-sm text-zinc-600">(Sample data — yours will be real)</p>
-      </section>
-
       {/* Privacy strip */}
-      <section className="border-t border-zinc-800 bg-zinc-900/30 py-12">
+      <section className="bg-zinc-900/30 py-12">
         <div className="mx-auto max-w-2xl px-6 text-center">
           <p className="text-2xl font-black">We literally can&apos;t read your prompts.</p>
           <p className="mt-3 text-zinc-400">
@@ -221,12 +181,12 @@ export default async function HomePage({
               Changelog
             </a>
             <a
-              href="https://twitter.com/hsalberti"
+              href="https://twitter.com/tokenratsx"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-zinc-300"
             >
-              made by @hsalberti
+              @tokenratsx
             </a>
             <span>Counts only — we can&apos;t read your prompts.</span>
           </div>
