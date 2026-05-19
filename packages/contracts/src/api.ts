@@ -68,6 +68,8 @@ export type UploadSessionsResponse = z.infer<typeof UploadSessionsResponse>;
 /* ----------------------------- POST /v1/rooms ---------------------------- */
 export const CreateRoomRequest = z.object({
   name: z.string().min(1).max(64),
+  /** v1.2: when true the room is publicly listed in /groups for its country. */
+  isPublic: z.boolean().default(false),
 });
 export type CreateRoomRequest = z.infer<typeof CreateRoomRequest>;
 
@@ -151,6 +153,28 @@ export type RoomSummary = z.infer<typeof RoomSummary>;
 
 export const GetRoomSummaryResponse = z.object({ summary: RoomSummary });
 export type GetRoomSummaryResponse = z.infer<typeof GetRoomSummaryResponse>;
+
+/* ---------------- GET /v1/groups ---------------------------------------- */
+/**
+ * Lists up to 50 public rooms in the viewer's `cf-ipcountry`. Auth optional;
+ * signed-out viewers see the same list but with the join button replaced by
+ * a sign-in CTA on the web side.
+ */
+export const PublicGroupRow = z.object({
+  code: z.string(),
+  name: z.string(),
+  country: z.string().min(2).max(2),
+  memberCount: z.number().int().nonnegative(),
+  total30dTokens: z.number().int().nonnegative(),
+  total30dCostUsdCents: z.number().int().nonnegative(),
+});
+export type PublicGroupRow = z.infer<typeof PublicGroupRow>;
+
+export const GetGroupsResponse = z.object({
+  country: z.string().min(2).max(2).nullable(),
+  groups: z.array(PublicGroupRow),
+});
+export type GetGroupsResponse = z.infer<typeof GetGroupsResponse>;
 
 /* ---------------- GET /v1/r/:code/group-streak -------------------------- */
 /**
@@ -273,6 +297,8 @@ export const ENDPOINTS = {
   roomSummary: (code: RoomCode) => `/v1/r/${code}/summary`,
   roomHeatmap: (code: RoomCode) => `/v1/r/${code}/heatmap`,
   roomGroupStreak: (code: RoomCode) => `/v1/r/${code}/group-streak`,
+  // v1.2 public country-locked groups list
+  groups: "/v1/groups",
   authGithubStart: "/v1/auth/github/start",
   authGithubCallback: "/v1/auth/github/callback",
   authCliExchange: "/v1/auth/cli/exchange",

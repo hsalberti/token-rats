@@ -159,7 +159,8 @@ me.get("/rooms", requireAuth, async (c) => {
   const userId = c.var.userId;
 
   const result = await c.env.DB.prepare(
-    `SELECT r.id, r.code, r.name, r.owner_id, r.org_id, r.created_at
+    `SELECT r.id, r.code, r.name, r.owner_id, r.org_id, r.created_at,
+            r.is_public, r.country
      FROM room_members rm
      JOIN rooms r ON r.id = rm.room_id
      WHERE rm.user_id = ?
@@ -173,6 +174,8 @@ me.get("/rooms", requireAuth, async (c) => {
       owner_id: string;
       org_id: string | null;
       created_at: number;
+      is_public: number;
+      country: string | null;
     }>();
 
   const rooms = (result.results ?? []).map((r) => ({
@@ -182,6 +185,8 @@ me.get("/rooms", requireAuth, async (c) => {
     ownerId: r.owner_id,
     orgId: r.org_id,
     createdAt: r.created_at,
+    isPublic: r.is_public === 1,
+    country: r.country,
   }));
 
   return c.json({ rooms });

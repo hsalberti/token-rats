@@ -1,5 +1,6 @@
 import type { GroupStreak, Heatmap, HeatmapRange, RoomSummary } from "@token-rats/contracts";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { ApiError, api } from "../../../lib/api";
 import { getCookieHeader, getSession } from "../../../lib/auth";
@@ -16,6 +17,14 @@ interface Props {
 function pickRange(raw: string | string[] | undefined): HeatmapRange {
   const v = Array.isArray(raw) ? raw[0] : raw;
   return v === "52w" ? "52w" : "30d";
+}
+
+/** Same normalization as the Worker — XX / T1 / missing all → null. */
+function pickCountry(raw: string | null): string | null {
+  if (!raw) return null;
+  const v = raw.trim().toUpperCase();
+  if (v.length !== 2 || v === "XX" || v === "T1") return null;
+  return v;
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -36,7 +45,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function RoomPage({ params, searchParams }: Props) {
   const { code } = await params;
   const range = pickRange((await searchParams).range);
-  const [cookieHeader, session] = await Promise.all([getCookieHeader(), getSession()]);
+  const [cookieHeader, session, hdrs] = await Promise.all([
+    getCookieHeader(),
+    getSession(),
+    headers(),
+  ]);
+  const viewerCountry = pickCountry(hdrs.get("cf-ipcountry"));
   const roomCode = code as Parameters<typeof api.getRoom>[0];
 
   // The summary is public — every viewer (signed in or out) sees it.
@@ -52,7 +66,9 @@ export default async function RoomPage({ params, searchParams }: Props) {
 
   // Signed-out viewers see the read-only public view (stat strip + sign-in CTA).
   if (!session) {
-    return <RoomPublicView summary={summary} signedIn={false} />;
+    return (
+      <RoomPublicView summary={summary} signedIn={false} viewerCountry={viewerCountry} />
+    );
   }
 
   async function loadFullRoom(): Promise<{
@@ -116,7 +132,9 @@ export default async function RoomPage({ params, searchParams }: Props) {
           );
         } catch (joinErr) {
           if (joinErr instanceof ApiError && joinErr.status === 404) notFound();
-          return <RoomPublicView summary={summary} signedIn={true} />;
+          return (
+            <RoomPublicView summary={summary} signedIn={true} viewerCountry={viewerCountry} />
+          );
         }
       }
     }

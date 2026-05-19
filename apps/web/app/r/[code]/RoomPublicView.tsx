@@ -12,6 +12,28 @@ import type { RoomSummary } from "@token-rats/contracts";
 interface Props {
   summary: RoomSummary;
   signedIn: boolean;
+  /**
+   * Viewer's resolved country (cf-ipcountry). When set and the room is
+   * public + country-mismatched, we replace the CTA with a country pill.
+   */
+  viewerCountry?: string | null;
+}
+
+function flagFor(cc: string): string {
+  return cc
+    .toUpperCase()
+    .split("")
+    .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
+    .join("");
+}
+
+function countryLabel(cc: string): string {
+  try {
+    const names = new Intl.DisplayNames(["en"], { type: "region" });
+    return names.of(cc) ?? cc;
+  } catch {
+    return cc;
+  }
 }
 
 function fmtTokens(n: number) {
@@ -28,9 +50,15 @@ function fmtCost(cents: number) {
   })}`;
 }
 
-export function RoomPublicView({ summary, signedIn }: Props) {
+export function RoomPublicView({ summary, signedIn, viewerCountry }: Props) {
   const signInHref = signedIn ? "/app" : `/signin?next=/r/${encodeURIComponent(summary.code)}`;
   const ctaLabel = signedIn ? "Open dashboard" : "Sign in to join";
+  // Country-mismatch state — public room whose country doesn't match the viewer.
+  const isCountryMismatch =
+    summary.isPublic &&
+    !!summary.country &&
+    !!viewerCountry &&
+    summary.country !== viewerCountry;
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -65,20 +93,33 @@ export function RoomPublicView({ summary, signedIn }: Props) {
         <div className="rounded-xl border border-zinc-800 bg-zinc-900 px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <p className="text-sm font-semibold text-zinc-200">
-              {signedIn
-                ? "You're not a member of this room yet."
-                : "Join the room to see the leaderboard."}
+              {isCountryMismatch
+                ? "This is a country-locked room."
+                : signedIn
+                  ? "You're not a member of this room yet."
+                  : "Join the room to see the leaderboard."}
             </p>
             <p className="mt-1 text-xs text-zinc-500">
-              Members see the live leaderboard, streaks, and a group activity heatmap.
+              {isCountryMismatch
+                ? "Public rooms are joinable only by viewers Cloudflare resolves to the room's country."
+                : "Members see the live leaderboard, streaks, and a group activity heatmap."}
             </p>
           </div>
-          <a
-            href={signInHref}
-            className="inline-flex items-center justify-center rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rat-600 active:bg-rat-700"
-          >
-            {ctaLabel}
-          </a>
+          {isCountryMismatch && summary.country ? (
+            <span
+              className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-300"
+              title={`Lock: ${countryLabel(summary.country)}`}
+            >
+              For viewers in {flagFor(summary.country)} {countryLabel(summary.country)}
+            </span>
+          ) : (
+            <a
+              href={signInHref}
+              className="inline-flex items-center justify-center rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-rat-600 active:bg-rat-700"
+            >
+              {ctaLabel}
+            </a>
+          )}
         </div>
       </main>
     </div>

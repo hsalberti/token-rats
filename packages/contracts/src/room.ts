@@ -15,6 +15,10 @@ export const Room = z.object({
   ownerId: z.string(),
   orgId: z.string().nullable(),
   createdAt: z.number().int().positive(),
+  /** v1.2: public country-locked groups. `country` is set iff `isPublic` is true. */
+  isPublic: z.boolean(),
+  /** ISO-3166-1 alpha-2 (`cf-ipcountry` of the creator). Null on private rooms. */
+  country: z.string().min(2).max(2).nullable(),
 });
 export type Room = z.infer<typeof Room>;
 

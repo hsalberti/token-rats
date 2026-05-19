@@ -124,7 +124,20 @@ Shipped. Key decisions:
 
 ### Feature #6 — Public country-locked groups
 
-_(filled in during/after implementation)_
+Shipped. Key decisions:
+
+- **3 public rooms per user per country**, enforced at create time. Selected per the roadmap suggestion (see "Locked decisions" above). 409 with `details: { error: "public_room_cap", country }`.
+- **`cfCountry()` normalization** lives in both `rooms.ts` and `groups.ts` (small duplication). Drops empty, `XX` (Cloudflare unknown), `T1` (Tor exit node). The web app mirrors the same logic for the create form so the user sees the same country we'll write.
+- **`GET /v1/rooms/:code` now uses `optionalAuth`.** Public rooms render full content for everyone — signed-in or out. Private rooms keep the strict member-only check (403 to non-members, including signed-out viewers). The contract switch was small because the existing `RoomPublicView` already absorbs the signed-out path for stat-strip-only viewing.
+- **Member-only routes (`/leave`, PATCH rename, `/activity`)** keep `requireAuth`. They aren't public surfaces; non-members can't observe activity / rename / leave.
+- **`Room` contract grows `isPublic` and `country`.** Mandatory (not optional) since every existing room has the columns post-migration. Every site that constructs a Room (4 in `rooms.ts`, 1 in `me.ts` for `/me/rooms`) now threads them through. The helper `roomPayload(row)` centralizes the mapping.
+- **Country pill replaces the join CTA in RoomPublicView**, not RoomView. The page sends the viewer down RoomPublicView whenever a join is impossible — including when the API's join 403s for `country_mismatch`. RoomView itself doesn't need any country logic; members aren't re-checked.
+- **No re-check on visit.** Per the roadmap. Once joined, the membership is stored in `room_members` and never re-validated against `cf-ipcountry`.
+- **`/groups` is a server-rendered Server Component** that proxies the API's `/v1/groups` call (which reads `cf-ipcountry` on the incoming Worker request). Since the API and the Next app see the same Cloudflare-resolved header, the country is consistent.
+- **Aggregates query** on `/v1/groups` uses two LEFT JOINs (member counts; rollup tokens/cost) so rooms with no members or no rollup activity still appear with zeros. Sorted by 30d-cost descending — "most-active rooms" surface.
+- **`Intl.DisplayNames` for country labels.** Works on the edge runtime out of the box. Flag emoji built by Regional Indicator Symbol math (no lookup table).
+- **Migration 0011 stays additive.** `ALTER TABLE rooms ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0; ALTER TABLE rooms ADD COLUMN country TEXT;`. No table rebuild needed. Partial index on `(country) WHERE is_public = 1` keeps `/groups` cheap.
+- **Existing `findRoom` defensive fallback** in `routes/room-aggregates.ts` from feature #1 becomes dead code post-migration but stays for safety (cheap, never hit in prod once 0011 lands).
 
 ### Feature #7 — Web Push payload encryption
 

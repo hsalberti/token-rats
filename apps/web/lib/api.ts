@@ -30,6 +30,7 @@ import type {
   GetAutobiographyResponse,
   GetChallengesResponse,
   GetGroupStreakResponse,
+  GetGroupsResponse,
   GetHeatmapResponse,
   GetLeaderboardResponse,
   GetMeResponse,
@@ -209,6 +210,11 @@ export async function getRoomGroupStreak(
   cookieHeader?: string,
 ): Promise<GetGroupStreakResponse> {
   return request<GetGroupStreakResponse>(ENDPOINTS.roomGroupStreak(code), { cookieHeader });
+}
+
+/** List public country-locked rooms in the caller's country. */
+export async function getGroups(cookieHeader?: string): Promise<GetGroupsResponse> {
+  return request<GetGroupsResponse>(ENDPOINTS.groups, { cookieHeader });
 }
 
 /** Approve a pending CLI device code. */
@@ -487,6 +493,7 @@ export const api = {
   getRoomSummary,
   getRoomHeatmap,
   getRoomGroupStreak,
+  getGroups,
   approveCli,
   getMyRooms,
   leaveRoom,

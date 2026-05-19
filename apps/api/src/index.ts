@@ -8,6 +8,7 @@ import twitterAuthRoutes from "./routes/auth-twitter.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
 import friendsRoutes from "./routes/friends.js";
+import groupsRoutes from "./routes/groups.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
 import liveRoutes from "./routes/live.js";
 import meRoutes from "./routes/me.js";
@@ -94,6 +95,12 @@ app.route("/v1/rooms", liveRoutes);
 /* -------------------------------------------------------------------------- */
 
 app.route("/v1/r", roomAggregatesRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Public country-locked group discovery                                       */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/groups", groupsRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Profiles                                                                    */
