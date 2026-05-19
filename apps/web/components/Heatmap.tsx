@@ -3,10 +3,10 @@
  * and /r/[code].
  *
  * `range="52w"` renders the year view (53 weeks × 7 days, ~364 cells).
- * `range="30d"` renders a tall strip — 30 days laid out as 3 columns × 10
- * rows, filled column-major so the right column holds the most recent 10
- * days and the bottom-right cell is today. Rows do not represent weekdays.
- * Bucket + color logic is shared.
+ * `range="30d"` renders a wide strip — 30 days laid out as 10 columns × 3
+ * rows, filled column-major so the rightmost column holds the most recent
+ * 3 days and the bottom-right cell is today. Rows do not represent
+ * weekdays. Bucket + color logic is shared.
  *
  * Driven by GET /v1/u/:handle/heatmap?range= or GET /v1/r/:code/heatmap?range=.
  * Pure SVG so it stays crisp at any zoom and renders identically in OG cards
@@ -169,13 +169,13 @@ function YearView({ heatmap, title }: { heatmap: HeatmapData; title: string }) {
 }
 
 /* ------------------------------- 30-day view ------------------------------ */
-/* Layout: 3 columns × 10 rows, filled column-major. Oldest day sits top-left,*/
-/* newest day bottom-right; the rightmost column is the most recent 10 days. */
+/* Layout: 10 columns × 3 rows, filled column-major. Oldest day sits top-left,*/
+/* newest day bottom-right; the rightmost column is the most recent 3 days.  */
 
 const T_CELL = 24;
 const T_GAP = 6;
-const T_COLS = 3;
-const T_ROWS = 10;
+const T_COLS = 10;
+const T_ROWS = 3;
 
 function ThirtyDayView({ heatmap, title }: { heatmap: HeatmapData; title: string }) {
   const byDay = new Map<string, { tokens: number; sessions: number }>();
