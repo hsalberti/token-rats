@@ -41,11 +41,6 @@ const PATCHES: Patch[] = [
         items: [
           {
             tone: "new",
-            title: "Admin dashboard",
-            body: "Authed /admin page with the launch-day numbers we actually care about. Owner-only.",
-          },
-          {
-            tone: "new",
             title: "Wordle-style room recap",
             body: "The room Share button now spits out a copy-paste recap with the [TR🔶🐭] brand mark. Built to land on an X timeline and bring a stranger back through the install link.",
           },
@@ -470,15 +465,19 @@ export default function ChangelogPage() {
         </section>
 
         {/* Footer note */}
-        <p className="mt-16 text-center text-sm text-zinc-600">
-          Spotted something we changed and didn&apos;t mention? Open an issue on{" "}
+        <p className="mt-16 text-center text-xs text-zinc-600">
+          We don&apos;t list changes here that could compromise security. Hardening, owner-only
+          tooling, and anything an attacker could use as a map ships quietly.
+        </p>
+        <p className="mt-3 text-center text-sm text-zinc-600">
+          Spotted something we changed and didn&apos;t mention? Send us a message{" "}
           <a
-            href="https://github.com/hsalberti/token-rats"
+            href="https://x.com/tokenratsx"
             target="_blank"
             rel="noopener noreferrer"
             className="text-zinc-400 hover:text-zinc-200"
           >
-            GitHub
+            @tokenratsx
           </a>
           .
         </p>
