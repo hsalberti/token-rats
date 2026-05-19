@@ -1,8 +1,9 @@
 import { PatchMeRequest } from "@token-rats/contracts";
 /**
- * GET   /v1/me          — returns the authenticated user's profile.
- * PATCH /v1/me          — update publicProfile, bio, twitterHandle.
- * GET   /v1/me/rooms    — returns all rooms the authenticated user is a member of.
+ * GET   /v1/me           — returns the authenticated user's profile.
+ * PATCH /v1/me           — update publicProfile, bio, twitterHandle.
+ * GET   /v1/me/rooms     — returns all rooms the authenticated user is a member of.
+ * GET   /v1/me/referral  — returns the user's referral code + referred users.
  */
 import { Hono } from "hono";
 import { z } from "zod";
@@ -10,6 +11,7 @@ import type { Env } from "../env.js";
 import { notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
+import { ensureReferralCode } from "../lib/referral.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -177,6 +179,46 @@ me.get("/rooms", requireAuth, async (c) => {
   }));
 
   return c.json({ rooms });
+});
+
+/* -------------------------------------------------------------------------- */
+/* GET /v1/me/referral                                                         */
+/* -------------------------------------------------------------------------- */
+
+const RECENT_REFERRALS_LIMIT = 20;
+
+me.get("/referral", requireAuth, async (c) => {
+  const userId = c.var.userId;
+
+  const code = await ensureReferralCode(c.env.DB, userId);
+
+  const countRow = await c.env.DB.prepare(
+    "SELECT COUNT(*) AS n FROM referrals WHERE referrer_user_id = ?",
+  )
+    .bind(userId)
+    .first<{ n: number }>();
+  const count = countRow?.n ?? 0;
+
+  const recentRes = await c.env.DB.prepare(
+    `SELECT u.handle, u.avatar_url, r.created_at
+       FROM referrals r
+       JOIN users u ON u.id = r.referred_user_id
+      WHERE r.referrer_user_id = ?
+      ORDER BY r.created_at DESC
+      LIMIT ?`,
+  )
+    .bind(userId, RECENT_REFERRALS_LIMIT)
+    .all<{ handle: string; avatar_url: string | null; created_at: number }>();
+
+  const recent = (recentRes.results ?? []).map((r) => ({
+    handle: r.handle,
+    avatarUrl: r.avatar_url,
+    createdAt: r.created_at,
+  }));
+
+  return c.json({
+    referral: { code, count, recent },
+  });
 });
 
 export default me;

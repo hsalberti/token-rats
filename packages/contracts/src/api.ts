@@ -9,6 +9,7 @@ import {
   ChallengeWithLeaderboard,
   StreakRow,
 } from "./streaks.js";
+import { ReferralStats } from "./referral.js";
 import { AutobiographyStats, Profile, PublicProfileSettings, User } from "./user.js";
 export type {
   CreatePushSubscriptionRequest,
@@ -188,6 +189,10 @@ export const GetTrendingResponse = z.object({
 });
 export type GetTrendingResponse = z.infer<typeof GetTrendingResponse>;
 
+/* ------------------------- GET /v1/me/referral --------------------------- */
+export const GetReferralResponse = z.object({ referral: ReferralStats });
+export type GetReferralResponse = z.infer<typeof GetReferralResponse>;
+
 /* -------------------- POST /v1/abuse/report ------------------------------ */
 export const ReportAbuseRequest = z.object({
   targetHandle: z.string().min(1).max(100),
@@ -231,6 +236,8 @@ export const ENDPOINTS = {
   patchMe: "/v1/me",
   trending: "/v1/trending",
   reportAbuse: "/v1/abuse/report",
+  // Affiliate / referral tracking
+  meReferral: "/v1/me/referral",
   // Phase 3 Track O — Org plan
   orgs: "/v1/orgs",
   org: (slug: string) => `/v1/orgs/${slug}`,

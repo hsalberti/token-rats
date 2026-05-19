@@ -10,9 +10,23 @@ export const metadata: Metadata = {
   description: "Sign in to Token Rats with GitHub.",
 };
 
-export default async function SignInPage() {
+function pickRef(raw: string | string[] | undefined): string | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== "string") return null;
+  return /^[A-Za-z0-9_-]{6,32}$/.test(v) ? v : null;
+}
+
+export default async function SignInPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ ref?: string | string[] }>;
+}) {
   const user = await getSession();
   if (user) redirect("/app");
+
+  const params = await searchParams;
+  const ref = pickRef(params.ref);
+  const startUrl = ref ? `${AUTH_GITHUB_START}?ref=${encodeURIComponent(ref)}` : AUTH_GITHUB_START;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-950 px-6">
@@ -33,7 +47,7 @@ export default async function SignInPage() {
             </p>
 
             <a
-              href={AUTH_GITHUB_START}
+              href={startUrl}
               className="flex w-full items-center justify-center gap-3 rounded-xl bg-zinc-100 px-6 py-3.5 text-base font-bold text-zinc-900 transition-colors hover:bg-white active:bg-zinc-200"
             >
               <GitHubIcon />
@@ -50,7 +64,7 @@ export default async function SignInPage() {
 
         <p className="mt-6 text-center text-sm text-zinc-600">
           No account?{" "}
-          <a href={AUTH_GITHUB_START} className="text-rat-400 hover:text-rat-300">
+          <a href={startUrl} className="text-rat-400 hover:text-rat-300">
             Signing in creates one.
           </a>
         </p>

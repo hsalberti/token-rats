@@ -28,6 +28,7 @@ import type {
   GetOrgDashboardResponse,
   GetOrgResponse,
   GetProfileResponse,
+  GetReferralResponse,
   GetRoomResponse,
   GetStreaksResponse,
   GetTrendingResponse,
@@ -309,6 +310,11 @@ export async function getTrending(
   return request<GetTrendingResponse>(url, { cookieHeader });
 }
 
+/** Get the signed-in user's referral code, count, and recent referrals. */
+export async function getReferral(cookieHeader?: string): Promise<GetReferralResponse> {
+  return request<GetReferralResponse>(ENDPOINTS.meReferral, { cookieHeader });
+}
+
 /** Submit an abuse report against a public handle. */
 export async function reportAbuse(
   body: ReportAbuseRequest,
@@ -402,6 +408,7 @@ export const api = {
   patchMe,
   getTrending,
   reportAbuse,
+  getReferral,
   // Phase 3 Track O
   createOrg,
   getOrg,
