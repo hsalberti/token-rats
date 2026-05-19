@@ -45,6 +45,12 @@
  *                 Claude Code parser's definition.
  * - `outTokens` = output_tokens + reasoning_output_tokens (both are billed
  *                 at the output rate by OpenAI).
+ * - `cacheReadTokens` = cached_input_tokens (subtracted out of `inTokens` above,
+ *                       reported here so analytics can show what fraction of
+ *                       input was cache-served).
+ * - `reasoningTokens` = reasoning_output_tokens (a subset of `outTokens` above,
+ *                       reported separately so the "thinking tax" is visible).
+ * - `provider` = "openai"
  *
  * Token-count events publish *cumulative* totals, so we simply track the
  * latest non-null `total_token_usage` per session — no per-turn summing.
@@ -63,6 +69,8 @@ interface SessionAcc {
   endedAt: number;
   inTokens: number;
   outTokens: number;
+  cacheReadTokens: number;
+  reasoningTokens: number;
   model: string;
 }
 
@@ -138,6 +146,8 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
       // `total_token_usage` is cumulative — replace, don't add.
       acc.inTokens = Math.max(0, inputTotal - cachedInput);
       acc.outTokens = output + reasoning;
+      acc.cacheReadTokens = cachedInput;
+      acc.reasoningTokens = reasoning;
     }
   }
 
@@ -154,9 +164,12 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
     results.push({
       id: `codex:${acc.sessionId}`,
       source: "codex",
+      provider: "openai",
       model,
       inTokens: acc.inTokens,
       outTokens: acc.outTokens,
+      cacheReadTokens: acc.cacheReadTokens,
+      reasoningTokens: acc.reasoningTokens,
       costUsdCents,
       startedAt,
       endedAt,
@@ -175,6 +188,8 @@ function upsert(map: Map<string, SessionAcc>, sessionId: string): SessionAcc {
       endedAt: 0,
       inTokens: 0,
       outTokens: 0,
+      cacheReadTokens: 0,
+      reasoningTokens: 0,
       model: "",
     };
     map.set(sessionId, acc);

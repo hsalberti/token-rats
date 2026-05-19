@@ -112,6 +112,7 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
     results.push({
       id: `cursor:${id}`,
       source: "cursor",
+      provider: "cursor",
       model,
       inTokens,
       outTokens,

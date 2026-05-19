@@ -74,6 +74,18 @@ describe("parseClaudeCode", () => {
       expect(rec.costUsdCents).toBeGreaterThanOrEqual(0);
       expect(Number.isInteger(rec.costUsdCents)).toBe(true);
     });
+
+    it("tags provider as anthropic", () => {
+      expect(rec.provider).toBe("anthropic");
+    });
+
+    it("reports cache read + write tokens separately from inTokens", () => {
+      // turn 1: cache_read=0,   cache_creation=0
+      // turn 2: cache_read=250, cache_creation=500
+      // Headline inTokens (300) deliberately excludes these.
+      expect(rec.cacheReadTokens).toBe(250);
+      expect(rec.cacheWriteTokens).toBe(500);
+    });
   });
 
   describe("session-bbb-222 (includes malformed line and unknown model)", () => {
@@ -267,6 +279,16 @@ describe("parseCodex", () => {
 
     it("dedupeKey is a non-empty hex string", () => {
       expect(rec.dedupeKey).toMatch(/^[0-9a-f]+$/);
+    });
+
+    it("tags provider as openai", () => {
+      expect(rec.provider).toBe("openai");
+    });
+
+    it("reports cached input + reasoning tokens separately from headline", () => {
+      // Final total: cached_input=35000, reasoning_output=200
+      expect(rec.cacheReadTokens).toBe(35_000);
+      expect(rec.reasoningTokens).toBe(200);
     });
   });
 
