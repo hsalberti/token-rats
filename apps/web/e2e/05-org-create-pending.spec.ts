@@ -27,7 +27,10 @@ test("create org lands on pending page with founder + queue position", async ({
     }
   }
 
-  await page.getByRole("button", { name: /create|reserve|submit|get on/i }).first().click();
+  await page
+    .getByRole("button", { name: /create|reserve|submit|get on/i })
+    .first()
+    .click();
   await expect(page).toHaveURL(/\/o\/test-org\/pending/, { timeout: 10_000 });
   // Queue position (#7 per fixture).
   await expect(page.getByText("#7")).toBeVisible();

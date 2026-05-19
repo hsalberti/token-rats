@@ -87,7 +87,7 @@ function makeHeatmap(scope: "user" | "room", id: string, rangeDays: 60 | 364) {
       date,
       tokens,
       costUsdCents: Math.round(tokens / 100),
-      level: ((i % 5) as 0 | 1 | 2 | 3 | 4),
+      level: (i % 5) as 0 | 1 | 2 | 3 | 4,
     };
   });
   return {
@@ -147,10 +147,7 @@ export const handlers = [
 
   // Twitter OAuth — Track AC
   http.get("*/v1/auth/twitter/start", () => {
-    return HttpResponse.redirect(
-      "http://localhost:3000/settings/profile?twitter=connected",
-      302,
-    );
+    return HttpResponse.redirect("http://localhost:3000/settings/profile?twitter=connected", 302);
   }),
 
   http.post("*/v1/me/twitter/disconnect", () => {
@@ -224,73 +221,92 @@ export const handlers = [
     const code = String(params.code);
     return HttpResponse.json({
       room: {
+        id: "room-test",
         code,
         name: ROOM_TEST.name,
         isPublic: false,
         ownerId: USER_ME.id,
         orgId: null,
         createdAt: Date.now(),
-        memberCount: 2,
+        country: null,
       },
       members: [
-        { userId: USER_ME.id, handle: USER_ME.handle, avatarUrl: USER_ME.avatarUrl, role: "owner" },
+        {
+          userId: USER_ME.id,
+          handle: USER_ME.handle,
+          avatarUrl: USER_ME.avatarUrl,
+          joinedAt: Date.now() - 86_400_000,
+          twitterHandle: null,
+        },
         {
           userId: USER_OTHER.id,
           handle: USER_OTHER.handle,
           avatarUrl: USER_OTHER.avatarUrl,
-          role: "member",
-        },
-      ],
-    });
-  }),
-
-  http.get("*/v1/rooms/:code/leaderboard", ({ params, request }) => {
-    const url = new URL(request.url);
-    const range = url.searchParams.get("range") ?? "today";
-    return HttpResponse.json({
-      room: { code: String(params.code), name: ROOM_TEST.name },
-      range,
-      leaderboard: [
-        {
-          rank: 1,
-          userId: USER_ME.id,
-          handle: USER_ME.handle,
-          avatarUrl: USER_ME.avatarUrl,
-          tokens: 2_500_000,
-          costUsdCents: 6_200,
-          sessions: 20,
-          primarySource: "claude-code",
+          joinedAt: Date.now() - 86_400_000,
           twitterHandle: null,
         },
       ],
-      generatedAt: Date.now(),
     });
   }),
 
-  http.get("*/v1/rooms/:code/summary", ({ params }) => {
+  http.get("*/v1/rooms/:code/leaderboard", ({ request }) => {
+    const url = new URL(request.url);
+    const range = url.searchParams.get("range") ?? "today";
     return HttpResponse.json({
-      room: { code: String(params.code), name: ROOM_TEST.name, memberCount: 2 },
-      totals: { tokens: 3_700_000, costUsdCents: 9_400, sessions: 34 },
-      activeMembers7d: 2,
-      newMembers7d: 0,
+      leaderboard: {
+        range,
+        generatedAt: Date.now(),
+        rows: [
+          {
+            rank: 1,
+            userId: USER_ME.id,
+            handle: USER_ME.handle,
+            avatarUrl: USER_ME.avatarUrl,
+            tokens: 2_500_000,
+            costUsdCents: 6_200,
+            sessions: 20,
+            topSources: [],
+            primarySource: "claude-code",
+            twitterHandle: null,
+          },
+        ],
+      },
     });
   }),
 
-  http.get("*/v1/rooms/:code/group-streak", ({ params }) => {
+  http.get("*/v1/rooms/:code/summary", ({ request }) => {
+    const url = new URL(request.url);
+    const range = url.searchParams.get("range") ?? "7d";
     return HttpResponse.json({
-      room: { code: String(params.code) },
-      currentStreak: 5,
-      longestStreak: 12,
-      lastActiveDate: "2026-05-18",
+      summary: {
+        range,
+        totalCostUsdCents: 9_400,
+        totalTokens: 3_700_000,
+        activeMembers: 2,
+        dayCount: 5,
+        topContributorSharePct: 65,
+        modelMix: [],
+        sourceMix: [],
+        generatedAt: Date.now(),
+      },
+    });
+  }),
+
+  http.get("*/v1/rooms/:code/group-streak", () => {
+    return HttpResponse.json({
+      streak: {
+        activeStreakDays: 5,
+        longestStreakDays: 12,
+        unanimousActiveStreakDays: 2,
+        unanimousLongestStreakDays: 7,
+      },
     });
   }),
 
   http.get("*/v1/rooms/:code/heatmap", ({ params, request }) => {
     const url = new URL(request.url);
     const rangeDays = Number(url.searchParams.get("rangeDays") ?? 60);
-    return HttpResponse.json(
-      makeHeatmap("room", String(params.code), rangeDays >= 364 ? 364 : 60),
-    );
+    return HttpResponse.json(makeHeatmap("room", String(params.code), rangeDays >= 364 ? 364 : 60));
   }),
 
   http.get("*/v1/rooms/:code/activity", () => {
@@ -311,6 +327,7 @@ export const handlers = [
   http.get("*/v1/u/:handle", ({ params }) => {
     return HttpResponse.json({
       profile: {
+        id: USER_ME.id,
         handle: String(params.handle),
         avatarUrl: USER_ME.avatarUrl,
         bio: "Test bio",
@@ -318,11 +335,12 @@ export const handlers = [
         twitterHandle: null,
         twitterVerified: false,
         primarySource: "claude-code",
-        sourceTiles: [
-          { source: "claude-code", tokens: 1_000_000, costUsdCents: 2_500, sessions: 12 },
-        ],
-        totals: { tokens: 1_000_000, costUsdCents: 2_500, sessions: 12 },
-        rooms: [],
+        totals: {
+          today: { tokens: 250_000, costUsdCents: 600 },
+          week: { tokens: 1_750_000, costUsdCents: 4_400 },
+          allTime: { tokens: 10_000_000, costUsdCents: 25_000 },
+        },
+        sources: [{ source: "claude-code", tokens: 1_000_000, costUsdCents: 2_500, sessions: 12 }],
       },
     });
   }),
@@ -335,11 +353,23 @@ export const handlers = [
     );
   }),
 
-  http.get("*/v1/u/:handle/autobiography", () => {
+  http.get("*/v1/u/:handle/autobiography", ({ params }) => {
     return HttpResponse.json({
-      handle: USER_ME.handle,
-      summary: "Test autobiography",
-      highlights: [],
+      autobiography: {
+        handle: String(params.handle),
+        avatarUrl: USER_ME.avatarUrl,
+        totalTokens: 10_000_000,
+        totalCostUsdCents: 25_000,
+        monthTokens: 1_500_000,
+        monthCostUsdCents: 4_200,
+        biggestSessionTokens: 250_000,
+        dominantModel: "claude-sonnet-4-5",
+        mostActiveDayOfWeek: 2,
+        sessionsPerDay: 3.4,
+        totalSessions: 142,
+        firstSyncDate: "2026-01-12",
+        monthlyCoffees: 8.4,
+      },
     });
   }),
 
@@ -359,8 +389,10 @@ export const handlers = [
         name: body.name ?? "Test Org",
         slug: body.slug ?? "test-org",
         plan: body.student ? "student" : "team",
+        seatCount: 1,
         status: "pending",
         githubOrgLogin: null,
+        createdAt: Date.now(),
       },
       waitlistPosition: 7,
     });
@@ -373,10 +405,19 @@ export const handlers = [
         name: "Test Org",
         slug: String(params.slug),
         plan: "team",
+        seatCount: 1,
         status: "pending",
         githubOrgLogin: null,
+        createdAt: Date.now(),
       },
-      members: [{ userId: USER_ME.id, handle: USER_ME.handle, role: "owner" }],
+      members: [
+        {
+          userId: USER_ME.id,
+          handle: USER_ME.handle,
+          avatarUrl: USER_ME.avatarUrl,
+          role: "owner",
+        },
+      ],
       waitlistPosition: 7,
     });
   }),

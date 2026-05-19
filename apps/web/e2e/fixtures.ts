@@ -1,40 +1,25 @@
 /**
  * Playwright test fixtures for the Token Rats v1.2 smoke suite.
  *
- * Exposes:
- *   - `signedIn` page fixture that pre-seeds the `tr_session` cookie so the
- *     server-side `getSession()` succeeds.
- *   - `mswServer` test-scoped accessor to the in-process setupServer; it's
- *     auto-started and reset between tests so handler overrides stay local.
- *
  * The on-the-wire mocks are served by `mocks/standalone-server.mjs` (booted
- * by Playwright's `webServer` block) — see playwright.config.ts.
+ * by Playwright's `webServer` block — see playwright.config.ts). The msw
+ * `setupServer` exported from `./mocks/server.ts` exists for unit-style
+ * handler tests and is intentionally NOT auto-started here: starting it would
+ * make msw intercept Playwright's own `request` fixture (used by the OG card
+ * tests), which the in-process interceptor crashes on.
+ *
+ * Exposes:
+ *   - `signedIn` — pre-seeds the `tr_session` cookie so server-side
+ *     `getSession()` calls succeed.
  */
 
 import { test as base } from "@playwright/test";
-import { reset, server, start, stop } from "./mocks/server";
 
 interface Fixtures {
-  mswServer: typeof server;
   signedIn: void;
 }
 
-export const test = base.extend<Fixtures, { _mswServer: typeof server }>({
-  _mswServer: [
-    // worker-scoped: start once, stop at the very end.
-    async ({}, use) => {
-      start();
-      await use(server);
-      stop();
-    },
-    { scope: "worker", auto: true },
-  ],
-
-  mswServer: async ({ _mswServer }, use) => {
-    await use(_mswServer);
-    reset();
-  },
-
+export const test = base.extend<Fixtures>({
   signedIn: [
     async ({ context }, use) => {
       await context.addCookies([

@@ -20,3 +20,8 @@ SECURITY-PRELAUNCH.md
 # Tauri (taskbar app)
 apps/taskbar/src-tauri/target/
 apps/taskbar/src-tauri/gen/
+
+# Playwright (web e2e)
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/.playwright/

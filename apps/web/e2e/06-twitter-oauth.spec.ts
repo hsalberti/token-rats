@@ -11,9 +11,9 @@ test("twitter oauth toggles verified state in settings", async ({ page, context,
   await expect(page.getByRole("heading", { name: /Profile Settings/i })).toBeVisible();
 
   // Unverified state — connect button visible.
-  const connect = page.getByRole("button", { name: /connect twitter|connect x/i }).or(
-    page.getByRole("link", { name: /connect twitter|connect x/i }),
-  );
+  const connect = page
+    .getByRole("button", { name: /connect twitter|connect x/i })
+    .or(page.getByRole("link", { name: /connect twitter|connect x/i }));
   await expect(connect.first()).toBeVisible();
 
   // Flip our test cookie hint so /v1/me returns verified=true after reload.
