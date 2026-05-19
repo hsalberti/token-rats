@@ -17,3 +17,4 @@ coverage
 !.env.example
 SECURITY-PRELAUNCH.md
 .roadmap/
+marketing/

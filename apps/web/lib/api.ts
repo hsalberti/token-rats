@@ -4,7 +4,7 @@
  *
  * Server components pass through the incoming request cookie via the
  * `cookieHeader` parameter. Client components omit it and rely on the
- * browser sending the __Host-tr_session cookie automatically.
+ * browser sending the tr_session cookie automatically.
  */
 
 import type {
@@ -65,6 +65,17 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.tokenrats
 
 /** Auth start URL — navigate the browser to this to kick off GitHub OAuth. */
 export const AUTH_GITHUB_START = `${API_URL}${ENDPOINTS.authGithubStart}`;
+
+/**
+ * Logout URL — POST here to clear the session cookie.
+ *
+ * Suitable for both:
+ *   - `<form action={AUTH_LOGOUT} method="POST">` (no-JS form submit; the API
+ *     responds 303 → `/`, browser navigates).
+ *   - `fetch(AUTH_LOGOUT, { method: "POST", credentials: "include" })`
+ *     followed by client-side navigation.
+ */
+export const AUTH_LOGOUT = `${API_URL}${ENDPOINTS.authLogout}`;
 
 export class ApiError extends Error {
   constructor(

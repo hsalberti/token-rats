@@ -5,6 +5,8 @@ import { getReferral } from "@/lib/api";
  * API and renders the share-link UI.
  */
 import { getCookieHeader, requireSession } from "@/lib/auth";
+import type { ReferralStats } from "@token-rats/contracts";
+import { headers } from "next/headers";
 import { ReferralsClient } from "./Client";
 
 export const runtime = "edge";
@@ -17,7 +19,23 @@ export default async function ReferralsPage() {
   await requireSession();
   const cookieHeader = await getCookieHeader();
 
-  const { referral } = await getReferral(cookieHeader);
+  // If /v1/me/referral hiccups we don't want the whole page to 500 — the
+  // user still deserves a working header + a clear retry path. Render an
+  // empty-state shell on failure instead of throwing.
+  let referral: ReferralStats | null = null;
+  try {
+    const data = await getReferral(cookieHeader);
+    referral = data.referral;
+  } catch {
+    referral = null;
+  }
+
+  // Read origin from request headers so the share link renders identically
+  // on SSR and after hydration — no client-only `window.location` reads.
+  const h = await headers();
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  const proto = h.get("x-forwarded-proto") ?? "https";
+  const origin = host ? `${proto}://${host}` : "https://tokenrats.com";
 
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
@@ -34,7 +52,16 @@ export default async function ReferralsPage() {
           rewards later.
         </p>
 
-        <ReferralsClient initial={referral} />
+        {referral ? (
+          <ReferralsClient initial={referral} origin={origin} />
+        ) : (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6 text-center">
+            <p className="text-sm text-zinc-300">
+              Couldn&apos;t load your referral stats right now.
+            </p>
+            <p className="mt-1 text-xs text-zinc-500">Refresh the page in a moment.</p>
+          </div>
+        )}
       </div>
     </main>
   );

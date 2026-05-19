@@ -8,6 +8,7 @@ Run from the repo root unless noted. Package manager is **pnpm 10**; Node ≥ 20
 
 ```
 pnpm install
+pnpm db:migrate:local # apply D1 migrations to the local .wrangler state — required after a fresh clone, otherwise the API 500s on "no such table: users"
 pnpm dev              # turbo dev — runs apps/api (wrangler) + apps/web (next) in parallel
 pnpm lint             # biome check .
 pnpm format           # biome format --write .

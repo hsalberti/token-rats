@@ -101,6 +101,21 @@ function buildShareText(opts: {
   return lines.join("\n");
 }
 
+/**
+ * Invite-link copy. Same `[TR🔶🐭]` brand mark + URL-on-its-own-line layout as
+ * the share-recap text so the two messages read like they came out of the same
+ * mouth. The URL stays as the last token so X / iMessage previews lock onto it.
+ */
+function buildInviteText(opts: { roomName: string; joinUrl: string }): string {
+  return [
+    `[TR🔶🐭] You're invited to ${opts.roomName}`,
+    "",
+    "Auto-tracked Claude Code + Cursor leaderboard with your crew.",
+    "",
+    opts.joinUrl,
+  ].join("\n");
+}
+
 export function RoomView({
   summary,
   room: initialRoom,
@@ -185,6 +200,20 @@ export function RoomView({
       .catch(() => {
         // streaks are bonus data — silently ignore
         setStreaksLoaded(true);
+      });
+  }, []);
+
+  // Pre-fetch the inviter's referral code on mount so "Copy invite link"
+  // can attach `?ref=` without an extra round-trip — and so a signup via
+  // this invite gets credited back to the inviter even on a slow network.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only effect.
+  useEffect(() => {
+    if (inviterRef) return;
+    api
+      .getReferral(cookieHeader)
+      .then((data) => setInviterRef(data.referral.code))
+      .catch(() => {
+        // Non-fatal — handleInvite will retry on click.
       });
   }, []);
 
@@ -301,10 +330,22 @@ export function RoomView({
       }
     }
 
-    const url = ref
+    const joinUrl = ref
       ? `${origin}/join/${room.code}?ref=${encodeURIComponent(ref)}`
       : `${origin}/join/${room.code}`;
-    copyText(url);
+    const text = buildInviteText({ roomName: room.name, joinUrl });
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        // AbortError = user dismissed the share sheet; otherwise fall through to copy.
+        if (err instanceof Error && err.name === "AbortError") return;
+      }
+    }
+
+    copyText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   }

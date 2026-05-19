@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { Avatar } from "../../components/ui/Avatar";
+import { UserMenu } from "../../components/UserMenu";
 import { getCookieHeader, requireSession } from "../../lib/auth";
 import { DashboardClient } from "./DashboardClient";
 
@@ -32,10 +32,7 @@ export default async function AppPage() {
           <a href="/" className="text-lg font-black tracking-tight">
             Token <span className="text-rat-500">Rats</span>
           </a>
-          <div className="flex items-center gap-3">
-            <Avatar src={user.avatarUrl} handle={user.handle} size="sm" />
-            <span className="hidden text-sm font-semibold sm:block">@{user.handle}</span>
-          </div>
+          <UserMenu user={user} />
         </div>
       </header>
 

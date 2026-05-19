@@ -9,7 +9,8 @@
     "lint": "biome check .",
     "format": "biome format --write .",
     "typecheck": "turbo run typecheck",
-    "test": "turbo run test"
+    "test": "turbo run test",
+    "db:migrate:local": "pnpm --filter @token-rats/api exec wrangler d1 migrations apply token-rats --local"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
