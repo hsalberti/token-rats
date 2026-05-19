@@ -6,6 +6,7 @@
  * `getOrg` call 403s, which we surface as not-found).
  */
 
+import type { GetOrgResponse } from "@token-rats/contracts";
 import { notFound, redirect } from "next/navigation";
 import { Card } from "../../../../components/ui/Card";
 import { ApiError, getOrg } from "../../../../lib/api";
@@ -23,7 +24,7 @@ export default async function PendingOrgPage({ params }: Props) {
   await requireSession();
   const cookieHeader = await getCookieHeader();
 
-  let org;
+  let org: GetOrgResponse["org"];
   try {
     const res = await getOrg(slug, cookieHeader);
     org = res.org;

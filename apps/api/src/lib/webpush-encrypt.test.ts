@@ -21,7 +21,11 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { base64urlToUint8Array, encryptAes128Gcm, uint8ArrayToBase64url } from "./webpush-encrypt.js";
+import {
+  base64urlToUint8Array,
+  encryptAes128Gcm,
+  uint8ArrayToBase64url,
+} from "./webpush-encrypt.js";
 
 /** RFC-style helper: import a base64url'd raw 32-byte private key as a CryptoKey. */
 async function importPrivateKey(raw: Uint8Array): Promise<CryptoKey> {
@@ -38,11 +42,9 @@ void importPrivateKey;
 describe("encryptAes128Gcm", () => {
   it("produces an RFC 8188 record framed correctly (header + ciphertext)", async () => {
     // Generate a UA key pair we can decrypt with on the test side.
-    const uaKp = (await crypto.subtle.generateKey(
-      { name: "ECDH", namedCurve: "P-256" },
-      true,
-      ["deriveBits"],
-    )) as CryptoKeyPair;
+    const uaKp = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+      "deriveBits",
+    ])) as CryptoKeyPair;
 
     const uaPubRaw = new Uint8Array(
       (await crypto.subtle.exportKey("raw", uaKp.publicKey)) as ArrayBuffer,
@@ -70,11 +72,9 @@ describe("encryptAes128Gcm", () => {
   });
 
   it("round-trips back to the original plaintext when decrypted with the UA private key", async () => {
-    const uaKp = (await crypto.subtle.generateKey(
-      { name: "ECDH", namedCurve: "P-256" },
-      true,
-      ["deriveBits"],
-    )) as CryptoKeyPair;
+    const uaKp = (await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+      "deriveBits",
+    ])) as CryptoKeyPair;
     const uaPubRaw = new Uint8Array(
       (await crypto.subtle.exportKey("raw", uaKp.publicKey)) as ArrayBuffer,
     );
@@ -111,9 +111,7 @@ describe("encryptAes128Gcm", () => {
     const ikmEcdh = new Uint8Array(ikmEcdhBits);
 
     // key_info = "WebPush: info\0" || ua_public || as_public
-    const keyInfo = new Uint8Array(
-      "WebPush: info\0".length + uaPubRaw.length + asPubRaw.length,
-    );
+    const keyInfo = new Uint8Array("WebPush: info\0".length + uaPubRaw.length + asPubRaw.length);
     keyInfo.set(new TextEncoder().encode("WebPush: info\0"), 0);
     keyInfo.set(uaPubRaw, "WebPush: info\0".length);
     keyInfo.set(asPubRaw, "WebPush: info\0".length + uaPubRaw.length);
@@ -153,13 +151,9 @@ describe("encryptAes128Gcm", () => {
       96,
     );
 
-    const cek = await crypto.subtle.importKey(
-      "raw",
-      new Uint8Array(cekBits),
-      "AES-GCM",
-      false,
-      ["decrypt"],
-    );
+    const cek = await crypto.subtle.importKey("raw", new Uint8Array(cekBits), "AES-GCM", false, [
+      "decrypt",
+    ]);
 
     const decrypted = new Uint8Array(
       await crypto.subtle.decrypt(

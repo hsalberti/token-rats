@@ -13,7 +13,7 @@ import { test } from "@playwright/test";
 
 test.skip(true, "Needs wrangler harness with authed-session minting.");
 
-test("soft-create returns 201 + redirects to /o/[slug]/pending", async ({}) => {
+test("soft-create returns 201 + redirects to /o/[slug]/pending", async () => {
   // INTENDED:
   //   - Boot harness, seed an authed user.
   //   - POST /v1/orgs { name, slug, founderEmail, requestedPlan: 'free' } with cookie.
@@ -21,7 +21,7 @@ test("soft-create returns 201 + redirects to /o/[slug]/pending", async ({}) => {
   //   - Visit /o/<slug>/pending — assert "You're on the waitlist" header.
 });
 
-test("second create from same user returns 409 referencing existing slug", async ({}) => {
+test("second create from same user returns 409 referencing existing slug", async () => {
   // INTENDED:
   //   - Same setup; first POST succeeds.
   //   - Second POST → 409 with details.existingSlug === the first slug.

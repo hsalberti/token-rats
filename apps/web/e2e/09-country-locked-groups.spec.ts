@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Spec 9: Country-locked groups.
@@ -17,7 +17,7 @@ test("/groups renders without an authed user", async ({ page }) => {
   await expect(page.getByRole("heading", { name: /Public groups/i })).toBeVisible();
 });
 
-test.skip("seeded DE public room: US viewer sees the country pill", async ({}) => {
+test.skip("seeded DE public room: US viewer sees the country pill", async () => {
   // INTENDED:
   //   - Boot harness, seed DE user + their public room (country='DE').
   //   - Open a US-context page (cf-ipcountry header US).

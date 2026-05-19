@@ -14,7 +14,11 @@
  * over a fixed JWT shape) — not worth a separate module.
  */
 
-import { base64urlToUint8Array, encryptAes128Gcm, uint8ArrayToBase64url } from "./webpush-encrypt.js";
+import {
+  base64urlToUint8Array,
+  encryptAes128Gcm,
+  uint8ArrayToBase64url,
+} from "./webpush-encrypt.js";
 
 export interface PushSubscriptionData {
   endpoint: string;

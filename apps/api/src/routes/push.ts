@@ -121,9 +121,7 @@ push.post("/test", requireAuth, async (c) => {
     }
     if (res.reason === "gone") {
       // Hard-delete the dead row. Best-effort — a failure here is non-fatal.
-      await c.env.DB.prepare(
-        "DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?",
-      )
+      await c.env.DB.prepare("DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?")
         .bind(userId, sub.endpoint)
         .run()
         .catch(() => undefined);

@@ -20,9 +20,6 @@ import type {
   // Phase 3 Track O — Org plan
   CreateOrgRequest,
   CreateOrgResponse,
-  GetPendingOrgsResponse,
-  PatchOrgRequest,
-  PatchOrgResponse,
   CreateRoomRequest,
   CreateRoomResponse,
   FriendsResponse,
@@ -37,6 +34,7 @@ import type {
   GetMyRoomsResponse,
   GetOrgDashboardResponse,
   GetOrgResponse,
+  GetPendingOrgsResponse,
   GetProfileResponse,
   GetReferralResponse,
   GetRoomResponse,
@@ -50,6 +48,8 @@ import type {
   NotificationPrefsResponse,
   PatchMeRequest,
   PatchMeResponse,
+  PatchOrgRequest,
+  PatchOrgResponse,
   RenameRoomRequest,
   RenameRoomResponse,
   ReportAbuseRequest,
@@ -429,10 +429,7 @@ export async function getPendingOrgs(
 }
 
 /** Admin: flip an org from pending to approved (promotes requested_plan). */
-export async function approveOrg(
-  slug: string,
-  cookieHeader?: string,
-): Promise<ApproveOrgResponse> {
+export async function approveOrg(slug: string, cookieHeader?: string): Promise<ApproveOrgResponse> {
   return request<ApproveOrgResponse>(ENDPOINTS.adminOrgApprove(slug), {
     method: "POST",
     cookieHeader,

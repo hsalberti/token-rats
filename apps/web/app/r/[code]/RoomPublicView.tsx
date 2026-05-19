@@ -55,10 +55,7 @@ export function RoomPublicView({ summary, signedIn, viewerCountry }: Props) {
   const ctaLabel = signedIn ? "Open dashboard" : "Sign in to join";
   // Country-mismatch state — public room whose country doesn't match the viewer.
   const isCountryMismatch =
-    summary.isPublic &&
-    !!summary.country &&
-    !!viewerCountry &&
-    summary.country !== viewerCountry;
+    summary.isPublic && !!summary.country && !!viewerCountry && summary.country !== viewerCountry;
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -140,9 +137,7 @@ function StatCard({
   return (
     <div className={`rounded-xl border border-zinc-800 bg-zinc-900 p-4 ${className}`}>
       <p className="text-xs font-semibold uppercase tracking-widest text-zinc-500">{label}</p>
-      <p
-        className={`mt-1 text-2xl font-black ${primary ? "text-rat-400" : "text-zinc-100"}`}
-      >
+      <p className={`mt-1 text-2xl font-black ${primary ? "text-rat-400" : "text-zinc-100"}`}>
         {value}
       </p>
     </div>

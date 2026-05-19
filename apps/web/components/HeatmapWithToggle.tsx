@@ -31,15 +31,16 @@ export function HeatmapWithToggle({ initial, fetcher, title }: Props) {
   const [loading, setLoading] = useState(false);
 
   // Hydrate from `?range=` on mount so a deep-link to ?range=52w renders
-  // correctly even though SSR rendered the default 30d.
+  // correctly even though SSR rendered the default 30d. Mount-only by
+  // design — `range` itself is owned by this component so closing over its
+  // initial value here is correct.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only hydration.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const fromUrl = params.get("range");
     if (fromUrl === "52w" && range !== "52w") {
       void swap("52w", { pushUrl: false });
     }
-    // intentional: mount only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function swap(next: HeatmapRange, opts: { pushUrl?: boolean } = { pushUrl: true }) {
@@ -84,9 +85,7 @@ export function HeatmapWithToggle({ initial, fetcher, title }: Props) {
           </button>
         ))}
       </div>
-      <div
-        className={`transition-opacity duration-150 ${loading ? "opacity-40" : "opacity-100"}`}
-      >
+      <div className={`transition-opacity duration-150 ${loading ? "opacity-40" : "opacity-100"}`}>
         <Heatmap heatmap={heatmap} range={range} title={title} />
       </div>
     </div>

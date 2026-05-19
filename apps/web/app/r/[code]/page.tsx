@@ -66,9 +66,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
 
   // Signed-out viewers see the read-only public view (stat strip + sign-in CTA).
   if (!session) {
-    return (
-      <RoomPublicView summary={summary} signedIn={false} viewerCountry={viewerCountry} />
-    );
+    return <RoomPublicView summary={summary} signedIn={false} viewerCountry={viewerCountry} />;
   }
 
   async function loadFullRoom(): Promise<{
@@ -132,9 +130,7 @@ export default async function RoomPage({ params, searchParams }: Props) {
           );
         } catch (joinErr) {
           if (joinErr instanceof ApiError && joinErr.status === 404) notFound();
-          return (
-            <RoomPublicView summary={summary} signedIn={true} viewerCountry={viewerCountry} />
-          );
+          return <RoomPublicView summary={summary} signedIn={true} viewerCountry={viewerCountry} />;
         }
       }
     }

@@ -117,13 +117,7 @@ async function importUaPublic(raw65: Uint8Array): Promise<CryptoKey> {
   if (raw65.length !== 65 || raw65[0] !== 0x04) {
     throw new Error("UA p256dh must be 65-byte uncompressed P-256 point");
   }
-  return crypto.subtle.importKey(
-    "raw",
-    raw65,
-    { name: "ECDH", namedCurve: "P-256" },
-    true,
-    [],
-  );
+  return crypto.subtle.importKey("raw", raw65, { name: "ECDH", namedCurve: "P-256" }, true, []);
 }
 
 /** Export an ECDH P-256 public key as the uncompressed 65-byte octet string. */
@@ -166,11 +160,9 @@ export async function encryptAes128Gcm(
   //    is an asymmetric algorithm — always a keypair at runtime).
   const ephemeral =
     opts?.ephemeralKeyPair ??
-    ((await crypto.subtle.generateKey(
-      { name: "ECDH", namedCurve: "P-256" },
-      true,
-      ["deriveBits"],
-    )) as CryptoKeyPair);
+    ((await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, [
+      "deriveBits",
+    ])) as CryptoKeyPair);
 
   const asPubRaw = await exportRawPublic(ephemeral.publicKey);
 
@@ -188,11 +180,7 @@ export async function encryptAes128Gcm(
 
   // 3. Derive IKM_PRK via HKDF with the UA's auth secret as salt.
   // key_info = "WebPush: info\0" || ua_public || as_public
-  const keyInfo = concatBytes(
-    new TextEncoder().encode("WebPush: info\0"),
-    uaPubRaw,
-    asPubRaw,
-  );
+  const keyInfo = concatBytes(new TextEncoder().encode("WebPush: info\0"), uaPubRaw, asPubRaw);
   const ikmPrk = await hkdf(ikmEcdh, authSecret, keyInfo, 32);
 
   // 4. CEK + nonce — both keyed off a random 16-byte salt (overridable).
@@ -204,12 +192,7 @@ export async function encryptAes128Gcm(
     new TextEncoder().encode("Content-Encoding: aes128gcm\0"),
     16,
   );
-  const nonce = await hkdf(
-    ikmPrk,
-    salt,
-    new TextEncoder().encode("Content-Encoding: nonce\0"),
-    12,
-  );
+  const nonce = await hkdf(ikmPrk, salt, new TextEncoder().encode("Content-Encoding: nonce\0"), 12);
 
   const cek = await crypto.subtle.importKey("raw", cekBytes, "AES-GCM", false, ["encrypt"]);
 

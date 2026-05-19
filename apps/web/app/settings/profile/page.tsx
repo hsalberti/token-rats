@@ -51,7 +51,8 @@ export default async function ProfileSettingsPage() {
             <>
               <p className="font-mono text-zinc-200">{email}</p>
               <p className="mt-1 text-xs text-zinc-500">
-                Connected via GitHub. Change it in your GitHub email settings and re-sign in to update.
+                Connected via GitHub. Change it in your GitHub email settings and re-sign in to
+                update.
               </p>
             </>
           ) : (

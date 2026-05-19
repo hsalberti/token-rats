@@ -12,7 +12,7 @@ import { test } from "@playwright/test";
 
 test.skip(true, "Needs wrangler harness with admin-user seeding.");
 
-test("admin sees pending orgs and can approve from /admin", async ({}) => {
+test("admin sees pending orgs and can approve from /admin", async () => {
   // INTENDED:
   //   - Seed admin user (login matches ADMIN_GITHUB_LOGIN env var) + sign in.
   //   - Seed pending org owned by a different user.

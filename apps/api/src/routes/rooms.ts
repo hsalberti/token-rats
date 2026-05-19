@@ -54,8 +54,7 @@ function roomPayload(r: RoomRow) {
   };
 }
 
-const ROOM_SELECT =
-  "id, code, name, owner_id, org_id, created_at, is_public, country";
+const ROOM_SELECT = "id, code, name, owner_id, org_id, created_at, is_public, country";
 
 /** Feature #6: hard cap on public rooms per owner per country. */
 const PUBLIC_ROOMS_PER_USER_PER_COUNTRY = 3;

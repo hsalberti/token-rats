@@ -409,9 +409,7 @@ export function RoomView({
         {groupStreak && groupStreak.currentStreak > 0 && (
           <div className="inline-flex items-center gap-2 rounded-full border border-rat-500/40 bg-rat-500/10 px-3 py-1 text-sm font-semibold text-rat-400">
             <span aria-hidden>🔥</span>
-            <span>
-              {groupStreak.currentStreak}-day group streak
-            </span>
+            <span>{groupStreak.currentStreak}-day group streak</span>
           </div>
         )}
 

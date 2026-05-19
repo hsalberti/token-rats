@@ -15,7 +15,7 @@ import { test } from "@playwright/test";
 
 test.skip(true, "Needs wrangler harness + GitHub OAuth network mock.");
 
-test("pre-deploy user is redirected once through GitHub on first page load", async ({}) => {
+test("pre-deploy user is redirected once through GitHub on first page load", async () => {
   // INTENDED:
   //   - Seed user with email = NULL, signed up before the scope-bump deploy date.
   //   - Mint a session cookie for that user.

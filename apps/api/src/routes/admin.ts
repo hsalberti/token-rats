@@ -315,9 +315,7 @@ admin.post("/orgs/:slug/approve", async (c) => {
   const slug = c.req.param("slug");
   const adminUserId = c.var.userId;
 
-  const org = await c.env.DB.prepare(
-    `SELECT id, status, requested_plan FROM orgs WHERE slug = ?`,
-  )
+  const org = await c.env.DB.prepare("SELECT id, status, requested_plan FROM orgs WHERE slug = ?")
     .bind(slug)
     .first<{ id: string; status: string; requested_plan: string | null }>();
 

@@ -18,7 +18,11 @@ type Plan = "free" | "student" | "pro";
 
 const PLAN_OPTIONS: { value: Plan; label: string; tagline: string }[] = [
   { value: "free", label: "Free", tagline: "Personal use" },
-  { value: "student", label: "Student", tagline: "Verified .edu / student org — free with approval" },
+  {
+    value: "student",
+    label: "Student",
+    tagline: "Verified .edu / student org — free with approval",
+  },
   { value: "pro", label: "Pro", tagline: "Company spend dashboard (billing TBD)" },
 ];
 
@@ -104,7 +108,8 @@ export default function NewOrgPage() {
 
           <div>
             <label className="mb-1.5 block text-sm font-semibold text-zinc-300" htmlFor="slug">
-              Slug <span className="font-normal text-zinc-500">(used in URLs, fixed at submit)</span>
+              Slug{" "}
+              <span className="font-normal text-zinc-500">(used in URLs, fixed at submit)</span>
             </label>
             <div className="flex items-center gap-2">
               <span className="text-zinc-500">tokenrats.com/o/</span>
@@ -124,7 +129,10 @@ export default function NewOrgPage() {
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-zinc-300" htmlFor="founderEmail">
+            <label
+              className="mb-1.5 block text-sm font-semibold text-zinc-300"
+              htmlFor="founderEmail"
+            >
               Founder email
             </label>
             <input
@@ -137,12 +145,16 @@ export default function NewOrgPage() {
               className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-4 py-2.5 text-zinc-100 placeholder-zinc-600 focus:border-rat-500 focus:outline-none"
             />
             <p className="mt-1 text-xs text-zinc-500">
-              We'll send approval updates here. No verification email yet — make sure it's typed right.
+              We'll send approval updates here. No verification email yet — make sure it's typed
+              right.
             </p>
           </div>
 
           <div>
-            <label className="mb-1.5 block text-sm font-semibold text-zinc-300" htmlFor="founderName">
+            <label
+              className="mb-1.5 block text-sm font-semibold text-zinc-300"
+              htmlFor="founderName"
+            >
               Your name <span className="font-normal text-zinc-500">(optional)</span>
             </label>
             <input

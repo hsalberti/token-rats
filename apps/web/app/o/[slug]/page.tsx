@@ -5,6 +5,7 @@
  * Redirects to /signin if unauthenticated, 404s if slug unknown or not a member.
  */
 
+import type { GetOrgResponse } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { Avatar } from "../../../components/ui/Avatar";
@@ -29,7 +30,7 @@ export default async function OrgOverviewPage({ params }: Props) {
   const user = await getSession();
   if (!user) notFound();
 
-  let orgRes;
+  let orgRes: GetOrgResponse;
   try {
     orgRes = await getOrg(slug, cookieHeader);
   } catch (err) {

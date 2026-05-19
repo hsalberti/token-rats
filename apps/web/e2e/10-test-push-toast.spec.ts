@@ -15,7 +15,7 @@ import { test } from "@playwright/test";
 
 test.skip(true, "Needs wrangler harness + mocked push service endpoint.");
 
-test("success path: 201 from push service → green toast", async ({}) => {
+test("success path: 201 from push service → green toast", async () => {
   // INTENDED:
   //   - Seed authed user + a push_subscriptions row pointing at a mocked endpoint.
   //   - Mock the push endpoint to return 201.
@@ -23,7 +23,7 @@ test("success path: 201 from push service → green toast", async ({}) => {
   //   - Assert success toast.
 });
 
-test("invalidation path: 410 from push service → row hard-deleted", async ({}) => {
+test("invalidation path: 410 from push service → row hard-deleted", async () => {
   // INTENDED:
   //   - Same setup but the mock returns 410.
   //   - Click "Send test push".

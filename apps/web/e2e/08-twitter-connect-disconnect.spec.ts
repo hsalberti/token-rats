@@ -14,7 +14,7 @@ import { test } from "@playwright/test";
 
 test.skip(true, "Needs wrangler harness + X OAuth network mock.");
 
-test("connect X flow populates twitter_handle, pill renders, disconnect clears it", async ({}) => {
+test("connect X flow populates twitter_handle, pill renders, disconnect clears it", async () => {
   // INTENDED:
   //   - Mock https://twitter.com/i/oauth2/authorize → 302 back to our callback.
   //   - Mock https://api.twitter.com/2/oauth2/token → { access_token: 'x' }.

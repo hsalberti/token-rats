@@ -110,10 +110,7 @@ export default async function GroupsPage() {
               className="rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-4 flex flex-wrap items-center gap-4"
             >
               <div className="flex-1 min-w-0">
-                <a
-                  href={`/r/${g.code}`}
-                  className="font-bold text-zinc-100 hover:text-rat-400"
-                >
+                <a href={`/r/${g.code}`} className="font-bold text-zinc-100 hover:text-rat-400">
                   {g.name}
                 </a>
                 <p className="mt-0.5 font-mono text-xs text-zinc-500">

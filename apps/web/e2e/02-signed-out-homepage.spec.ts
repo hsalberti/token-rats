@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Spec 2: Signed-out homepage.
@@ -32,16 +32,14 @@ test("/trending permanently redirects to /", async ({ request }) => {
   // Next 15's permanentRedirect is a 308 — close enough to the roadmap's 301
   // (both are permanent; clients cache identically).
   expect([301, 307, 308]).toContain(res.status());
-  const location = res.headers()["location"] ?? "";
+  const location = res.headers().location ?? "";
   expect(location).toMatch(/^\/$/);
 });
 
 test("?ref=<code> survives into the GitHub OAuth start URL", async ({ page }) => {
   // pickRef() accepts [A-Za-z0-9_-]{6,32}. "smoke01" matches.
   await page.goto("/?ref=smoke01");
-  const link = page
-    .getByRole("link", { name: /Sign in with GitHub/i })
-    .first();
+  const link = page.getByRole("link", { name: /Sign in with GitHub/i }).first();
   const href = await link.getAttribute("href");
   expect(href, "sign-in link should carry the ref param").toMatch(/[?&]ref=smoke01/);
 });
