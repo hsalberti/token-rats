@@ -1,3 +1,5 @@
+import { LeaderboardRange } from "@token-rats/contracts";
+import type { LeaderboardRange as LeaderboardRangeT, RoomSummary } from "@token-rats/contracts";
 /**
  * GET /v1/rooms/:code/summary?range=today|7d|30d|all
  *
@@ -11,13 +13,11 @@
  * point as the leaderboard cache (see lib/cache-bust.ts or rooms.ts).
  */
 import { Hono } from "hono";
-import { LeaderboardRange } from "@token-rats/contracts";
-import type { LeaderboardRange as LeaderboardRangeT, RoomSummary } from "@token-rats/contracts";
 import { z } from "zod";
 import type { Env } from "../env.js";
+import { notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { notFound, validationError } from "../lib/errors.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
@@ -68,12 +68,10 @@ function topMix(
   entries: { name: string; costUsdCents: number }[],
 ): { name: string; costUsdCents: number; sharePct: number }[] {
   const total = entries.reduce((s, e) => s + e.costUsdCents, 0);
-  return entries
-    .slice(0, 3)
-    .map((e) => ({
-      ...e,
-      sharePct: total === 0 ? 0 : Math.round((e.costUsdCents / total) * 1000) / 10,
-    }));
+  return entries.slice(0, 3).map((e) => ({
+    ...e,
+    sharePct: total === 0 ? 0 : Math.round((e.costUsdCents / total) * 1000) / 10,
+  }));
 }
 
 roomSummary.get("/:code/summary", requireAuth, async (c) => {
@@ -197,9 +195,7 @@ roomSummary.get("/:code/summary", requireAuth, async (c) => {
   ).map((m) => ({ source: m.name, costUsdCents: m.costUsdCents, sharePct: m.sharePct }));
 
   const topContributorSharePct =
-    totalCostUsdCents === 0
-      ? 0
-      : Math.round((topContributorCost / totalCostUsdCents) * 1000) / 10;
+    totalCostUsdCents === 0 ? 0 : Math.round((topContributorCost / totalCostUsdCents) * 1000) / 10;
 
   const summary: RoomSummary = {
     range,

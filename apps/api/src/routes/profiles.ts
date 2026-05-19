@@ -121,9 +121,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       id: user.id,
       handle: user.handle,
       avatarUrl: user.avatar_url,
-      ...(isPublic || isOwner
-        ? { bio: user.bio, twitterHandle: user.twitter_handle }
-        : {}),
+      ...(isPublic || isOwner ? { bio: user.bio, twitterHandle: user.twitter_handle } : {}),
       ...(isOwner ? { publicProfile: user.public_profile === 1 } : {}),
       totals: {
         today: {
@@ -301,9 +299,7 @@ profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
     return validationError(c, e instanceof Error ? e.message : e);
   }
 
-  const user = await c.env.DB.prepare(
-    "SELECT id, public_profile FROM users WHERE handle = ?",
-  )
+  const user = await c.env.DB.prepare("SELECT id, public_profile FROM users WHERE handle = ?")
     .bind(handle)
     .first<{ id: string; public_profile: number }>();
 
@@ -321,13 +317,7 @@ profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
   const cached = await c.env.CACHE.get(cacheKey);
   if (cached) return c.json(JSON.parse(cached));
 
-  const response = await buildHeatmapResponse(
-    c.env,
-    "user",
-    user.id,
-    handle,
-    parsed.days,
-  );
+  const response = await buildHeatmapResponse(c.env, "user", user.id, handle, parsed.days);
   await c.env.CACHE.put(cacheKey, JSON.stringify(response), { expirationTtl: 60 });
   return c.json(response);
 });

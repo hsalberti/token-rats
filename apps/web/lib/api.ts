@@ -233,10 +233,7 @@ export async function getMyRooms(cookieHeader?: string): Promise<GetMyRoomsRespo
 }
 
 /** Leave a room by code. */
-export async function leaveRoom(
-  code: RoomCode,
-  cookieHeader?: string,
-): Promise<LeaveRoomResponse> {
+export async function leaveRoom(code: RoomCode, cookieHeader?: string): Promise<LeaveRoomResponse> {
   return request<LeaveRoomResponse>(ENDPOINTS.leaveRoom(code), {
     method: "POST",
     cookieHeader,
@@ -471,6 +468,8 @@ export const api = {
   createOrgInvite,
   acceptOrgInvite,
   getOrgDashboard,
+  // v1.2 Track AA
+  submitWaitlist,
   // Phase 3 Track M
   getProxyAnthropicKeyStatus,
   setProxyAnthropicKey,
@@ -499,9 +498,7 @@ export async function setProxyAnthropicKey(
 }
 
 /** Delete the current user's stored Anthropic API key. */
-export async function deleteProxyAnthropicKey(
-  cookieHeader?: string,
-): Promise<{ stored: boolean }> {
+export async function deleteProxyAnthropicKey(cookieHeader?: string): Promise<{ stored: boolean }> {
   return request<{ stored: boolean }>(ENDPOINTS.proxyAnthropicKey, {
     method: "DELETE",
     cookieHeader,

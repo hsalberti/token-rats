@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0",
+  "productName": "Token Rats",
+  "version": "0.1.0",
+  "identifier": "com.tokenrats.taskbar",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "label": "main",
+        "title": "Token Rats",
+        "width": 360,
+        "height": 480,
+        "resizable": false,
+        "decorations": false,
+        "transparent": false,
+        "visible": false,
+        "skipTaskbar": true,
+        "alwaysOnTop": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": null
+    },
+    "macOSPrivateApi": false,
+    "trayIcon": {
+      "id": "main-tray",
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/icon.png"],
+    "category": "Utility",
+    "shortDescription": "Live token usage in your menu bar.",
+    "longDescription": "Token Rats menu-bar app. Shows today's Claude Code + Cursor spend, your current streak, and your top room rank.",
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  },
+  "plugins": {}
+}

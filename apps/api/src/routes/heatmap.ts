@@ -1,3 +1,5 @@
+import { HeatmapRangeDays, HeatmapScope } from "@token-rats/contracts";
+import type { HeatmapResponse } from "@token-rats/contracts";
 /**
  * GET /v1/heatmap?scope=user|room&id=<handle|code>&days=60|364
  *
@@ -13,14 +15,12 @@
  */
 import type { Context } from "hono";
 import { Hono } from "hono";
-import { HeatmapRangeDays, HeatmapScope } from "@token-rats/contracts";
-import type { HeatmapResponse } from "@token-rats/contracts";
 import { z } from "zod";
 import type { Env } from "../env.js";
-import type { AuthVariables } from "../middleware/auth.js";
-import { optionalAuth } from "../middleware/auth.js";
 import { notFound, validationError } from "../lib/errors.js";
 import { binCells, denseDays, offsetDay } from "../lib/heatmap.js";
+import type { AuthVariables } from "../middleware/auth.js";
+import { optionalAuth } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 type Ctx = Context<HonoEnv>;
@@ -146,9 +146,7 @@ heatmap.get("/heatmap", optionalAuth, async (c) => {
 });
 
 async function userHeatmap(c: Ctx, handle: string, days: 60 | 364): Promise<Response> {
-  const user = await c.env.DB.prepare(
-    "SELECT id, public_profile FROM users WHERE handle = ?",
-  )
+  const user = await c.env.DB.prepare("SELECT id, public_profile FROM users WHERE handle = ?")
     .bind(handle)
     .first<{ id: string; public_profile: number }>();
 

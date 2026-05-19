@@ -162,9 +162,7 @@ sessions.post("/", requireAuth, async (c) => {
     const totalTokens = newRecords.reduce((s, r) => s + r.inTokens + r.outTokens, 0);
     const totalCostUsdCents = newRecords.reduce((s, r) => s + r.costUsdCents, 0);
 
-    c.executionCtx.waitUntil(
-      fanoutToRooms(c.env, userId, totalTokens, totalCostUsdCents),
-    );
+    c.executionCtx.waitUntil(fanoutToRooms(c.env, userId, totalTokens, totalCostUsdCents));
   }
 
   return c.json({ accepted, duplicates });

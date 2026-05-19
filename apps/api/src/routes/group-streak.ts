@@ -1,3 +1,4 @@
+import type { GroupStreak } from "@token-rats/contracts";
 /**
  * GET /v1/rooms/:code/group-streak
  *
@@ -11,11 +12,10 @@
  * Cached in KV under `gs:{code}` with a 60s TTL.
  */
 import { Hono } from "hono";
-import type { GroupStreak } from "@token-rats/contracts";
 import type { Env } from "../env.js";
+import { notFound } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
-import { notFound } from "../lib/errors.js";
 import { computeStreaks } from "./streaks.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
@@ -105,7 +105,7 @@ groupStreak.get("/:code/group-streak", requireAuth, async (c) => {
 
   // 1. Fetch every (user_id, joined_at) pair for the room.
   const memberRows = await c.env.DB.prepare(
-    `SELECT user_id, joined_at FROM room_members WHERE room_id = ?`,
+    "SELECT user_id, joined_at FROM room_members WHERE room_id = ?",
   )
     .bind(room.id)
     .all<{ user_id: string; joined_at: number }>();

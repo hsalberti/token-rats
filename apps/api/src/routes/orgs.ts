@@ -264,9 +264,28 @@ orgs.get("/:slug", requireAuth, async (c) => {
     role: m.role,
   }));
 
+  // For pending orgs surfaced to the founder, include their waitlist position
+  // so the /o/<slug>/pending page can render "you're #N" without a second hop.
+  let waitlistPosition: number | undefined;
+  if (org.status === "pending" && role === "owner") {
+    const caller = await getCallerIdentity(c.env.DB, userId);
+    if (caller) {
+      const positionRow = await c.env.DB.prepare(
+        `SELECT COUNT(*) AS pos FROM waitlists
+         WHERE topic = 'orgs' AND created_at <= (
+           SELECT created_at FROM waitlists WHERE topic = 'orgs' AND email = ?
+         )`,
+      )
+        .bind(caller.email)
+        .first<{ pos: number }>();
+      waitlistPosition = positionRow?.pos ?? undefined;
+    }
+  }
+
   return c.json({
     org: serializeOrg(org),
     members,
+    ...(waitlistPosition && waitlistPosition > 0 ? { waitlistPosition } : {}),
   });
 });
 

@@ -44,13 +44,9 @@ describe("readDayRows", () => {
   });
 
   it("returns mapped day-rows for scope=room", async () => {
-    const db = makeD1Mock([
-      { day: "2024-06-01", tokens: 1500, cost_usd_cents: 90 },
-    ]);
+    const db = makeD1Mock([{ day: "2024-06-01", tokens: 1500, cost_usd_cents: 90 }]);
     const rows = await readDayRows(envWith(db), "room", "room-1", "2024-05-01");
-    expect(rows).toEqual([
-      { day: "2024-06-01", tokens: 1500, costUsdCents: 90 },
-    ]);
+    expect(rows).toEqual([{ day: "2024-06-01", tokens: 1500, costUsdCents: 90 }]);
   });
 });
 
