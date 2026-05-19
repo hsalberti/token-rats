@@ -18,7 +18,9 @@ test("/ as signed-out renders the trending board with the hero strip", async ({ 
   await expect(page.getByRole("link", { name: /Sign in with GitHub/i }).first()).toBeVisible();
 
   // Live board section.
-  await expect(page.getByRole("heading", { name: /Today's top burners/i })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: /Global Token Consumption Leaderboard/i }),
+  ).toBeVisible();
 
   // How-it-works moved below the board.
   await expect(page.getByRole("heading", { name: /How it works/i })).toBeVisible();
