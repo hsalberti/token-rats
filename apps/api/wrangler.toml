@@ -44,3 +44,18 @@ WEB_ORIGIN = "https://tokenrats.com"
 #   SESSION_SIGNING_KEY
 #   VAPID_PRIVATE_KEY   (base64url-encoded raw 32-byte EC P-256 private key)
 #   VAPID_PUBLIC_KEY    (base64url-encoded uncompressed P-256 point, 65 bytes)
+
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+persist = true
+invocation_logs = true
+
+[observability.traces]
+enabled = false
+persist = true
+head_sampling_rate = 1
