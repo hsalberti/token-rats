@@ -137,6 +137,7 @@ export function RoomView({
   const [shareCopied, setShareCopied] = useState(false);
   const [inviteCopied, setInviteCopied] = useState(false);
   const [renamingRoom, setRenamingRoom] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   // Cached referral code for tagging invite links so we can credit whoever
   // shared the room when a new friend signs up.
   const [inviterRef, setInviterRef] = useState<string | null>(null);
@@ -457,26 +458,41 @@ export function RoomView({
           </div>
         )}
 
-        {/* Members list — compact chip row. Drops the verified X pill when set. */}
+        {/* Members list — collapsed by default; the chip row used to push the
+            leaderboard below the fold on rooms with more than a handful of
+            members. */}
         {members.length > 0 && (
           <section className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-zinc-500">
+            <button
+              type="button"
+              onClick={() => setMembersOpen((v) => !v)}
+              aria-expanded={membersOpen}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-widest text-zinc-500 hover:text-zinc-300 transition-colors"
+            >
+              <span
+                aria-hidden
+                className={`transition-transform ${membersOpen ? "rotate-90" : ""}`}
+              >
+                ▸
+              </span>
               Members ({members.length})
-            </h3>
-            <ul className="flex flex-wrap gap-2">
-              {members.map((m) => (
-                <li
-                  key={m.userId}
-                  className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5"
-                >
-                  <Avatar src={m.avatarUrl} handle={m.handle} size="xs" />
-                  <a href={`/u/${m.handle}`} className="text-sm font-semibold hover:text-rat-400">
-                    @{m.handle}
-                  </a>
-                  <TwitterHandlePill handle={m.twitterHandle} />
-                </li>
-              ))}
-            </ul>
+            </button>
+            {membersOpen && (
+              <ul className="flex flex-wrap gap-2">
+                {members.map((m) => (
+                  <li
+                    key={m.userId}
+                    className="inline-flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-2.5 py-1.5"
+                  >
+                    <Avatar src={m.avatarUrl} handle={m.handle} size="xs" />
+                    <a href={`/u/${m.handle}`} className="text-sm font-semibold hover:text-rat-400">
+                      @{m.handle}
+                    </a>
+                    <TwitterHandlePill handle={m.twitterHandle} />
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
         )}
 
