@@ -103,6 +103,10 @@ trending.get("/", async (c) => {
       tokens: row.tokens,
       costUsdCents: row.cost_usd_cents,
       sessions: row.sessions,
+      // Contract requires `topSources` (Zod default is server-side only — the
+      // web client doesn't re-parse, so omitting this crashes consumers like
+      // GlobalBoardPreview that pass the field straight into <SourceBadges>).
+      topSources: [],
     })),
     range,
     generatedAt,
