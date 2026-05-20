@@ -50,13 +50,16 @@ export function SourceBadge({ source }: SourceBadgeProps) {
 
 export interface SourceBadgesProps {
   /** Pass the `topSources` field straight from a LeaderboardRow. */
-  sources: { source: string }[];
+  sources: { source: string }[] | undefined;
   /** Max badges to render. Defaults to 2 (matches contract cap). */
   max?: number;
 }
 
 export function SourceBadges({ sources, max = 2 }: SourceBadgesProps) {
-  if (sources.length === 0) return null;
+  // Tolerate undefined: the contract types `topSources` as required (with a
+  // Zod `.default([])`), but the client never re-parses responses, so any
+  // endpoint that forgets to emit the field hands us undefined at runtime.
+  if (!sources || sources.length === 0) return null;
   return (
     <span className="inline-flex items-center gap-1">
       {sources.slice(0, max).map((s) => (
