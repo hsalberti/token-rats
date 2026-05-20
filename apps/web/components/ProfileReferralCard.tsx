@@ -1,3 +1,10 @@
+"use client";
+
+// Server component would crash on the owner branch: the <input onFocus=…>
+// handler can't cross the RSC boundary. In prod that surfaces as the opaque
+// "An error occurred in the Server Components render" — and only fires when
+// the user views their own profile (referralCode is owner-only).
+
 import { CopyButton } from "./CopyButton";
 import { Card } from "./ui/Card";
 
