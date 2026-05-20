@@ -158,22 +158,6 @@ export default async function HomePage({
         <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
           <Wordmark size="sm" />
           <div className="flex items-center gap-6 text-sm text-zinc-500">
-            <a
-              href="https://github.com/hsalberti/token-rats"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-zinc-300"
-            >
-              GitHub
-            </a>
-            <a
-              href="https://github.com/hsalberti/token-rats/blob/main/mission.md"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-zinc-300"
-            >
-              Mission
-            </a>
             <a href="/changelog" className="hover:text-zinc-300">
               Changelog
             </a>
@@ -184,6 +168,14 @@ export default async function HomePage({
               className="hover:text-zinc-300"
             >
               @tokenratsx
+            </a>
+            <a
+              href="https://twitter.com/hsalberti"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-zinc-300"
+            >
+              made by @hsalberti
             </a>
             <span>Counts only — we can&apos;t read your prompts.</span>
           </div>
