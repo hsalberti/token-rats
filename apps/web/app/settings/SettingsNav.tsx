@@ -16,6 +16,7 @@ const TABS: { href: string; key: I18nKey }[] = [
   { href: "/settings/profile", key: "settings.tab.profile" },
   { href: "/settings/notifications", key: "settings.tab.notifications" },
   { href: "/settings/referrals", key: "settings.tab.referrals" },
+  { href: "/settings/orgs", key: "settings.tab.orgs" },
 ];
 
 export function SettingsNav({ locale }: Props) {
