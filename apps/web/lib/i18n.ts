@@ -89,7 +89,7 @@ const EN = {
   "teams.waitlistTitle": "Join the orgs waitlist",
   "teams.waitlistBody":
     "Orgs are on a manual approval queue right now. Sign in, request your org, and we’ll be in touch.",
-  "teams.cta.signedOut": "Sign in with GitHub to request",
+  "teams.cta.signedOut": "Sign in with GitHub to continue",
   "teams.cta.signedIn": "Request your org →",
   "teams.backHome": "← Back home",
 
@@ -230,7 +230,7 @@ const PT_BR: Record<keyof typeof EN, string> = {
   "teams.waitlistTitle": "Entre na waitlist de orgs",
   "teams.waitlistBody":
     "Orgs estão numa fila de aprovação manual. Entre, peça sua org, e a gente entra em contato.",
-  "teams.cta.signedOut": "Entrar com GitHub para pedir",
+  "teams.cta.signedOut": "Entrar com GitHub para continuar",
   "teams.cta.signedIn": "Pedir sua org →",
   "teams.backHome": "← Voltar ao início",
 

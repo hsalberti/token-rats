@@ -14,13 +14,50 @@ export const metadata: Metadata = {
     "We work with IT teams so enterprises can safely set up token usage competitions across teams. Privacy focused. Direct contact with founders.",
 };
 
-export default async function TeamsPage() {
+/** Same charset/length as the landing's referral-code shape (page.tsx:24-28). */
+function pickRef(raw: string | string[] | undefined): string | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== "string") return null;
+  return /^[A-Za-z0-9_-]{6,32}$/.test(v) ? v : null;
+}
+
+/** Match the API's sanitizeUtm charset/length so we don't ship junk. */
+function pickUtm(raw: string | string[] | undefined): string | null {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof v !== "string") return null;
+  const trimmed = v.trim().toLowerCase().slice(0, 40);
+  return /^[a-z0-9._-]+$/.test(trimmed) ? trimmed : null;
+}
+
+export default async function TeamsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{
+    ref?: string | string[];
+    utm_source?: string | string[];
+    utm_medium?: string | string[];
+    utm_campaign?: string | string[];
+  }>;
+}) {
   const locale = await getServerLocale();
   const user = await getSession();
-  // Both CTAs land on /o/new. Signed-out: the GitHub start endpoint hosts on
-  // the API; we route through it so the user gets bounced into /o/new after
-  // login. Signed-in: straight to the form.
-  const ctaHref = user ? "/o/new" : AUTH_GITHUB_START;
+  const params = await searchParams;
+  const ref = pickRef(params.ref);
+  const utmSource = pickUtm(params.utm_source);
+  const utmMedium = pickUtm(params.utm_medium);
+  const utmCampaign = pickUtm(params.utm_campaign);
+  const qs = new URLSearchParams();
+  if (ref) qs.set("ref", ref);
+  if (utmSource) qs.set("utm_source", utmSource);
+  if (utmMedium) qs.set("utm_medium", utmMedium);
+  if (utmCampaign) qs.set("utm_campaign", utmCampaign);
+  const q = qs.toString();
+  const startUrl = q ? `${AUTH_GITHUB_START}?${q}` : AUTH_GITHUB_START;
+  // The OAuth callback hardcodes /onboarding (new) or /app (returning) — see
+  // apps/api/src/routes/auth.ts. There is no `next` mechanism, so signed-out
+  // users land on the dashboard, where UserMenu → "Request an org" carries
+  // them on to /o/new. Signed-in: straight to the form.
+  const ctaHref = user ? "/o/new" : startUrl;
   const ctaLabel = user ? t(locale, "teams.cta.signedIn") : t(locale, "teams.cta.signedOut");
 
   return (
