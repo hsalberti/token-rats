@@ -4,7 +4,9 @@ import type { LeaderboardRange } from "@token-rats/contracts";
  * GET /v1/rooms/:code/leaderboard?range=today|7d|30d|all
  *
  * Aggregates daily_rollup for the room's members.
- * Cached in KV under `lb:<code>:<range>` with a 60s TTL (KV's minimum).
+ * Cached in KV under `lb:<code>:<range>` with a 5 min TTL. The room's SSE
+ * `leaderboard-update` event clears this key on every new session, so the
+ * TTL is only a fallback for inactive rooms.
  */
 import { Hono } from "hono";
 import type { Env } from "../env.js";
@@ -164,9 +166,12 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     },
   };
 
-  // Cache for 60s — KV's minimum TTL.
+  // Cache for 5 min. The room's SSE `leaderboard-update` event already
+  // invalidates this key on every new session (`routes/rooms.ts` clears
+  // `lb:<code>:<range>`), so the TTL is only a fallback for inactive rooms —
+  // a 60s floor just amplified KV writes without buying real freshness.
   await c.env.CACHE.put(cacheKey, JSON.stringify(response), {
-    expirationTtl: 60,
+    expirationTtl: 300,
   });
 
   return c.json(response);

@@ -7,9 +7,9 @@ import type { FriendRow, FriendSharedRoom, LeaderboardRange } from "@token-rats/
  * non-public room with. The response is sorted by spend (cost_usd_cents) over
  * the requested window, descending.
  *
- * Cached in KV under `fr:<userId>:<range>` with a 60s TTL — busted in
+ * Cached in KV under `fr:<userId>:<range>` with a 5 min TTL — busted in
  * `lib/ingest.ts` on session insert so a newly burned friend climbs the
- * list within a tick instead of waiting up to a minute for the TTL.
+ * list within a tick instead of waiting for the TTL.
  */
 import { Hono } from "hono";
 import type { Env } from "../env.js";
@@ -168,9 +168,11 @@ friends.get("/friends", requireAuth, async (c) => {
     friends: friendRows,
   };
 
-  // 60s TTL — KV's minimum, matches leaderboard.
+  // 5 min TTL, matching leaderboard. Friends boards are best-effort fresh —
+  // no SSE invalidation here, but a 60s floor was generating ~1,440 KV
+  // writes/day per active user with no real UX upside.
   await c.env.CACHE.put(cacheKey, JSON.stringify(response), {
-    expirationTtl: 60,
+    expirationTtl: 300,
   });
 
   return c.json(response);
