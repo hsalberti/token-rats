@@ -146,6 +146,12 @@ export default async function HomePage({
               {t(locale, "privacy.verifyShort")}
             </a>
           </p>
+          <a
+            href="/teams"
+            className="text-sm font-semibold text-zinc-400 hover:text-rat-400 transition-colors"
+          >
+            {t(locale, "landing.forTeams")}
+          </a>
         </div>
       </section>
 

@@ -102,6 +102,13 @@ export function UserMenu({ user, locale = "en" }: Props) {
             {t(locale, "menu.autobiography")}
           </a>
           <a
+            href="/o/new"
+            role="menuitem"
+            className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
+          >
+            {t(locale, "menu.requestOrg")}
+          </a>
+          <a
             href="/settings"
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"

@@ -71,6 +71,27 @@ const EN = {
     "Create a board with friends, or hit the global / country leaderboards. Climb, post, repeat.",
   "landing.step3.title": "Token-maxx",
   "landing.step3.desc": "Token mog your friends, feel the agi. Accelerate. Ship. Repeat.",
+  "landing.forTeams": "For IT teams & companies →",
+
+  /* /teams pitch page */
+  "teams.title": "Token Rats for IT teams",
+  "teams.sub":
+    "We work with IT teams so enterprises can safely set up token usage competitions across teams.",
+  "teams.bullet1.title": "Privacy by design",
+  "teams.bullet1.body":
+    "Counts only. The CLI literally can’t read your prompts or completions — only token counts leave the machine.",
+  "teams.bullet2.title": "Direct contact with founders",
+  "teams.bullet2.body":
+    "While we’re early, every org gets a direct line to the founders. Tell us what your team needs.",
+  "teams.bullet3.title": "Team-wide dashboards",
+  "teams.bullet3.body":
+    "Spend by user, by model, by day — across your whole org. Healthy competition, real cost visibility.",
+  "teams.waitlistTitle": "Join the orgs waitlist",
+  "teams.waitlistBody":
+    "Orgs are on a manual approval queue right now. Sign in, request your org, and we’ll be in touch.",
+  "teams.cta.signedOut": "Sign in with GitHub to continue",
+  "teams.cta.signedIn": "Request your org →",
+  "teams.backHome": "← Back home",
 
   /* Sign in */
   "signin.title": "Sign in or create an account",
@@ -121,6 +142,7 @@ const EN = {
   "menu.publicProfile": "View public profile",
   "menu.friends": "Friends",
   "menu.autobiography": "Token autobiography",
+  "menu.requestOrg": "Request an org",
   "menu.settings": "Settings",
   "menu.helpDm": "Help · DM @tokenratsx",
   "menu.signout": "Sign out",
@@ -130,7 +152,13 @@ const EN = {
   "settings.tab.profile": "Profile",
   "settings.tab.notifications": "Notifications",
   "settings.tab.referrals": "Invite friends",
+  "settings.tab.orgs": "Orgs",
   "settings.backToApp": "← App",
+  "settings.orgs.title": "Orgs",
+  "settings.orgs.body":
+    "Request an org for your team. Direct line to the founders while we’re early.",
+  "settings.orgs.cta": "Request an org →",
+  "settings.orgs.learnMore": "Learn more about Token Rats for teams →",
 
   /* Onboarding (no-sessions view) */
   "onb.noSync.greeting": "@{handle}, you haven’t synced yet.",
@@ -184,6 +212,27 @@ const PT_BR: Record<keyof typeof EN, string> = {
   // Keep meme stack: Token-maxx, "Token mog", "feel the agi", "Accelerate. Ship. Repeat."
   "landing.step3.title": "Token-maxx",
   "landing.step3.desc": "Token mog your friends, feel the agi. Accelerate. Ship. Repeat.",
+  "landing.forTeams": "Para times de TI & empresas →",
+
+  /* /teams pitch page */
+  "teams.title": "Token Rats para times de TI",
+  "teams.sub":
+    "A gente trabalha com times de TI para empresas montarem competições de uso de tokens entre equipes, com segurança.",
+  "teams.bullet1.title": "Privacidade por design",
+  "teams.bullet1.body":
+    "Só contagens. A CLI literalmente não consegue ler seus prompts ou completions — só contagens saem da máquina.",
+  "teams.bullet2.title": "Contato direto com os founders",
+  "teams.bullet2.body":
+    "Enquanto estamos cedo, cada org tem linha direta com os founders. Conta o que seu time precisa.",
+  "teams.bullet3.title": "Dashboards para o time todo",
+  "teams.bullet3.body":
+    "Gasto por pessoa, por modelo, por dia — em toda a org. Competição saudável, visibilidade real de custo.",
+  "teams.waitlistTitle": "Entre na waitlist de orgs",
+  "teams.waitlistBody":
+    "Orgs estão numa fila de aprovação manual. Entre, peça sua org, e a gente entra em contato.",
+  "teams.cta.signedOut": "Entrar com GitHub para continuar",
+  "teams.cta.signedIn": "Pedir sua org →",
+  "teams.backHome": "← Voltar ao início",
 
   /* Sign in */
   "signin.title": "Entre ou crie uma conta",
@@ -233,6 +282,7 @@ const PT_BR: Record<keyof typeof EN, string> = {
   "menu.publicProfile": "Ver perfil público",
   "menu.friends": "Amigos",
   "menu.autobiography": "Token autobiografia",
+  "menu.requestOrg": "Pedir uma org",
   "menu.settings": "Configurações",
   "menu.helpDm": "Ajuda · DM @tokenratsx",
   "menu.signout": "Sair",
@@ -242,7 +292,13 @@ const PT_BR: Record<keyof typeof EN, string> = {
   "settings.tab.profile": "Perfil",
   "settings.tab.notifications": "Notificações",
   "settings.tab.referrals": "Convidar amigos",
+  "settings.tab.orgs": "Orgs",
   "settings.backToApp": "← App",
+  "settings.orgs.title": "Orgs",
+  "settings.orgs.body":
+    "Peça uma org para seu time. Linha direta com os founders enquanto estamos cedo.",
+  "settings.orgs.cta": "Pedir uma org →",
+  "settings.orgs.learnMore": "Saiba mais sobre o Token Rats para times →",
 
   /* Onboarding */
   "onb.noSync.greeting": "@{handle}, você ainda não sincronizou.",
