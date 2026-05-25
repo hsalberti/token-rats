@@ -140,6 +140,53 @@ describe("recordSession", () => {
     expect(granularBind[4]).toBe("gpt-5.3-codex");
   });
 
+  it("stamps device_id when caller provides one", async () => {
+    const d1 = makeD1Mock(1);
+    const env = makeEnv(d1);
+    const record = makeRecord({ id: "sess-pc1", dedupeKey: "hash-pc1" });
+
+    await recordSession(env, "user-1", record, { deviceId: "device-aaa" });
+
+    const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
+    const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
+    // device_id is the LAST bind argument (column #15 in the INSERT).
+    expect(insertBind[insertBind.length - 1]).toBe("device-aaa");
+  });
+
+  it("multi-device: two sessions for the same user with different device_ids both insert and sum into daily_rollup", async () => {
+    // Regression coverage for the vmarcial-class bug: PC1 syncs one session,
+    // PC2 syncs a different session under the same user. The contract is that
+    // both inserts succeed (different ids, different dedupe_keys) and the
+    // daily_rollup upsert runs for each.
+    const d1 = makeD1Mock(1);
+    const env = makeEnv(d1);
+
+    const sessionFromPc1 = makeRecord({
+      id: "sess-pc1",
+      dedupeKey: "hash-pc1",
+      inTokens: 100,
+      outTokens: 50,
+    });
+    const sessionFromPc2 = makeRecord({
+      id: "sess-pc2",
+      dedupeKey: "hash-pc2",
+      inTokens: 200,
+      outTokens: 75,
+    });
+
+    const r1 = await recordSession(env, "user-vmarcial", sessionFromPc1, {
+      deviceId: "device-pc1",
+    });
+    const r2 = await recordSession(env, "user-vmarcial", sessionFromPc2, {
+      deviceId: "device-pc2",
+    });
+
+    expect(r1.inserted).toBe(true);
+    expect(r2.inserted).toBe(true);
+    // Two records × (INSERT + 2 rollup upserts) = 6 prepare() calls.
+    expect((d1.prepare as Mock).mock.calls.length).toBe(6);
+  });
+
   it("forwards granular cache + reasoning fields when provided", async () => {
     const d1 = makeD1Mock(1);
     const env = makeEnv(d1);

@@ -30,6 +30,7 @@ import type {
   GetGroupsResponse,
   GetHeatmapResponse,
   GetLeaderboardResponse,
+  GetMeDevicesResponse,
   GetMeResponse,
   GetMyRoomsResponse,
   GetOrgDashboardResponse,
@@ -54,6 +55,7 @@ import type {
   RenameRoomResponse,
   ReportAbuseRequest,
   ReportAbuseResponse,
+  RevokeDeviceResponse,
   RoomCode,
   UploadSessionsRequest,
   UploadSessionsResponse,
@@ -396,6 +398,22 @@ export async function getReferral(cookieHeader?: string): Promise<GetReferralRes
   return request<GetReferralResponse>(ENDPOINTS.meReferral, { cookieHeader });
 }
 
+/** Get the signed-in user's anonymized device list. Server returns no hostname or OS. */
+export async function getMeDevices(cookieHeader?: string): Promise<GetMeDevicesResponse> {
+  return request<GetMeDevicesResponse>(ENDPOINTS.meDevices, { cookieHeader });
+}
+
+/** Disconnect a device — future ingest from it returns 401 device_revoked. */
+export async function revokeDevice(
+  deviceId: string,
+  cookieHeader?: string,
+): Promise<RevokeDeviceResponse> {
+  return request<RevokeDeviceResponse>(ENDPOINTS.meDeviceRevoke(deviceId), {
+    method: "POST",
+    cookieHeader,
+  });
+}
+
 /** Get the signed-in user's friends — everyone they share a private room with. */
 export async function getMeFriends(
   range: LeaderboardRange = "7d",
@@ -540,6 +558,9 @@ export const api = {
   getReferral,
   // v1.2 Track AD
   getMeFriends,
+  // Multi-device
+  getMeDevices,
+  revokeDevice,
   // Phase 3 Track O
   createOrg,
   patchOrg,

@@ -340,6 +340,10 @@ export const ENDPOINTS = {
   meReferral: "/v1/me/referral",
   // v1.2 Track AD — friends derived from shared private rooms
   meFriends: "/v1/me/friends",
+  // Multi-device — anonymized device list + revoke + heartbeat
+  meDevices: "/v1/me/devices",
+  meDeviceRevoke: (deviceId: string) => `/v1/me/devices/${deviceId}/revoke`,
+  meDeviceHeartbeat: "/v1/me/devices/heartbeat",
   // Phase 3 Track O — Org plan
   orgs: "/v1/orgs",
   org: (slug: string) => `/v1/orgs/${slug}`,

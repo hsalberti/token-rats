@@ -9,11 +9,10 @@
  * Idempotency is guaranteed via the `dedupe_key` column:
  *   INSERT OR IGNORE → if rows == 0, it was already there.
  *
- * `daily_rollup` is the legacy aggregate that powers the existing leaderboard
- * queries (one row per user-day, totals only). `daily_rollup_by_model` is the
- * granular aggregate (one row per user-day-source-provider-model) added in
- * migration 0013 so per-IDE / per-vendor / per-model analytics don't require
- * scanning the full `sessions` table. Both are kept in sync on every insert.
+ * Multi-device (migration 0017): when the caller provides a `deviceId`, the
+ * sessions row is stamped with it and the `devices` table is upserted via
+ * `upsertDeviceForIngest`. Older CLI clients that don't send a device id keep
+ * ingesting with `device_id = NULL` (legacy bucket on the dashboard).
  */
 
 import { type SessionRecord, defaultProviderForSource } from "@token-rats/contracts";
@@ -25,42 +24,33 @@ export function toUtcDay(tsMs: number): string {
 }
 
 export interface RecordSessionResult {
-  /** true if the session row was newly inserted; false if it was a duplicate. */
   inserted: boolean;
 }
 
-/**
- * Persist a single `SessionRecord` for `userId`.
- *
- * Three writes per new session:
- *  1. INSERT OR IGNORE into `sessions` (with granular token columns).
- *  2. Upsert legacy `daily_rollup` for the session's UTC day.
- *  3. Upsert granular `daily_rollup_by_model` for the same day, keyed by
- *     (source, provider, model).
- *
- * Returns `{ inserted: true }` when the row is new, `{ inserted: false }` when
- * it was already present (idempotent replay).
- */
+export interface RecordSessionOptions {
+  /** Opaque per-install device id from the CLI (`X-Device-Id`), if present. */
+  deviceId?: string | null;
+}
+
 export async function recordSession(
   env: Env,
   userId: string,
   record: SessionRecord,
+  opts: RecordSessionOptions = {},
 ): Promise<RecordSessionResult> {
-  // Older CLIs don't send `provider` / cache / reasoning fields. Fill in safe
-  // defaults so the DB columns are always non-null and analytics queries don't
-  // have to special-case legacy rows.
   const provider = record.provider ?? defaultProviderForSource(record.source);
   const cacheReadTokens = record.cacheReadTokens ?? 0;
   const cacheWriteTokens = record.cacheWriteTokens ?? 0;
   const reasoningTokens = record.reasoningTokens ?? 0;
+  const deviceId = opts.deviceId ?? null;
 
   const insertStmt = env.DB.prepare(
     `INSERT OR IGNORE INTO sessions
        (id, user_id, source, provider, model,
         in_tokens, out_tokens,
         cache_read_tokens, cache_write_tokens, reasoning_tokens,
-        cost_usd_cents, started_at, ended_at, dedupe_key)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        cost_usd_cents, started_at, ended_at, dedupe_key, device_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     record.id,
     userId,
@@ -76,6 +66,7 @@ export async function recordSession(
     record.startedAt,
     record.endedAt,
     record.dedupeKey,
+    deviceId,
   );
 
   const [insertResult] = await env.DB.batch([insertStmt]);
@@ -127,4 +118,54 @@ export async function recordSession(
   }
 
   return { inserted };
+}
+
+/**
+ * Upsert the `devices` row associated with this ingest call. Returns
+ * `{ revoked: true }` when the device has been disconnected via the web UI;
+ * callers should short-circuit ingest with a 401 in that case.
+ */
+export async function upsertDeviceForIngest(
+  env: Env,
+  userId: string,
+  deviceId: string,
+  cliVersion: string | null,
+  uploadedRows: number,
+  nowMs: number = Date.now(),
+): Promise<{ revoked: boolean }> {
+  const existing = await env.DB.prepare(
+    "SELECT user_id, revoked_at FROM devices WHERE device_id = ?",
+  )
+    .bind(deviceId)
+    .first<{ user_id: string; revoked_at: number | null }>();
+
+  if (existing && existing.revoked_at !== null) {
+    return { revoked: true };
+  }
+
+  if (existing) {
+    if (existing.user_id !== userId) {
+      // Defensive: device ids are UUIDs and shouldn't collide across users.
+      // Refuse the upload rather than land on another user's row.
+      return { revoked: true };
+    }
+    await env.DB.prepare(
+      `UPDATE devices
+          SET last_seen_at      = ?,
+              last_upload_count = last_upload_count + ?,
+              cli_version       = COALESCE(?, cli_version)
+        WHERE device_id = ?`,
+    )
+      .bind(nowMs, uploadedRows, cliVersion, deviceId)
+      .run();
+  } else {
+    await env.DB.prepare(
+      `INSERT INTO devices
+         (device_id, user_id, created_at, last_seen_at, last_upload_count, cli_version)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(deviceId, userId, nowMs, nowMs, uploadedRows, cliVersion)
+      .run();
+  }
+  return { revoked: false };
 }

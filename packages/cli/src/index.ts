@@ -16,6 +16,11 @@
  */
 
 import { installCursorCommand } from "./commands/install-cursor.js";
+import {
+  daemonStatusCommand,
+  installDaemonCommand,
+  uninstallDaemonCommand,
+} from "./commands/install-daemon.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
 import { syncCommand } from "./commands/sync.js";
@@ -24,8 +29,10 @@ import { whoamiCommand } from "./commands/whoami.js";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
+import { CLI_VERSION } from "./lib/cli-version.js";
+
 function getVersion(): string {
-  return "0.0.4";
+  return CLI_VERSION;
 }
 
 function printHelp(): void {
@@ -36,14 +43,17 @@ function printHelp(): void {
   token-rats <command> [flags]
 
 \x1b[1mCommands:\x1b[0m
-  login           Authenticate with Token Rats (opens browser)
-  sync            Read local Claude Code + Cursor logs and upload counts
-  watch           Watch logs in real-time; upload new sessions as they appear
-  whoami          Show the currently signed-in account
-  logout          Clear your stored credentials
-  install-cursor  Install better-sqlite3 globally for faster Cursor reads
-                  (sql.js works out of the box — this is opt-in speed-up)
-  help            Show this help message
+  login              Authenticate with Token Rats (opens browser); installs the background watcher by default
+  sync               Read local Claude Code + Cursor logs and upload counts
+  watch              Watch logs in real-time; upload new sessions as they appear
+  whoami             Show the currently signed-in account + device id
+  logout             Clear your stored credentials
+  install-daemon     Install the background watcher (runs at logon)
+  uninstall-daemon   Remove the background watcher
+  daemon-status      Show whether the background watcher is running
+  install-cursor     Install better-sqlite3 globally for faster Cursor reads
+                     (sql.js works out of the box — this is opt-in speed-up)
+  help               Show this help message
 
 \x1b[1mFlags (all commands):\x1b[0m
   --api-url <url>   Override API URL (default: https://api.tokenrats.com)
@@ -84,6 +94,7 @@ interface ParsedArgs {
   dryRun: boolean;
   verbose: boolean;
   interval: number | undefined;
+  noDaemon: boolean;
   rest: string[];
 }
 
@@ -93,6 +104,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   let dryRun = false;
   let verbose = false;
   let interval: number | undefined;
+  let noDaemon = false;
 
   let i = 0;
   while (i < argv.length) {
@@ -109,6 +121,8 @@ function parseArgs(argv: string[]): ParsedArgs {
       interval = Number(argv[++i]);
     } else if (arg.startsWith("--interval=")) {
       interval = Number(arg.slice("--interval=".length));
+    } else if (arg === "--no-daemon") {
+      noDaemon = true;
     } else if (arg === "--version" || arg === "-V") {
       console.log(getVersion());
       process.exit(0);
@@ -123,14 +137,14 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   const [command = null, ...rest] = positional;
-  return { command, apiUrl, dryRun, verbose, interval, rest };
+  return { command, apiUrl, dryRun, verbose, interval, noDaemon, rest };
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const { command, apiUrl, dryRun, verbose, interval } = args;
+  const { command, apiUrl, dryRun, verbose, interval, noDaemon } = args;
 
   if (!command || command === "help") {
     printHelp();
@@ -139,7 +153,7 @@ async function main(): Promise<void> {
 
   switch (command) {
     case "login":
-      await loginCommand({ apiUrl });
+      await loginCommand({ apiUrl, noDaemon });
       break;
 
     case "sync":
@@ -160,6 +174,18 @@ async function main(): Promise<void> {
 
     case "install-cursor":
       await installCursorCommand();
+      break;
+
+    case "install-daemon":
+      await installDaemonCommand();
+      break;
+
+    case "uninstall-daemon":
+      await uninstallDaemonCommand();
+      break;
+
+    case "daemon-status":
+      await daemonStatusCommand();
       break;
 
     default:

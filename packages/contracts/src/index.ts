@@ -11,3 +11,4 @@ export * from "./org.js";
 export * from "./admin.js";
 export * from "./referral.js";
 export * from "./friends.js";
+export * from "./device.js";

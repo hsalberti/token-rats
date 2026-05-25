@@ -249,6 +249,95 @@ A new `/groups` page lists public rooms in the viewer's `cf-ipcountry` (signed-o
 
 ---
 
+### 🟩 Multi-device aggregation — reproduce and fix `vmarcial` regression
+
+Confirmed by founder: users running the CLI on multiple PCs see only one machine's stats (reproducer: `vmarcial`). The current schema sums `sessions` by `user_id` with no per-device filter, so this should not happen — there's a real bug. **Blocks the device-list feature below**: shipping a per-device UI on top of broken aggregation would compound the problem. The fix is whatever the post-mortem reveals; we don't pre-suppose the cause.
+
+**Investigation checklist (one finding determines the patch):**
+- Pull `vmarcial`'s `sessions` rows from prod D1. Confirm whether PC1's rows landed at all. If never uploaded → CLI / login flow issue on PC1, not an aggregation bug.
+- If both PCs' rows are present, check `daily_rollup` and `daily_rollup_by_model` totals against the raw `sessions` SUM for the same user_id and day range. Under-count in the rollups → ingest upsert bug.
+- If raw + rollup totals match but the *UI* shows only one PC's data, the leaderboard / profile / `/me` query has an unintended filter (e.g., a stale `LIMIT 1` or wrong `GROUP BY`).
+- Audit `dedupe_key` collisions across the two PCs. FNV-1a 32-bit gives ~1 collision per ~65k same-tuple sessions — possible but unlikely as the systemic cause. If this *is* the cause, the dedupe-key strengthening in [`roadmap-deferred.md`](./roadmap-deferred.md) moves out of deferred.
+
+**Touches:** depends entirely on the finding. Plausible files: `apps/api/src/lib/ingest.ts`, `apps/api/src/routes/leaderboard.ts`, `apps/api/src/routes/me.ts`, `apps/api/src/routes/profiles.ts`, `packages/parsers/src/hash.ts`, `packages/cli/src/commands/sync.ts`. A short post-mortem note lands in `notes/` documenting the actual cause + the fix.
+
+**Definition of done:**
+- `vmarcial` and one other multi-PC user (recruited for verification) see a combined total that matches `SELECT SUM(in_tokens+out_tokens) FROM sessions WHERE user_id = ?` to the token.
+- A regression test in the relevant Vitest suite covers the exact failure mode found (not a generic multi-PC test — specifically the bug that was there).
+- The post-mortem note names the cause in one sentence and links to the test.
+
+**Order constraints:**
+- Independent of every other feature here. Ships first relative to the two device-track features below.
+- Do **not** introduce per-device filtering in this feature. That's the next feature. This one only restores the existing user-level aggregation guarantee.
+
+---
+
+### 🟦 Anonymized device list with per-device filter on own profile
+
+**Depends on:** the multi-device aggregation fix above (don't ship a per-device UI on top of broken aggregation).
+
+Users with multiple PCs need a private view of *which devices have synced*, *when each last synced*, *what each contributed*, and the ability to **disconnect a device remotely** from the web. The whole surface is owner-gated — no one else ever sees a user's device list.
+
+**Privacy posture (locked):** The server stores **no hostname, no OS string, no identifying metadata** per device — only an opaque `device_id`, the owning `user_id`, timestamps, upload counters, `cli_version`, and `revoked_at`. The CLI keeps a local `~/.config/token-rats/devices.json` mapping `{ device_id → { label, hostname, os } }` for *its own* machine. The web UI fetches the anonymized list from `/v1/me/devices` and shows "Device · `<short-id-prefix>`" by default; on the device itself (CLI on localhost), the user can optionally name it, and that label is stored client-side only.
+
+**Touches:**
+- New migration `0017_devices.sql`: `CREATE TABLE devices (device_id TEXT PRIMARY KEY, user_id TEXT NOT NULL, created_at INTEGER NOT NULL, last_seen_at INTEGER NOT NULL, last_upload_count INTEGER NOT NULL DEFAULT 0, cli_version TEXT, revoked_at INTEGER, FOREIGN KEY(user_id) REFERENCES users(id))`. Index `(user_id, last_seen_at DESC)`. Add `sessions.device_id TEXT` (nullable; legacy rows stay null). Index `(user_id, device_id)`.
+- CLI: generate a per-install UUID on first run, persist to `~/.config/token-rats/state.json`. Send as `X-Device-Id` (and `X-Cli-Version`) on every `POST /v1/sessions`. Older CLI versions without the header continue to ingest with `device_id = NULL`.
+- `apps/api/src/lib/ingest.ts`: when `X-Device-Id` is present, upsert the `devices` row (creates on first sight, bumps `last_seen_at` and `last_upload_count`, sets `cli_version`) and stamp `sessions.device_id`. If `devices.revoked_at IS NOT NULL`, short-circuit ingest with `401 { error: "device_revoked" }`.
+- New routes (mounted under `/v1/me`):
+  - `GET /v1/me/devices` → `{ devices: [{ deviceId, createdAt, lastSeenAt, lastUploadCount, cliVersion, revokedAt, totals: { costUsdCents, tokens, sessions } }] }`. Totals come from a `SUM` over `sessions WHERE user_id = ? AND device_id = ?` scoped to the active range. **No hostname field. No OS field.**
+  - `POST /v1/me/devices/:deviceId/revoke` → sets `devices.revoked_at = now()`. Future ingests from that device get 401. Idempotent. The CLI, on receiving 401 + `error: "device_revoked"`, deletes its local token and prints "This device was disconnected from the web UI. Run `token-rats login` to reconnect or remove this install."
+- New private dashboard page `/app/devices` (owner-gated; 404 to anyone else even with the URL): renders one row per device with last-seen time, live indicator (placeholder until the daemon feature below ships), 30d totals per device, and a "disconnect" button that calls revoke. A `?device=<id>` query param applied on the existing `/app` dashboard filters the global summary + heatmap to a single device.
+- The owner view on `/u/<handle>` gains a small private "your devices" panel below the existing private bits, linking to `/app/devices`. Visible only to the owner — same gate as the rest of the private profile content.
+- New contract types in `packages/contracts`: `Device`, `MeDevicesResponse`. No leak of these into public surfaces.
+
+**Definition of done:**
+- A user with two devices sees both on `/app/devices` after the next sync from each, with non-zero per-device totals that sum to their global 30d total.
+- Revoking a device returns 401 with `error: "device_revoked"` on its next upload; the CLI on that device prints the disconnect message and removes its local token; the row's `revoked_at` is set; the device still renders on `/app/devices` with a "Disconnected" pill (history is preserved, but no new ingest).
+- `wrangler tail` on a production-traffic snapshot shows zero hostname / OS / system-info strings in any request, and the DB has no column capable of holding such data.
+- A CLI from before this feature continues to ingest fine; its sessions land with `device_id = NULL` and show on `/app/devices` as a single "Legacy device" row.
+
+**Order constraints:**
+- Migration `0017_devices.sql` assumes the actual repo state — renumber to the next-available `00NN` if anything else lands first.
+- The CLI change is opt-in via header presence, so it can ship in either order relative to the server change. Recommend server-first so the very first device-aware CLI release has a working `/v1/me/devices` to read.
+- Don't add hostname / OS / label columns to the `devices` table "for future use" — the server-side anonymity is part of the contract with users.
+
+---
+
+### 🟦 Daemonized watcher installed by default + live-sync indicator
+
+**Depends on:** the device list above (uses `devices` and adds `last_heartbeat_at` to it).
+
+The daemon **is** the product. `token-rats sync` becomes a manual one-shot for power users; the daemon is what runs day-to-day on every device, picking up sessions before local logs can be rotated or wiped. Installed automatically at the end of `token-rats login` with a `--no-daemon` opt-out for users who prefer manual sync. A live indicator on `/app/devices` shows which devices are currently running the daemon.
+
+**Touches:**
+- New CLI subcommands `token-rats install-daemon`, `token-rats uninstall-daemon`, `token-rats daemon-status`. Per OS:
+  - macOS: write `~/Library/LaunchAgents/com.tokenrats.watch.plist` with `RunAtLoad=true` + `KeepAlive=true`, then `launchctl load`.
+  - Linux: write `~/.config/systemd/user/token-rats-watch.service`, then `systemctl --user enable --now token-rats-watch.service`.
+  - Windows: register a Scheduled Task triggered at logon via `schtasks` (or PowerShell).
+- `token-rats login`: on successful auth, run `install-daemon` as the final step. Print the daemon location, a one-liner to remove it, and a pointer to `/cli/daemon`. A `--no-daemon` flag skips the install; the same flag is honored on future re-logins.
+- `packages/cli/src/commands/watch.ts`: persist per-file watch state under `~/.config/token-rats/watch-state.json` as `{ path, inode, size, lastProcessedOffset, lastUploadedAt }`. On restart, skip already-processed bytes. When `current size < persisted size`, treat as a log rotation: log a warning, keep what we already captured, and reset the offset — no attempt to recover the lost bytes.
+- Heartbeat: the watcher posts `POST /v1/me/devices/heartbeat` every 60s (or piggybacks on the existing ingest call with an `X-Heartbeat: 1` header on empty-payload requests if the rate-limit budget is too tight). Updates `devices.last_heartbeat_at`, a new column added in the same migration as `devices` (or via a follow-up `0018` migration if shipping order forces it).
+- `GET /v1/me/devices` response gains `lastHeartbeatAt` and a derived `isLive: boolean` (true if heartbeat is within the last 5 min).
+- `/app/devices` UI: green pulse next to live devices, gray dot otherwise. Disconnect button now also stops the running daemon — the CLI, on receiving `401 { error: "device_revoked" }` from its next heartbeat, exits with a "disconnected by user" log line and is *not* re-launched (KeepAlive is overridden by writing a `~/.config/token-rats/disconnected` sentinel that the launchd/systemd unit checks before starting).
+- New static page `/cli/daemon` documenting: install/uninstall commands, where state lives, the heartbeat cadence, the no-hostname-on-server promise, and the disconnect-from-web flow.
+
+**Definition of done:**
+- `token-rats login` on a fresh machine ends with a running daemon that survives logout / login on all three platforms.
+- Within 60s of the first heartbeat, `/app/devices` shows the device with a green live indicator.
+- Killing the daemon process (`launchctl unload` / `systemctl --user stop` / Task Scheduler stop) flips the dot to gray within 5 min.
+- Revoking the device via `/app/devices` causes the daemon to exit cleanly on its next heartbeat, log "disconnected by user", and not auto-restart.
+- A user who runs `token-rats login --no-daemon` ends up with **no** background process; they can still run `token-rats sync` manually.
+- Logs on the wire and in D1 contain no hostname / OS / machine-name strings (verified via `wrangler tail` + DB schema review).
+- The watcher correctly handles a mid-session log rotation: it warns, snapshots what it had, and continues from the new file.
+
+**Order constraints:**
+- Ships after the device list. The `devices.last_heartbeat_at` column lands in the device-list migration (`0017_devices.sql`) or as a tiny follow-up `0018` migration depending on which ships first.
+- The `/cli/daemon` docs page must clearly state the no-hostname-on-server promise so users feel safe leaving a background process running.
+- The autorun decision in `login` is the locked product stance — don't gate it on a checkbox in the CLI prompt. The `--no-daemon` flag is the escape hatch for power users; the *default* is install-and-run.
+
+---
+
 ### 🟨 Playwright smoke suite
 
 Not user-visible; a CI gate. Specs run against a **real `wrangler dev` Worker** (not MSW) with a fresh local D1 file seeded per spec, so contract drift is caught end-to-end. Browser matrix: **Chromium + WebKit** (no Firefox). Path-filtered gate: smoke runs block PR merge **only when the PR touches `apps/web/**` or `packages/contracts/**`**; api-only or CLI-only PRs skip the smoke job. No visual / screenshot diffs in v1 — behavioral assertions only.
@@ -264,6 +353,9 @@ Not user-visible; a CI gate. Specs run against a **real `wrangler dev` Worker** 
 8. **Twitter connect / disconnect** — Connect X → OAuth round-trip (stub the X side at the network layer for this spec only) → pill renders on `/u/<handle>`, `/r/<code>` member list, friends view. Disconnect → pill disappears everywhere.
 9. **Country-locked groups** — `cf-ipcountry` header injected; create a public room as `DE` user, verify a `US` user can view `/r/<code>` but join is replaced with the country pill; `/groups` lists the room for `DE` and not for `US`.
 10. **Test-push toast** — `/settings/notifications` "Send test push" hits the real wrapper; mocked push service returns 201; UI shows the success toast. (Subscription invalidation path uses a mocked 410 to assert the row gets hard-deleted.)
+11. **Multi-device aggregation** — seed two `device_id`s under the same `user_id` with non-overlapping `sessions`; assert the leaderboard / `/me` / `/u/<handle>` totals equal the SUM across both. Specifically asserts the `vmarcial`-class regression cannot recur silently.
+12. **Devices page + revoke** — seed two devices, hit `/app/devices` as the owner (renders both rows with per-device totals), as a non-owner (404), then `POST /v1/me/devices/:deviceId/revoke` and assert the next ingest from that `device_id` returns 401 `{ error: "device_revoked" }`. Confirms the row keeps history but stops accepting writes.
+13. **Daemon heartbeat → live indicator** — fake-heartbeat a `device_id` and assert `GET /v1/me/devices` returns `isLive: true` within 60s and reverts to `false` after 5 min of silence. Confirms the live indicator's timing contract.
 
 **Touches:**
 - New directory `apps/web/e2e/` with one `*.spec.ts` per item above.
@@ -273,7 +365,7 @@ Not user-visible; a CI gate. Specs run against a **real `wrangler dev` Worker** 
 - Document the local run path in `apps/web/README.md` or `CLAUDE.md`.
 
 **Definition of done:**
-- All 10 specs pass on Chromium and WebKit locally and in CI.
+- All 13 specs pass on Chromium and WebKit locally and in CI.
 - A PR touching only `apps/api/**` or `packages/cli/**` does **not** trigger the smoke job (verified once after merge).
 - A PR touching `apps/web/**` cannot merge with a failing or skipped smoke job.
 - Seed helpers + the wrangler-dev harness live in `apps/web/e2e/_setup/` (or similar) and are reusable across specs.
@@ -305,6 +397,9 @@ These came out of v1.2 planning and override anything inferred from prior conven
 - **Twitter/X is real OAuth** — verified handle stored on the user, rendered as a pill next to display name on profile, room member list, and friends list this round (leaderboard + OG cards deferred). Read-only scope; auto-post stays deferred.
 - **Public groups are country-locked via `cf-ipcountry`** — visible and joinable only to viewers whose Cloudflare-resolved country matches.
 - **Taskbar app is deferred until after the repo is open-sourced.** When we revisit, it's cross-platform (macOS + Windows tray) via Tauri 2.x. See [`roadmap-deferred.md`](./roadmap-deferred.md) for the locked design decisions.
+- **Multi-device aggregation is server-side via `user_id` SUM.** No per-device source of truth. The device dimension is a *view*, not a primary key for usage. Per-device filters on the UI hit the same rows the global query reads, with an extra `AND device_id = ?` clause.
+- **Server stores no hostname / OS / identifying metadata per device.** Only an opaque `device_id`, the owning `user_id`, timestamps, upload counters, and `cli_version`. Friendly device names live client-side in `~/.config/token-rats/devices.json`. Confirmed locked 2026-05-21 — this is a privacy commitment, not an implementation detail.
+- **The daemon is the product.** `token-rats login` installs and starts a background watcher by default on macOS / Linux / Windows. Manual `token-rats sync` becomes a power-user one-shot. A `--no-daemon` flag is the escape hatch; the default is install-and-run.
 
 ## Explicitly deferred
 
@@ -317,6 +412,10 @@ Real signals that won't ship in this cycle.
 - Taskbar app (entire v1) — deferred until after open-sourcing the repo. See [`roadmap-deferred.md`](./roadmap-deferred.md).
 - VS Code extension as a source — Cursor cache covers most of the surface. Provider expansion lives in [`notes/provider-expansion.md`](./notes/provider-expansion.md).
 - Anti-cheat / verification — not the bottleneck.
+- **Cloud-side usage retrieval** (Anthropic / OpenAI / Cursor / ChatGPT account OAuth) — Investigated 2026-05-21: Anthropic banned third-party OAuth into Claude Pro/Max in Feb/Apr 2026 and the Admin API is org-owner-only and unreliable for subscription Claude Code usage. OpenAI "Sign in with ChatGPT" is identity-only with no usage endpoint. Cursor's analytics API is Enterprise-tier. Revisit only if a provider ships user-scoped usage OAuth.
+- **OpenRouter as a cloud source** — Has user-OAuth + daily aggregate usage but covers a tiny audience and lacks per-message dedupe. Deferred until a customer specifically asks for it.
+- **Strengthen `dedupe_key` to SHA-256 + include `session_id`; drop token counts from the key material.** Defer until the multi-device aggregation post-mortem tells us whether dedupe collisions were the cause. If yes, schedule a backfill migration in the next cycle; if no, leave the FNV-1a path alone.
+- **Proxy-mode promotion to a primary capture path.** Privacy review + per-machine `ANTHROPIC_BASE_URL` setup friction make it as costly as installing the CLI; the daemon-by-default path is preferred.
 
 ---
 
