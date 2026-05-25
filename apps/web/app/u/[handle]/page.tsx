@@ -238,12 +238,18 @@ export default async function ProfilePage({ params, searchParams }: Props) {
 
         {/* Edit profile CTA for the profile owner */}
         {currentUser?.handle === profile.handle && (
-          <div className="text-center">
+          <div className="text-center space-x-4">
             <a
               href="/settings/profile"
               className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2"
             >
               Edit profile settings
+            </a>
+            <a
+              href="/app/devices"
+              className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors underline underline-offset-2"
+            >
+              Your devices
             </a>
           </div>
         )}

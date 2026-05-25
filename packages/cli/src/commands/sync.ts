@@ -9,8 +9,9 @@
 import * as fs from "node:fs";
 import type { SessionRecord } from "@token-rats/contracts";
 import { computeDedupeKey, parseClaudeCode, parseCodex, parseCursor } from "@token-rats/parsers";
-import { ApiClient, ApiError } from "../lib/api.js";
-import { loadToken } from "../lib/auth-store.js";
+import { ApiClient, ApiError, DeviceRevokedError } from "../lib/api.js";
+import { deleteToken, ensureDeviceId, loadToken, markDisconnected } from "../lib/auth-store.js";
+import { CLI_VERSION } from "../lib/cli-version.js";
 import { extractCursorGenerations } from "../lib/cursor-extract.js";
 import { discoverClaudeCodeFiles, discoverCodexFiles } from "../lib/discover.js";
 import { dim, error, info, spinner, success, warn } from "../lib/log.js";
@@ -76,7 +77,12 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
 
   const client = opts.dryRun
     ? null
-    : new ApiClient({ apiUrl: opts.apiUrl, token: token ?? undefined });
+    : new ApiClient({
+        apiUrl: opts.apiUrl,
+        token: token ?? undefined,
+        deviceId: ensureDeviceId(),
+        cliVersion: CLI_VERSION,
+      });
 
   // ── 1. Discover + parse Claude Code files ──────────────────────────────────
   const claudeFiles = discoverClaudeCodeFiles();
@@ -228,6 +234,14 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
       totalDuplicates += res.duplicates;
     } catch (err) {
       spin.stop();
+      if (err instanceof DeviceRevokedError) {
+        markDisconnected();
+        deleteToken();
+        error(
+          "This device was disconnected from the Token Rats web UI. Run `token-rats login` to reconnect.",
+        );
+        process.exit(1);
+      }
       if (err instanceof ApiError && err.status === 401) {
         error("Session expired. Run `token-rats login` to re-authenticate.");
         process.exit(1);

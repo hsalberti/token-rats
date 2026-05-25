@@ -7,6 +7,7 @@ import adminRoutes from "./routes/admin.js";
 import twitterAuthRoutes from "./routes/auth-twitter.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
+import devicesRoutes from "./routes/devices.js";
 import friendsRoutes from "./routes/friends.js";
 import groupsRoutes from "./routes/groups.js";
 import leaderboardRoutes from "./routes/leaderboard.js";
@@ -73,6 +74,9 @@ app.route("/v1/me", meRoutes);
 // v1.2 Track AD — friends derived from shared private rooms.
 // Mounted on the me namespace so the path is `/v1/me/friends`.
 app.route("/v1/me", friendsRoutes);
+// Multi-device — anonymized device list + heartbeat + revoke. Paths land at
+// /v1/me/devices, /v1/me/devices/heartbeat, /v1/me/devices/:id/revoke.
+app.route("/v1/me", devicesRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Session ingest                                                              */

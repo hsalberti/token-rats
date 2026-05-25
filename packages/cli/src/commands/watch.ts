@@ -5,8 +5,14 @@
  * lines / file changes, parses them with `parseClaudeCode`, dedupes against an
  * in-memory Set, and immediately posts any NEW SessionRecords to POST /v1/sessions.
  *
- * Uses chokidar when available (optional dep), falls back to Node's built-in
- * `fs/promises watch()`.
+ * Also:
+ *   - Sends a heartbeat to POST /v1/me/devices/heartbeat every 60s so the
+ *     web UI's "live" indicator flips green within a minute of startup.
+ *   - Persists per-file watch state (`{ path, size, mtime }`) to
+ *     `~/.config/token-rats/watch-state.json` so a restart doesn't re-scan
+ *     from scratch, and detects log rotation when a file's size shrinks.
+ *   - Refuses to run if the device was disconnected from the web UI (the
+ *     CLI clears the sentinel via `token-rats install-daemon` after re-login).
  *
  * Flags:
  *   --api-url <url>     Override API base URL
@@ -15,10 +21,19 @@
  */
 
 import * as fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
 import type { SessionRecord } from "@token-rats/contracts";
 import { parseClaudeCode } from "@token-rats/parsers";
-import { ApiClient, ApiError } from "../lib/api.js";
-import { loadToken } from "../lib/auth-store.js";
+import { ApiClient, ApiError, DeviceRevokedError } from "../lib/api.js";
+import {
+  deleteToken,
+  ensureDeviceId,
+  isDisconnected,
+  loadToken,
+  markDisconnected,
+} from "../lib/auth-store.js";
+import { CLI_VERSION } from "../lib/cli-version.js";
 import { claudeCodeProjectsDir } from "../lib/discover.js";
 import { dim, error, info, success, warn } from "../lib/log.js";
 
@@ -29,9 +44,54 @@ export interface WatchOptions {
   interval?: number;
 }
 
-// ── Dedupe helpers ────────────────────────────────────────────────────────────
+const HEARTBEAT_MS = 60_000;
+
+// ── Dedupe + state ────────────────────────────────────────────────────────────
 
 const seen = new Set<string>();
+
+interface FileState {
+  size: number;
+  mtimeMs: number;
+}
+
+function stateFilePath(): string {
+  const xdgConfig = process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), ".config");
+  return path.join(xdgConfig, "token-rats", "watch-state.json");
+}
+
+function loadWatchState(): Record<string, FileState> {
+  try {
+    const raw = fs.readFileSync(stateFilePath(), "utf8");
+    const parsed = JSON.parse(raw);
+    return typeof parsed === "object" && parsed !== null ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveWatchState(state: Record<string, FileState>): void {
+  try {
+    const file = stateFilePath();
+    fs.mkdirSync(path.dirname(file), { recursive: true });
+    fs.writeFileSync(file, JSON.stringify(state), { mode: 0o600 });
+  } catch (err) {
+    // Persisting state is best-effort.
+    if (err instanceof Error) {
+      // eslint-disable-next-line no-console
+      console.warn(`watch-state write failed: ${err.message}`);
+    }
+  }
+}
+
+function statFile(p: string): FileState | null {
+  try {
+    const s = fs.statSync(p);
+    return { size: s.size, mtimeMs: s.mtimeMs };
+  } catch {
+    return null;
+  }
+}
 
 function parseAndFilter(filePath: string, verbose: boolean): SessionRecord[] {
   let text: string;
@@ -80,6 +140,14 @@ async function upload(
       success(`Uploaded ${res.accepted} session(s)`);
     }
   } catch (err) {
+    if (err instanceof DeviceRevokedError) {
+      markDisconnected();
+      deleteToken();
+      error(
+        "This device was disconnected from the Token Rats web UI. Daemon will exit; re-run `token-rats login` to reconnect.",
+      );
+      process.exit(0);
+    }
     if (err instanceof ApiError && err.status === 401) {
       error("Session expired. Run `token-rats login` to re-authenticate.");
       process.exit(1);
@@ -107,7 +175,6 @@ function makeDebounced(fn: (path: string) => void, ms: number): (path: string) =
 
 // ── Initial snapshot ──────────────────────────────────────────────────────────
 
-/** Recursively collect all *.jsonl files under a directory. */
 function findJsonlFiles(dir: string): string[] {
   const results: string[] = [];
   if (!fs.existsSync(dir)) return results;
@@ -126,13 +193,25 @@ function findJsonlFiles(dir: string): string[] {
 // ── Main command ──────────────────────────────────────────────────────────────
 
 export async function watchCommand(opts: WatchOptions): Promise<void> {
+  if (isDisconnected()) {
+    error(
+      "This device was disconnected from the Token Rats web UI. Run `token-rats login` to reconnect.",
+    );
+    process.exit(0);
+  }
+
   const token = loadToken();
   if (!token) {
     error("Not logged in. Run `token-rats login` first.");
     process.exit(1);
   }
 
-  const client = new ApiClient({ apiUrl: opts.apiUrl, token });
+  const client = new ApiClient({
+    apiUrl: opts.apiUrl,
+    token,
+    deviceId: ensureDeviceId(),
+    cliVersion: CLI_VERSION,
+  });
   const debounceMs = opts.interval ?? 2000;
   const dir = claudeCodeProjectsDir();
 
@@ -145,44 +224,89 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
   info(`Watching ${dir} (debounce: ${debounceMs}ms)`);
   info("Press Ctrl-C to stop.\n");
 
-  // ── 1. Initial snapshot — seed `seen` without uploading ────────────────────
+  // Persisted per-file state — used to detect log rotation (size shrinks).
+  const persistedState = loadWatchState();
+  const liveState = new Map<string, FileState>();
+
   const initialFiles = findJsonlFiles(dir);
   for (const f of initialFiles) {
-    // Parse and mark as seen but don't upload (these were already synced by
-    // previous `token-rats sync` runs — or will be uploaded fresh if truly new).
-    parseAndFilter(f, false);
+    const cur = statFile(f);
+    if (!cur) continue;
+    liveState.set(f, cur);
+    const prev = persistedState[f];
+    if (prev && cur.size < prev.size) {
+      warn(`Rotation detected on ${f}: size shrank ${prev.size} → ${cur.size}.`);
+    }
+    parseAndFilter(f, false); // seed `seen` without uploading
   }
   if (opts.verbose) {
     dim(`Initial snapshot: ${seen.size} session(s) in ${initialFiles.length} file(s)`);
   }
 
-  // ── 2. Set up watcher ──────────────────────────────────────────────────────
+  // Persist a baseline immediately so a quick restart doesn't lose state.
+  saveWatchState(Object.fromEntries(liveState));
 
   const onChanged = makeDebounced(async (filePath: string) => {
     if (!filePath.endsWith(".jsonl")) return;
+    const cur = statFile(filePath);
+    if (cur) {
+      const prev = liveState.get(filePath);
+      if (prev && cur.size < prev.size) {
+        warn(`Rotation detected on ${filePath}: size shrank ${prev.size} → ${cur.size}.`);
+      }
+      liveState.set(filePath, cur);
+      saveWatchState(Object.fromEntries(liveState));
+    }
     const fresh = parseAndFilter(filePath, opts.verbose ?? false);
     if (fresh.length > 0) {
       await upload(client, fresh, opts.verbose ?? false);
     }
   }, debounceMs);
 
-  // Try chokidar first (optional dep), fall back to Node built-in.
+  // ── Heartbeat ──────────────────────────────────────────────────────────────
+  const heartbeatTimer = setInterval(async () => {
+    try {
+      await client.heartbeat();
+    } catch (err) {
+      if (err instanceof DeviceRevokedError) {
+        markDisconnected();
+        deleteToken();
+        error(
+          "This device was disconnected from the Token Rats web UI. Daemon exiting; re-run `token-rats login` to reconnect.",
+        );
+        cleanup?.();
+        clearInterval(heartbeatTimer);
+        process.exit(0);
+      }
+      // Other heartbeat failures are non-fatal — log + retry next tick.
+      if (opts.verbose) {
+        dim(`Heartbeat failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }, HEARTBEAT_MS);
+
+  // Fire one heartbeat immediately so the device shows live within seconds of
+  // the first session upload (which creates the devices row).
+  client.heartbeat().catch(() => {
+    /* ignore — first heartbeat may race the first sessions upload that
+     * creates the devices row; subsequent heartbeats will succeed. */
+  });
+
+  // ── File watcher ──────────────────────────────────────────────────────────
   let cleanup: (() => void) | null = null;
 
   try {
-    // Dynamic import — chokidar is an optional dependency.
-    // We use Function() to defeat the TypeScript module resolver so that the
-    // package being absent at typecheck time doesn't cause a TS2307 error.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chokidar = (await (new Function("m", "return import(m)") as (m: string) => Promise<any>)(
-      "chokidar",
-    )) as {
-      watch: (
-        pattern: string,
-        opts: Record<string, unknown>,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ) => { on: (event: string, fn: (...args: any[]) => void) => void; close: () => void };
-    };
+    const chokidar = await (
+      new Function("m", "return import(m)") as (m: string) => Promise<{
+        watch: (
+          pattern: string,
+          opts: Record<string, unknown>,
+        ) => {
+          on: (event: string, fn: (p: string) => void) => void;
+          close: () => void;
+        };
+      }>
+    )("chokidar");
     const watcher = chokidar.watch(`${dir}/**/*.jsonl`, {
       ignoreInitial: true,
       persistent: true,
@@ -190,21 +314,13 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
     });
     watcher.on("add", (p: string) => onChanged(p));
     watcher.on("change", (p: string) => onChanged(p));
-    cleanup = () => {
-      watcher.close();
-    };
+    cleanup = () => watcher.close();
     if (opts.verbose) dim("Using chokidar for file watching");
   } catch {
-    // chokidar not installed — use Node built-in fs.watch
     if (opts.verbose) dim("chokidar not available; using Node built-in fs.watch");
 
-    // Node's fs.watch is recursive on macOS/Windows but NOT on Linux.
-    // On Linux we fall back to polling every `interval` ms by rescanning the dir.
     if (process.platform === "linux") {
-      // Poll-based fallback on Linux
       let lastMtimes = new Map<string, number>();
-
-      // Capture initial mtimes
       for (const f of initialFiles) {
         try {
           lastMtimes.set(f, fs.statSync(f).mtimeMs);
@@ -212,7 +328,6 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
           // ignore
         }
       }
-
       const pollInterval = setInterval(() => {
         const current = findJsonlFiles(dir);
         for (const f of current) {
@@ -224,10 +339,9 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
               onChanged(f);
             }
           } catch {
-            // file disappeared — ignore
+            // ignore
           }
         }
-        // Track new files
         for (const f of current) {
           if (!lastMtimes.has(f)) {
             lastMtimes.set(f, Date.now());
@@ -236,10 +350,8 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
         }
         lastMtimes = new Map(current.map((f) => [f, lastMtimes.get(f) ?? 0]));
       }, debounceMs);
-
       cleanup = () => clearInterval(pollInterval);
     } else {
-      // macOS / Windows — recursive watch is supported natively
       const controller = new AbortController();
       (async () => {
         try {
@@ -253,7 +365,6 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
             }
           }
         } catch (err) {
-          // AbortError is expected on shutdown — ignore it
           if (err instanceof Error && err.name !== "AbortError") {
             warn(`Watcher error: ${err.message}`);
           }
@@ -263,10 +374,9 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
     }
   }
 
-  // ── 3. Graceful shutdown ───────────────────────────────────────────────────
-
   function shutdown() {
     info("Shutting down…");
+    clearInterval(heartbeatTimer);
     if (cleanup) cleanup();
     process.exit(0);
   }

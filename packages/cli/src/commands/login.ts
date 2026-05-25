@@ -9,8 +9,16 @@
  */
 
 import { ApiClient } from "../lib/api.js";
-import { saveToken } from "../lib/auth-store.js";
-import { error, info, spinner, success } from "../lib/log.js";
+import { clearDisconnected, ensureDeviceId, saveToken } from "../lib/auth-store.js";
+import { CLI_VERSION } from "../lib/cli-version.js";
+import { dim, error, info, spinner, success } from "../lib/log.js";
+import { installDaemonCommand } from "./install-daemon.js";
+
+export interface LoginOptions {
+  apiUrl?: string;
+  /** When true, skip the post-login daemon install (still does device id setup). */
+  noDaemon?: boolean;
+}
 
 /** Attempt to open a URL in the default browser. No-op if `open` is missing. */
 async function openBrowser(url: string): Promise<void> {
@@ -53,8 +61,13 @@ async function copyToClipboard(text: string): Promise<boolean> {
   return false;
 }
 
-export async function loginCommand(opts: { apiUrl?: string }): Promise<void> {
-  const client = new ApiClient({ apiUrl: opts.apiUrl });
+export async function loginCommand(opts: LoginOptions): Promise<void> {
+  const deviceId = ensureDeviceId();
+  const client = new ApiClient({
+    apiUrl: opts.apiUrl,
+    deviceId,
+    cliVersion: CLI_VERSION,
+  });
 
   info("Authenticating with Token Rats…");
 
@@ -119,5 +132,16 @@ export async function loginCommand(opts: { apiUrl?: string }): Promise<void> {
   }
 
   saveToken(token);
+  clearDisconnected();
   success("Logged in! Run `token-rats whoami` to verify.");
+  dim(`Device id: ${deviceId}`);
+
+  if (opts.noDaemon) {
+    info("Skipping background watcher install (--no-daemon).");
+    info("Run `token-rats sync` manually whenever you want to upload usage.");
+    return;
+  }
+
+  info("Installing background watcher so usage uploads automatically…");
+  await installDaemonCommand();
 }
