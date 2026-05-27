@@ -344,6 +344,8 @@ export const ENDPOINTS = {
   meDevices: "/v1/me/devices",
   meDeviceRevoke: (deviceId: string) => `/v1/me/devices/${deviceId}/revoke`,
   meDeviceHeartbeat: "/v1/me/devices/heartbeat",
+  // CLI version + upgrade banner
+  cliVersion: "/v1/cli/version",
   // Phase 3 Track O — Org plan
   orgs: "/v1/orgs",
   org: (slug: string) => `/v1/orgs/${slug}`,

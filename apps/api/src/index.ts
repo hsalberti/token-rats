@@ -7,6 +7,7 @@ import adminRoutes from "./routes/admin.js";
 import twitterAuthRoutes from "./routes/auth-twitter.js";
 import authRoutes from "./routes/auth.js";
 import challengesRoutes from "./routes/challenges.js";
+import cliRoutes from "./routes/cli.js";
 import devicesRoutes from "./routes/devices.js";
 import friendsRoutes from "./routes/friends.js";
 import groupsRoutes from "./routes/groups.js";
@@ -83,6 +84,12 @@ app.route("/v1/me", devicesRoutes);
 /* -------------------------------------------------------------------------- */
 
 app.route("/v1/sessions", sessionsRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* CLI version surface — powers the in-app "upgrade" banner + sync chip.       */
+/* -------------------------------------------------------------------------- */
+
+app.route("/v1/cli", cliRoutes);
 
 /* -------------------------------------------------------------------------- */
 /* Rooms (and the streak/challenge/leaderboard/live sub-routes on :code)      */

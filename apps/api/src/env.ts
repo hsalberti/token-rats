@@ -31,4 +31,9 @@ export type Env = {
   X_OAUTH_CLIENT_ID?: string;
   /** Twitter/X OAuth client secret (v1.2 Track AC). Worker secret. */
   X_OAUTH_CLIENT_SECRET?: string;
+  /** Latest published `token-rats` npm version. Drives the web "upgrade" banner.
+   *  Set as a plain var in wrangler.toml so we can bump without a redeploy. */
+  LATEST_CLI_VERSION?: string;
+  /** Minimum supported CLI version. Same plumbing as LATEST_CLI_VERSION. */
+  MIN_SUPPORTED_CLI_VERSION?: string;
 };

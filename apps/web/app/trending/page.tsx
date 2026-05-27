@@ -9,8 +9,7 @@
  */
 import type { Metadata } from "next";
 import { permanentRedirect } from "next/navigation";
-import { UserMenu } from "../../components/UserMenu";
-import { Wordmark } from "../../components/ui/Wordmark.js";
+import { AuthedTopBar } from "../../components/AuthedTopBar";
 import { getTrending } from "../../lib/api";
 import { getSession } from "../../lib/auth";
 import { getServerLocale } from "../../lib/server-locale";
@@ -63,14 +62,7 @@ export default async function TrendingPage({
 
   return (
     <div className="min-h-screen bg-zinc-950">
-      <header className="relative z-40 border-b border-zinc-800 bg-zinc-900/80 backdrop-blur">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-4">
-          <a href="/app">
-            <Wordmark size="md" />
-          </a>
-          <UserMenu user={user} locale={locale} />
-        </div>
-      </header>
+      <AuthedTopBar user={user} locale={locale} />
 
       <main className="mx-auto max-w-4xl px-6 py-8 space-y-6">
         <div className="flex items-center justify-between gap-4">

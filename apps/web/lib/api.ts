@@ -13,6 +13,7 @@ import type {
   AdminReferrersResponse,
   AdminSignupsResponse,
   ApproveOrgResponse,
+  CliVersionResponse,
   CreateChallengeRequest,
   CreateChallengeResponse,
   CreateOrgInviteRequest,
@@ -403,6 +404,11 @@ export async function getMeDevices(cookieHeader?: string): Promise<GetMeDevicesR
   return request<GetMeDevicesResponse>(ENDPOINTS.meDevices, { cookieHeader });
 }
 
+/** Get the latest published CLI version + upgrade command. */
+export async function getCliVersion(cookieHeader?: string): Promise<CliVersionResponse> {
+  return request<CliVersionResponse>(ENDPOINTS.cliVersion, { cookieHeader });
+}
+
 /** Disconnect a device — future ingest from it returns 401 device_revoked. */
 export async function revokeDevice(
   deviceId: string,
@@ -561,6 +567,7 @@ export const api = {
   // Multi-device
   getMeDevices,
   revokeDevice,
+  getCliVersion,
   // Phase 3 Track O
   createOrg,
   patchOrg,
