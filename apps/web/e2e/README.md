@@ -16,9 +16,26 @@ pnpm --filter @token-rats/web dev   # Next on :3000
 pnpm --filter @token-rats/web e2e
 # Or one project:
 pnpm --filter @token-rats/web e2e -- --project=chromium
+pnpm --filter @token-rats/web e2e -- --project=firefox
+pnpm --filter @token-rats/web e2e -- --project=mobile-webkit
 ```
 
 `PLAYWRIGHT_WEB_BASE_URL=http://...` overrides the default `127.0.0.1:3000`.
+
+`mobile-webkit` uses Playwright's iPhone profile on Linux WebKit. It catches
+responsive layout, touch, viewport, and WebKit class issues, but it is still
+not the same as driving Safari on a physical iPhone. For real-device checks,
+start the local dev stack bound to your LAN and open the URL from the phone:
+
+```sh
+pnpm --filter @token-rats/api dev -- --ip 0.0.0.0 --port 8787
+pnpm --filter @token-rats/web dev -- -H 0.0.0.0 -p 3000
+hostname -I
+```
+
+Then visit `http://<linux-lan-ip>:3000` from the iPhone while it is on the same
+Wi-Fi. Fully automated real-iPhone Safari checks from Ubuntu require a remote
+device service or a Mac/iOS automation host.
 
 ## Spec inventory
 
@@ -41,6 +58,6 @@ stubs documenting the intended assertions.
 
 ## CI
 
-`.github/workflows/e2e.yml` runs the suite on Chromium + WebKit, gated on
-`paths:` `apps/web/**` and `packages/contracts/**`. API-only or CLI-only
-PRs skip this job.
+`.github/workflows/e2e.yml` runs the suite on Chromium, Firefox, desktop
+WebKit, and mobile WebKit, gated on `paths:` `apps/web/**` and
+`packages/contracts/**`. API-only or CLI-only PRs skip this job.

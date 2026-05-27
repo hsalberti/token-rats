@@ -12,7 +12,10 @@ import { defineConfig, devices } from "@playwright/test";
  * scaffold (see implementation-notes.md for the gap). The specs that
  * don't need seeded data run against the shared dev servers.
  *
- * Browser matrix: Chromium + WebKit. No Firefox. No screenshot baselines.
+ * Browser matrix: Chromium, Firefox, desktop WebKit, and mobile WebKit.
+ * Mobile WebKit approximates iPhone Safari from Linux; it is not a real
+ * iPhone device run. Use a device cloud or an actual phone on the LAN for
+ * hardware Safari checks.
  */
 
 const WEB_BASE_URL = process.env.PLAYWRIGHT_WEB_BASE_URL ?? "http://127.0.0.1:3000";
@@ -38,8 +41,16 @@ export default defineConfig({
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      name: "firefox",
+      use: { ...devices["Desktop Firefox"] },
+    },
+    {
       name: "webkit",
       use: { ...devices["Desktop Safari"] },
+    },
+    {
+      name: "mobile-webkit",
+      use: { ...devices["iPhone 15"] },
     },
   ],
 });

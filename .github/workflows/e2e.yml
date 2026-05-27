@@ -25,7 +25,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        browser: [chromium, webkit]
+        include:
+          - project: chromium
+            browser: chromium
+          - project: firefox
+            browser: firefox
+          - project: webkit
+            browser: webkit
+          - project: mobile-webkit
+            browser: webkit
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -45,7 +53,7 @@ jobs:
             if curl -s -o /dev/null http://127.0.0.1:3000; then break; fi
             sleep 1
           done
-      - name: Run Playwright (${{ matrix.browser }})
-        run: pnpm --filter @token-rats/web exec playwright test --project=${{ matrix.browser }}
+      - name: Run Playwright (${{ matrix.project }})
+        run: pnpm --filter @token-rats/web exec playwright test --project=${{ matrix.project }}
         env:
           CI: "1"
