@@ -124,13 +124,15 @@ export async function GET(
           <img src={logoUrl} alt="" width={36} height={36} />
           <div
             style={{
+              display: "flex",
               fontSize: 22,
               fontWeight: 900,
               color: "#f4f4f5",
               letterSpacing: "-0.02em",
             }}
           >
-            Token <span style={{ color: "#f97316" }}>Rats</span>
+            <span>Token&nbsp;</span>
+            <span style={{ color: "#f97316" }}>Rats</span>
           </div>
         </div>
         <div

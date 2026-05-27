@@ -86,8 +86,17 @@ export async function GET(
       <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 32 }}>
         {" "}
         <img src={logoUrl} alt="" width={36} height={36} />
-        <div style={{ fontSize: 22, fontWeight: 900, color: "#f4f4f5", letterSpacing: "-0.03em" }}>
-          Token <span style={{ color: "#f97316" }}>Rats</span>
+        <div
+          style={{
+            display: "flex",
+            fontSize: 22,
+            fontWeight: 900,
+            color: "#f4f4f5",
+            letterSpacing: "-0.03em",
+          }}
+        >
+          <span>Token&nbsp;</span>
+          <span style={{ color: "#f97316" }}>Rats</span>
         </div>
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
         <div style={{ fontSize: 14, color: "#71717a" }}>Global Trending</div>

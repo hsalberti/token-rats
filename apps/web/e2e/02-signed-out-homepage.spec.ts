@@ -25,8 +25,9 @@ test("/ as signed-out renders the trending board with the hero strip", async ({ 
   // How-it-works moved below the board.
   await expect(page.getByRole("heading", { name: /How it works/i })).toBeVisible();
 
-  // Privacy strip.
-  await expect(page.getByText(/We literally can't read your prompts/i)).toBeVisible();
+  // Privacy strip. The production copy uses a curly apostrophe (’), so match
+  // either form so the test doesn't break when designers tweak punctuation.
+  await expect(page.getByText(/we literally can['’]t read your prompts/i)).toBeVisible();
 });
 
 test("/trending permanently redirects to /", async ({ request }) => {

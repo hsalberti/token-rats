@@ -14,7 +14,10 @@ import { expect, test } from "@playwright/test";
 
 test("/groups renders without an authed user", async ({ page }) => {
   await page.goto("/groups");
-  await expect(page.getByRole("heading", { name: /Public groups/i })).toBeVisible();
+  // The h1 is "Country board" when cf-ipcountry is missing, or
+  // "<flag> <country> board" (e.g. "🇧🇷 Brazil board") when Cloudflare resolves
+  // a country for the viewer. Match the trailing "board" common to both.
+  await expect(page.getByRole("heading", { level: 1, name: /board$/i })).toBeVisible();
 });
 
 test.skip("seeded DE public room: US viewer sees the country pill", async () => {

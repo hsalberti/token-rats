@@ -83,13 +83,15 @@ export async function GET(
         <img src={logoUrl} alt="" width={40} height={40} />
         <div
           style={{
+            display: "flex",
             fontSize: 24,
             fontWeight: 900,
             color: "#f4f4f5",
             letterSpacing: "-0.03em",
           }}
         >
-          Token <span style={{ color: "#f97316" }}>Rats</span>
+          <span>Token&nbsp;</span>
+          <span style={{ color: "#f97316" }}>Rats</span>
         </div>
         <div style={{ width: 4, height: 4, borderRadius: "50%", background: "#3f3f46" }} />
         <div style={{ fontSize: 14, color: "#52525b" }}>Strava for AI token burn</div>
