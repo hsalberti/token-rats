@@ -1,6 +1,8 @@
 node_modules
 .pnpm-store
-.claude
+.claude/*
+!.claude/agents/
+!.claude/agents/**
 dist
 .next
 .turbo
@@ -16,5 +18,5 @@ coverage
 .env*
 !.env.example
 SECURITY-PRELAUNCH.md
-.roadmap/
-marketing/
+/marketing
+/notes
