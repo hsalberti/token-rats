@@ -97,6 +97,7 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
       u.id          AS user_id,
       u.handle,
       u.avatar_url,
+      u.country,
       COALESCE(SUM(dr.tokens), 0)         AS tokens,
       COALESCE(SUM(dr.cost_usd_cents), 0) AS cost_usd_cents,
       COALESCE(SUM(dr.sessions), 0)       AS sessions
@@ -115,6 +116,7 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     user_id: string;
     handle: string;
     avatar_url: string | null;
+    country: string | null;
     tokens: number;
     cost_usd_cents: number;
     sessions: number;
@@ -151,6 +153,7 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     userId: r.user_id,
     handle: r.handle,
     avatarUrl: r.avatar_url,
+    country: r.country,
     tokens: r.tokens,
     costUsdCents: r.cost_usd_cents,
     sessions: r.sessions,

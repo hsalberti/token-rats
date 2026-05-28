@@ -58,6 +58,7 @@ trending.get("/", async (c) => {
        u.id         AS user_id,
        u.handle,
        u.avatar_url,
+       u.country,
        COALESCE(SUM(dr.tokens),         0) AS tokens,
        COALESCE(SUM(dr.cost_usd_cents), 0) AS cost_usd_cents,
        COALESCE(SUM(dr.sessions),       0) AS sessions
@@ -66,7 +67,7 @@ trending.get("/", async (c) => {
        ON dr.user_id = u.id
        AND dr.day >= ?
      WHERE u.public_profile = 1
-     GROUP BY u.id, u.handle, u.avatar_url
+     GROUP BY u.id, u.handle, u.avatar_url, u.country
      ORDER BY tokens DESC
      LIMIT 100`,
   )
@@ -75,6 +76,7 @@ trending.get("/", async (c) => {
       user_id: string;
       handle: string;
       avatar_url: string | null;
+      country: string | null;
       tokens: number;
       cost_usd_cents: number;
       sessions: number;
@@ -100,6 +102,7 @@ trending.get("/", async (c) => {
       userId: row.user_id,
       handle: row.handle,
       avatarUrl: row.avatar_url,
+      country: row.country,
       tokens: row.tokens,
       costUsdCents: row.cost_usd_cents,
       sessions: row.sessions,

@@ -18,6 +18,8 @@ export const LeaderboardRow = z.object({
   tokens: z.number().int().nonnegative(),
   costUsdCents: z.number().int().nonnegative(),
   sessions: z.number().int().nonnegative(),
+  /** ISO 3166-1 alpha-2 country code. Null when the user has no stamped country. */
+  country: z.string().length(2).nullable().default(null),
   /** Up to 2 dominant sources by token volume, descending. May be empty. */
   topSources: z.array(SourceBreakdownEntry).max(2).default([]),
 });
