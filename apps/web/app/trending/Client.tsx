@@ -16,9 +16,20 @@ interface TrendingRow {
   userId: string;
   handle: string;
   avatarUrl: string | null;
+  country: string | null;
   tokens: number;
   costUsdCents: number;
   sessions: number;
+}
+
+/** ISO 3166-1 alpha-2 → regional-indicator flag emoji. Null/invalid → null. */
+function flagFor(cc: string | null): string | null {
+  if (!cc || cc.length !== 2) return null;
+  return cc
+    .toUpperCase()
+    .split("")
+    .map((ch) => String.fromCodePoint(127397 + ch.charCodeAt(0)))
+    .join("");
 }
 
 interface Props {
@@ -136,50 +147,64 @@ export function TrendingClient({ initialRows, initialRange, generatedAtLabel }: 
         </div>
       ) : (
         <ol className="space-y-2">
-          {rows.map((row) => (
-            <li key={row.userId}>
-              <a
-                href={`/u/${row.handle}`}
-                className={[
-                  "flex items-center gap-4 rounded-xl border px-4 py-3",
-                  "transition-colors duration-150 hover:border-zinc-700",
-                  row.rank <= 3
-                    ? "border-rat-800/60 bg-rat-900/10"
-                    : "border-zinc-800 bg-zinc-900/50",
-                ].join(" ")}
-              >
-                {/* Rank */}
-                <span
+          {rows.map((row) => {
+            const flag = flagFor(row.country);
+            return (
+              <li key={row.userId}>
+                <a
+                  href={`/u/${row.handle}`}
                   className={[
-                    "w-8 text-center font-black text-lg shrink-0",
-                    row.rank === 1
-                      ? "text-amber-400"
-                      : row.rank === 2
-                        ? "text-zinc-300"
-                        : row.rank === 3
-                          ? "text-amber-700"
-                          : "text-zinc-600",
+                    "flex items-center gap-4 rounded-xl border px-4 py-3",
+                    "transition-colors duration-150 hover:border-zinc-700",
+                    row.rank <= 3
+                      ? "border-rat-800/60 bg-rat-900/10"
+                      : "border-zinc-800 bg-zinc-900/50",
                   ].join(" ")}
                 >
-                  {row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}
-                </span>
+                  {/* Rank */}
+                  <span
+                    className={[
+                      "w-8 text-center font-black text-lg shrink-0",
+                      row.rank === 1
+                        ? "text-amber-400"
+                        : row.rank === 2
+                          ? "text-zinc-300"
+                          : row.rank === 3
+                            ? "text-amber-700"
+                            : "text-zinc-600",
+                    ].join(" ")}
+                  >
+                    {row.rank <= 3 ? ["🥇", "🥈", "🥉"][row.rank - 1] : `#${row.rank}`}
+                  </span>
 
-                {/* Avatar */}
-                <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
+                  {/* Avatar */}
+                  <Avatar src={row.avatarUrl} handle={row.handle} size="sm" />
 
-                {/* Handle */}
-                <span className="flex-1 font-semibold text-zinc-100 truncate min-w-0">
-                  @{row.handle}
-                </span>
+                  {/* Handle */}
+                  <span className="flex-1 font-semibold text-zinc-100 truncate min-w-0">
+                    @{row.handle}
+                  </span>
 
-                {/* Stats */}
-                <div className="text-right shrink-0">
-                  <p className="font-black text-zinc-100">{fmtTokens(row.tokens)}</p>
-                  <p className="text-xs text-zinc-500 font-mono">{fmtCost(row.costUsdCents)}</p>
-                </div>
-              </a>
-            </li>
-          ))}
+                  {/* Stats */}
+                  <div className="text-right shrink-0">
+                    <p className="font-black text-zinc-100">
+                      {flag && (
+                        <span
+                          className="mr-1.5 align-baseline"
+                          aria-label={row.country ?? undefined}
+                          title={row.country ?? undefined}
+                        >
+                          {flag}
+                        </span>
+                      )}
+                      {fmtTokens(row.tokens)}
+                    </p>
+                    <p className="text-xs text-zinc-500 font-mono">{fmtCost(row.costUsdCents)}</p>
+                  </div>
+                </a>
+              </li>
+            );
+          })}
         </ol>
       )}
 
