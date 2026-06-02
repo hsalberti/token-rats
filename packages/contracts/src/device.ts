@@ -7,6 +7,22 @@ import { z } from "zod";
  * render time. See `roadmap.md` "Locked product decisions" for the privacy
  * commitment.
  */
+export const DeviceTotals = z.object({
+  tokens: z.number().int().nonnegative(),
+  costUsdCents: z.number().int().nonnegative(),
+  sessions: z.number().int().nonnegative(),
+});
+export type DeviceTotals = z.infer<typeof DeviceTotals>;
+
+/** Generic ranked breakdown entry for a device's recent activity. */
+export const DeviceBreakdownEntry = z.object({
+  value: z.string().min(1),
+  tokens: z.number().int().nonnegative(),
+  costUsdCents: z.number().int().nonnegative(),
+  sessions: z.number().int().nonnegative(),
+});
+export type DeviceBreakdownEntry = z.infer<typeof DeviceBreakdownEntry>;
+
 export const Device = z.object({
   deviceId: z.string().min(1),
   createdAt: z.number().int().nonnegative(),
@@ -18,12 +34,24 @@ export const Device = z.object({
   cliVersion: z.string().nullable(),
   /** Unix-ms when the user revoked this device via the web UI, else null. */
   revokedAt: z.number().int().nonnegative().nullable(),
+  /** True for the synthetic pre-device-id bucket. */
+  isLegacy: z.boolean().default(false),
+  /** Last observed session upload timestamp for this device, if any. */
+  lastSessionAt: z.number().int().nonnegative().nullable(),
   /** 30-day totals for this device, computed at request time. */
-  totals: z.object({
-    tokens: z.number().int().nonnegative(),
-    costUsdCents: z.number().int().nonnegative(),
-    sessions: z.number().int().nonnegative(),
-  }),
+  totals: DeviceTotals,
+  /** All-time totals for this device. */
+  totalsAllTime: DeviceTotals,
+  /** Dominant sources in the last 30 days, ordered by tokens desc. */
+  topSources: z.array(DeviceBreakdownEntry).max(3).default([]),
+  /** Dominant clients/tools in the last 30 days, ordered by tokens desc. */
+  topClients: z.array(DeviceBreakdownEntry).max(3).default([]),
+  /** Dominant transport channels in the last 30 days, ordered by tokens desc. */
+  topChannels: z.array(DeviceBreakdownEntry).max(3).default([]),
+  /** Dominant providers in the last 30 days, ordered by tokens desc. */
+  topProviders: z.array(DeviceBreakdownEntry).max(3).default([]),
+  /** Dominant models in the last 30 days, ordered by tokens desc. */
+  topModels: z.array(DeviceBreakdownEntry).max(3).default([]),
 });
 export type Device = z.infer<typeof Device>;
 

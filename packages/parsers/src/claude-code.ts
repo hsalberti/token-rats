@@ -185,6 +185,8 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
       id: `claude-code:${acc.sessionId}`,
       source: "claude-code",
       provider: "anthropic",
+      client: "claude-code",
+      channel: "cli",
       model,
       inTokens: acc.inTokens,
       outTokens: acc.outTokens,

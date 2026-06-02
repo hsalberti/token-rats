@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+const ProfileAttributionEntry = z.object({
+  source: z.string(),
+  tokens: z.number().int().nonnegative(),
+  costUsdCents: z.number().int().nonnegative(),
+  sessions: z.number().int().nonnegative(),
+});
+
 export const User = z.object({
   id: z.string(),
   handle: z.string(),
@@ -44,6 +51,10 @@ export const Profile = User.extend({
   }),
   /** Number of users this user has brought in via their referral link. */
   referredCount: z.number().int().nonnegative().optional(),
+  /** All-time attribution grouped by tool/client. */
+  sources: z.array(ProfileAttributionEntry).optional(),
+  /** All-time attribution grouped by transport channel. */
+  channels: z.array(ProfileAttributionEntry).optional(),
   /**
    * The profile owner's referral code. Self-only — present only when the
    * caller is viewing their own profile, so the page can render a

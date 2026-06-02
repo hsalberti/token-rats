@@ -103,6 +103,8 @@ export function parseCursor(input: string | ArrayBuffer | Uint8Array): SessionRe
       id: `cursor:${id}`,
       source: "cursor",
       provider: "cursor",
+      client: "cursor",
+      channel: "ide",
       model,
       inTokens,
       outTokens,

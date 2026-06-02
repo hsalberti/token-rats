@@ -141,7 +141,7 @@ function PreviewRow({ row, isViewer }: { row: LeaderboardRow; isViewer: boolean 
             <span className="ml-1.5 text-xs font-normal text-zinc-500">@{row.handle}</span>
           )}
         </span>
-        <SourceBadges sources={row.topSources} />
+        <SourceBadges sources={row.topClients?.length ? row.topClients : row.topSources} />
       </span>
       <div className="shrink-0 text-right">
         <p className="text-sm font-bold text-zinc-100">{fmtTokens(row.tokens)}</p>

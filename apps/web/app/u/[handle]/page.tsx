@@ -53,6 +53,25 @@ function fmtCost(cents: number) {
   })}`;
 }
 
+function formatChannel(channel: string): string {
+  switch (channel) {
+    case "cli":
+      return "CLI";
+    case "ide":
+      return "IDE";
+    case "api":
+      return "API";
+    case "proxy":
+      return "Proxy";
+    case "local":
+      return "Local";
+    case "unknown":
+      return "Unknown";
+    default:
+      return channel;
+  }
+}
+
 export default async function ProfilePage({ params, searchParams }: Props) {
   const { handle } = await params;
   const range = pickRange((await searchParams).range);
@@ -74,6 +93,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
       allTime: { tokens: number; costUsdCents: number };
     };
     sources?: { source: string; tokens: number; costUsdCents: number; sessions: number }[];
+    channels?: { source: string; tokens: number; costUsdCents: number; sessions: number }[];
   } | null = null;
 
   let isPrivate = false;
@@ -198,9 +218,36 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           />
         </div>
 
-        {/* Per-source tiles (Track Q in roadmap-providers.md). Shown only
-            when the user has actually synced something. */}
-        {profile.sources && profile.sources.length > 0 && <SourceTiles sources={profile.sources} />}
+        {/* Per-tool tiles. */}
+        {profile.sources && profile.sources.length > 0 && (
+          <SourceTiles sources={profile.sources} title="By tool" />
+        )}
+
+        {profile.channels && profile.channels.length > 0 && (
+          <Card>
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
+                By channel
+              </h2>
+              <div className="flex flex-wrap gap-2">
+                {profile.channels.map((channel) => (
+                  <span
+                    key={channel.source}
+                    className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-3 py-1.5 text-sm text-zinc-300"
+                  >
+                    <span className="font-semibold text-zinc-100">
+                      {formatChannel(channel.source)}
+                    </span>
+                    <span className="text-zinc-500">·</span>
+                    <span className="font-mono text-xs text-zinc-400">
+                      {fmtTokens(channel.tokens)}
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Activity heatmap with a 30d/52w toggle. Default is 30d. Best-effort;
             if the API call errored, `heatmap` is null and we skip the block. */}

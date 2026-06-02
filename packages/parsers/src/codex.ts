@@ -71,6 +71,8 @@ interface SessionAcc {
   cacheReadTokens: number;
   reasoningTokens: number;
   model: string;
+  client: string;
+  channel: "cli" | "api" | "unknown";
 }
 
 export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRecord[] {
@@ -112,6 +114,9 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
       currentSessionId = id;
       const metaTs = parseTimestamp(payload.timestamp) || ts;
       const acc = upsert(sessions, id);
+      const metaSource = typeof payload.source === "string" ? payload.source : null;
+      acc.channel = metaSource === "cli" ? "cli" : metaSource === "api" ? "api" : "unknown";
+      acc.client = acc.channel === "cli" ? "codex-cli" : "codex";
       if (metaTs > 0 && (acc.startedAt === 0 || metaTs < acc.startedAt)) {
         acc.startedAt = metaTs;
       }
@@ -167,6 +172,8 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
       id: `codex:${acc.sessionId}`,
       source: "codex",
       provider: "openai",
+      client: acc.client || "codex-cli",
+      channel: acc.channel,
       model,
       inTokens: acc.inTokens,
       outTokens: acc.outTokens,
@@ -193,6 +200,8 @@ function upsert(map: Map<string, SessionAcc>, sessionId: string): SessionAcc {
       cacheReadTokens: 0,
       reasoningTokens: 0,
       model: "",
+      client: "codex-cli",
+      channel: "unknown",
     };
     map.set(sessionId, acc);
   }

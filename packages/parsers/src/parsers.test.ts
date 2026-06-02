@@ -79,6 +79,11 @@ describe("parseClaudeCode", () => {
       expect(rec.provider).toBe("anthropic");
     });
 
+    it("tags client + channel for Claude Code CLI sessions", () => {
+      expect(rec.client).toBe("claude-code");
+      expect(rec.channel).toBe("cli");
+    });
+
     it("reports cache read + write tokens separately from inTokens", () => {
       // turn 1: cache_read=0,   cache_creation=0
       // turn 2: cache_read=250, cache_creation=500
@@ -161,6 +166,11 @@ describe("parseCursor", () => {
 
   it("tags model as cursor-composer", () => {
     expect(records.every((r) => r.model === "cursor-composer")).toBe(true);
+  });
+
+  it("tags client + channel as cursor / ide", () => {
+    expect(records.every((r) => r.client === "cursor")).toBe(true);
+    expect(records.every((r) => r.channel === "ide")).toBe(true);
   });
 
   describe("token + cost estimation", () => {
@@ -284,6 +294,11 @@ describe("parseCodex", () => {
 
     it("tags provider as openai", () => {
       expect(rec.provider).toBe("openai");
+    });
+
+    it("tags Codex CLI sessions distinctly from the coarse source bucket", () => {
+      expect(rec.client).toBe("codex-cli");
+      expect(rec.channel).toBe("cli");
     });
 
     it("reports cached input + reasoning tokens separately from headline", () => {

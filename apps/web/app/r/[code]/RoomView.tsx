@@ -676,8 +676,10 @@ function LeaderboardTable({
                   you
                 </span>
               )}
-              {row.topSources && row.topSources.length > 0 && (
-                <SourceBadges sources={row.topSources} />
+              {(row.topClients?.length || row.topSources?.length) && (
+                <SourceBadges
+                  sources={row.topClients && row.topClients.length > 0 ? row.topClients : row.topSources}
+                />
               )}
             </div>
             {/* Streak badge */}
