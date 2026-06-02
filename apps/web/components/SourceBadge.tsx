@@ -9,13 +9,17 @@
 const ICONS: Record<string, string> = {
   "claude-code": "claude",
   codex: "codex",
+  "codex-cli": "codex",
   cursor: "cursor",
+  "token-rats-proxy": "claude",
 };
 
 const DISPLAY_NAMES: Record<string, string> = {
   "claude-code": "Claude Code",
   codex: "Codex",
+  "codex-cli": "Codex CLI",
   cursor: "Cursor",
+  "token-rats-proxy": "TR Proxy",
 };
 
 export interface SourceBadgeProps {

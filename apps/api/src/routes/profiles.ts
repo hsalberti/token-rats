@@ -91,23 +91,43 @@ profiles.get("/:handle", optionalAuth, async (c) => {
     all_cost: 0,
   };
 
-  // Per-source all-time breakdown for the profile tile grid. Reads `sessions`
+  // Per-client all-time breakdown for the profile tile grid. Reads `sessions`
   // (not daily_rollup, which has no source column). Keep ORDER BY tokens DESC
-  // so the UI can show the dominant source first.
+  // so the UI can show the dominant tool first.
   const sourcesRows = await c.env.DB.prepare(
-    `SELECT source,
+    `SELECT COALESCE(client, source) AS source,
             COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
             COALESCE(SUM(cost_usd_cents), 0)         AS cost,
             COUNT(*)                                  AS sessions
        FROM sessions
       WHERE user_id = ?
-      GROUP BY source
+      GROUP BY COALESCE(client, source)
       ORDER BY tokens DESC`,
   )
     .bind(user.id)
     .all<{ source: string; tokens: number; cost: number; sessions: number }>();
 
   const sources = (sourcesRows.results ?? []).map((r) => ({
+    source: r.source,
+    tokens: r.tokens,
+    costUsdCents: r.cost,
+    sessions: r.sessions,
+  }));
+
+  const channelsRows = await c.env.DB.prepare(
+    `SELECT COALESCE(channel, 'unknown') AS source,
+            COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
+            COALESCE(SUM(cost_usd_cents), 0)         AS cost,
+            COUNT(*)                                  AS sessions
+       FROM sessions
+      WHERE user_id = ?
+      GROUP BY COALESCE(channel, 'unknown')
+      ORDER BY tokens DESC`,
+  )
+    .bind(user.id)
+    .all<{ source: string; tokens: number; cost: number; sessions: number }>();
+
+  const channels = (channelsRows.results ?? []).map((r) => ({
     source: r.source,
     tokens: r.tokens,
     costUsdCents: r.cost,
@@ -150,6 +170,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
         },
       },
       sources,
+      channels,
     },
   });
 });

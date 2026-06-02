@@ -15,7 +15,12 @@
  * ingesting with `device_id = NULL` (legacy bucket on the dashboard).
  */
 
-import { type SessionRecord, defaultProviderForSource } from "@token-rats/contracts";
+import {
+  type SessionRecord,
+  defaultChannelForSource,
+  defaultClientForSource,
+  defaultProviderForSource,
+} from "@token-rats/contracts";
 import type { Env } from "../env.js";
 
 /** Convert a Unix-ms timestamp to a UTC "YYYY-MM-DD" string. */
@@ -39,6 +44,8 @@ export async function recordSession(
   opts: RecordSessionOptions = {},
 ): Promise<RecordSessionResult> {
   const provider = record.provider ?? defaultProviderForSource(record.source);
+  const client = record.client ?? defaultClientForSource(record.source);
+  const channel = record.channel ?? defaultChannelForSource(record.source);
   const cacheReadTokens = record.cacheReadTokens ?? 0;
   const cacheWriteTokens = record.cacheWriteTokens ?? 0;
   const reasoningTokens = record.reasoningTokens ?? 0;
@@ -46,16 +53,18 @@ export async function recordSession(
 
   const insertStmt = env.DB.prepare(
     `INSERT OR IGNORE INTO sessions
-       (id, user_id, source, provider, model,
+       (id, user_id, source, provider, client, channel, model,
         in_tokens, out_tokens,
         cache_read_tokens, cache_write_tokens, reasoning_tokens,
         cost_usd_cents, started_at, ended_at, dedupe_key, device_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).bind(
     record.id,
     userId,
     record.source,
     provider,
+    client,
+    channel,
     record.model,
     record.inTokens,
     record.outTokens,

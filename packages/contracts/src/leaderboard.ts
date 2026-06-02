@@ -22,6 +22,10 @@ export const LeaderboardRow = z.object({
   country: z.string().length(2).nullable().default(null),
   /** Up to 2 dominant sources by token volume, descending. May be empty. */
   topSources: z.array(SourceBreakdownEntry).max(2).default([]),
+  /** Up to 2 dominant clients/tools by token volume, descending. */
+  topClients: z.array(SourceBreakdownEntry).max(2).default([]),
+  /** Up to 2 dominant transport channels by token volume, descending. */
+  topChannels: z.array(SourceBreakdownEntry).max(2).default([]),
 });
 export type LeaderboardRow = z.infer<typeof LeaderboardRow>;
 

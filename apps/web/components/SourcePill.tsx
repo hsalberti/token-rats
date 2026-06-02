@@ -16,7 +16,9 @@
 const ICONS: Record<string, string> = {
   "claude-code": "claude",
   codex: "codex",
+  "codex-cli": "codex",
   cursor: "cursor",
+  "token-rats-proxy": "claude",
   // Track P "Other" branches will extend this map (openai, anthropic,
   // ollama, etc.) once they're wired up.
 };
@@ -87,7 +89,9 @@ export function PrimarySourcePill({ source, className }: PrimarySourcePillProps)
 const DISPLAY_NAMES: Record<string, string> = {
   "claude-code": "Claude Code",
   codex: "Codex",
+  "codex-cli": "Codex CLI",
   cursor: "Cursor",
+  "token-rats-proxy": "Token Rats Proxy",
 };
 
 function fmtTokens(n: number): string {
@@ -150,13 +154,14 @@ export function SourceTile({ source, tokens, costUsdCents, sessions }: SourceTil
 
 export interface SourceTilesProps {
   sources: SourceTileProps[];
+  title?: string;
 }
 
-export function SourceTiles({ sources }: SourceTilesProps) {
+export function SourceTiles({ sources, title = "By source" }: SourceTilesProps) {
   if (sources.length === 0) return null;
   return (
     <div className="space-y-3">
-      <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">By source</h2>
+      <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">{title}</h2>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {sources.map((s) => (
           <SourceTile key={s.source} {...s} />

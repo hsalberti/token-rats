@@ -110,6 +110,8 @@ trending.get("/", async (c) => {
       // web client doesn't re-parse, so omitting this crashes consumers like
       // GlobalBoardPreview that pass the field straight into <SourceBadges>).
       topSources: [],
+      topClients: [],
+      topChannels: [],
     })),
     range,
     generatedAt,

@@ -7,8 +7,23 @@ export type Source = z.infer<typeof Source>;
  * Upstream model vendor. `cursor` covers their composer estimate-pricing path.
  * `unknown` is a fallback so the API never has to throw on a future source.
  */
-export const Provider = z.enum(["anthropic", "openai", "cursor", "unknown"]);
+export const Provider = z.enum([
+  "anthropic",
+  "openai",
+  "openrouter",
+  "cursor",
+  "ollama",
+  "unknown",
+]);
 export type Provider = z.infer<typeof Provider>;
+
+/**
+ * Which surface produced the session. This is intentionally broader than the
+ * coarse `source` field so we can distinguish, for example, `codex-cli` from a
+ * future non-CLI Codex surface without breaking historical aggregates.
+ */
+export const SessionChannel = z.enum(["cli", "ide", "api", "proxy", "local", "unknown"]);
+export type SessionChannel = z.infer<typeof SessionChannel>;
 
 /**
  * A single AI coding session reported by the CLI. Counts only — no prompt or
@@ -22,11 +37,18 @@ export type Provider = z.infer<typeof Provider>;
  * backwards-compat: older CLI versions don't send them, and the API will
  * derive `provider` from `source` (claude-code → anthropic, codex → openai,
  * cursor → cursor) and treat the missing token kinds as zero.
+ *
+ * `client` and `channel` are also optional for backwards-compat. These let us
+ * distinguish the tool that emitted the usage (`claude-code`, `codex-cli`,
+ * `openclaw`, `token-rats-proxy`, …) from the broader `source` bucket and the
+ * transport (`cli`, `proxy`, `api`, `local`, …).
  */
 export const SessionRecord = z.object({
   id: z.string().min(1),
   source: Source,
   provider: Provider.optional(),
+  client: z.string().min(1).max(64).optional(),
+  channel: SessionChannel.optional(),
   model: z.string().min(1),
   inTokens: z.number().int().nonnegative(),
   outTokens: z.number().int().nonnegative(),
@@ -55,5 +77,27 @@ export function defaultProviderForSource(source: Source): Provider {
       return "openai";
     case "cursor":
       return "cursor";
+  }
+}
+
+export function defaultClientForSource(source: Source): string {
+  switch (source) {
+    case "claude-code":
+      return "claude-code";
+    case "codex":
+      return "codex-cli";
+    case "cursor":
+      return "cursor";
+  }
+}
+
+export function defaultChannelForSource(source: Source): SessionChannel {
+  switch (source) {
+    case "claude-code":
+      return "cli";
+    case "codex":
+      return "cli";
+    case "cursor":
+      return "ide";
   }
 }

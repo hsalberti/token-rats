@@ -141,11 +141,51 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     .bind(room.id)
     .all<{ user_id: string; source: string; tokens: number }>();
 
+  const clientsResult = await c.env.DB.prepare(
+    `SELECT s.user_id,
+            COALESCE(s.client, s.source) AS source,
+            SUM(s.in_tokens + s.out_tokens) AS tokens
+       FROM sessions s
+       JOIN room_members rm ON rm.user_id = s.user_id
+      WHERE rm.room_id = ?
+      GROUP BY s.user_id, COALESCE(s.client, s.source)
+      ORDER BY s.user_id, tokens DESC`,
+  )
+    .bind(room.id)
+    .all<{ user_id: string; source: string; tokens: number }>();
+
+  const channelsResult = await c.env.DB.prepare(
+    `SELECT s.user_id,
+            COALESCE(s.channel, 'unknown') AS source,
+            SUM(s.in_tokens + s.out_tokens) AS tokens
+       FROM sessions s
+       JOIN room_members rm ON rm.user_id = s.user_id
+      WHERE rm.room_id = ?
+      GROUP BY s.user_id, COALESCE(s.channel, 'unknown')
+      ORDER BY s.user_id, tokens DESC`,
+  )
+    .bind(room.id)
+    .all<{ user_id: string; source: string; tokens: number }>();
+
   const top2ByUser = new Map<string, { source: string; tokens: number }[]>();
   for (const r of sourcesResult.results ?? []) {
     const list = top2ByUser.get(r.user_id) ?? [];
     if (list.length < 2) list.push({ source: r.source, tokens: r.tokens });
     top2ByUser.set(r.user_id, list);
+  }
+
+  const top2ClientsByUser = new Map<string, { source: string; tokens: number }[]>();
+  for (const r of clientsResult.results ?? []) {
+    const list = top2ClientsByUser.get(r.user_id) ?? [];
+    if (list.length < 2) list.push({ source: r.source, tokens: r.tokens });
+    top2ClientsByUser.set(r.user_id, list);
+  }
+
+  const top2ChannelsByUser = new Map<string, { source: string; tokens: number }[]>();
+  for (const r of channelsResult.results ?? []) {
+    const list = top2ChannelsByUser.get(r.user_id) ?? [];
+    if (list.length < 2) list.push({ source: r.source, tokens: r.tokens });
+    top2ChannelsByUser.set(r.user_id, list);
   }
 
   const rows = (result.results ?? []).map((r, i) => ({
@@ -158,6 +198,8 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     costUsdCents: r.cost_usd_cents,
     sessions: r.sessions,
     topSources: top2ByUser.get(r.user_id) ?? [],
+    topClients: top2ClientsByUser.get(r.user_id) ?? [],
+    topChannels: top2ChannelsByUser.get(r.user_id) ?? [],
   }));
 
   const generatedAt = Date.now();

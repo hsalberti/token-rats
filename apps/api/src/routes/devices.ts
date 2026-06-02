@@ -41,6 +41,28 @@ interface DeviceTotalsRow {
   sessions: number;
 }
 
+interface DeviceBreakdownRow extends DeviceTotalsRow {
+  value: string;
+}
+
+interface DeviceLatestRow {
+  device_id: string | null;
+  started_at: number;
+}
+
+function topNByDevice(
+  rows: DeviceBreakdownRow[] | undefined,
+  limit = 3,
+): Map<string | null, DeviceBreakdownRow[]> {
+  const out = new Map<string | null, DeviceBreakdownRow[]>();
+  for (const row of rows ?? []) {
+    const list = out.get(row.device_id) ?? [];
+    if (list.length < limit) list.push(row);
+    out.set(row.device_id, list);
+  }
+  return out;
+}
+
 /* -------------------------------------------------------------------------- */
 /* GET /v1/me/devices                                                          */
 /* -------------------------------------------------------------------------- */
@@ -62,7 +84,7 @@ devices.get("/devices", requireAuth, async (c) => {
   // 30-day per-device totals from `sessions`. Includes a NULL-device row for
   // legacy sessions (pre-0017 CLIs).
   const thirtyDaysAgoMs = now - 30 * 24 * 3600 * 1000;
-  const totalsRowsResult = await c.env.DB.prepare(
+  const totals30dRowsResult = await c.env.DB.prepare(
     `SELECT device_id,
             COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
             COALESCE(SUM(cost_usd_cents), 0)         AS cost_usd_cents,
@@ -74,13 +96,129 @@ devices.get("/devices", requireAuth, async (c) => {
     .bind(userId, thirtyDaysAgoMs)
     .all<DeviceTotalsRow>();
 
-  const totalsByDevice = new Map<string | null, DeviceTotalsRow>();
-  for (const r of totalsRowsResult.results ?? []) {
-    totalsByDevice.set(r.device_id, r);
+  const totalsAllTimeRowsResult = await c.env.DB.prepare(
+    `SELECT device_id,
+            COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
+            COALESCE(SUM(cost_usd_cents), 0)         AS cost_usd_cents,
+            COUNT(*)                                  AS sessions
+       FROM sessions
+      WHERE user_id = ?
+      GROUP BY device_id`,
+  )
+    .bind(userId)
+    .all<DeviceTotalsRow>();
+
+  const sourceRowsResult = await c.env.DB.prepare(
+    `SELECT device_id,
+            source AS value,
+            COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
+            COALESCE(SUM(cost_usd_cents), 0)         AS cost_usd_cents,
+            COUNT(*)                                  AS sessions
+       FROM sessions
+      WHERE user_id = ? AND started_at >= ?
+      GROUP BY device_id, source
+      ORDER BY device_id, tokens DESC`,
+  )
+    .bind(userId, thirtyDaysAgoMs)
+    .all<DeviceBreakdownRow>();
+
+  const providerRowsResult = await c.env.DB.prepare(
+    `SELECT device_id,
+            provider AS value,
+            COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
+            COALESCE(SUM(cost_usd_cents), 0)         AS cost_usd_cents,
+            COUNT(*)                                  AS sessions
+       FROM sessions
+      WHERE user_id = ? AND started_at >= ?
+      GROUP BY device_id, provider
+      ORDER BY device_id, tokens DESC`,
+  )
+    .bind(userId, thirtyDaysAgoMs)
+    .all<DeviceBreakdownRow>();
+
+  const clientRowsResult = await c.env.DB.prepare(
+    `SELECT device_id,
+            COALESCE(client, 'unknown') AS value,
+            COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
+            COALESCE(SUM(cost_usd_cents), 0)         AS cost_usd_cents,
+            COUNT(*)                                  AS sessions
+       FROM sessions
+      WHERE user_id = ? AND started_at >= ?
+      GROUP BY device_id, COALESCE(client, 'unknown')
+      ORDER BY device_id, tokens DESC`,
+  )
+    .bind(userId, thirtyDaysAgoMs)
+    .all<DeviceBreakdownRow>();
+
+  const channelRowsResult = await c.env.DB.prepare(
+    `SELECT device_id,
+            COALESCE(channel, 'unknown') AS value,
+            COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
+            COALESCE(SUM(cost_usd_cents), 0)         AS cost_usd_cents,
+            COUNT(*)                                  AS sessions
+       FROM sessions
+      WHERE user_id = ? AND started_at >= ?
+      GROUP BY device_id, COALESCE(channel, 'unknown')
+      ORDER BY device_id, tokens DESC`,
+  )
+    .bind(userId, thirtyDaysAgoMs)
+    .all<DeviceBreakdownRow>();
+
+  const modelRowsResult = await c.env.DB.prepare(
+    `SELECT device_id,
+            model AS value,
+            COALESCE(SUM(in_tokens + out_tokens), 0) AS tokens,
+            COALESCE(SUM(cost_usd_cents), 0)         AS cost_usd_cents,
+            COUNT(*)                                  AS sessions
+       FROM sessions
+      WHERE user_id = ? AND started_at >= ?
+      GROUP BY device_id, model
+      ORDER BY device_id, tokens DESC`,
+  )
+    .bind(userId, thirtyDaysAgoMs)
+    .all<DeviceBreakdownRow>();
+
+  const latestRowsResult = await c.env.DB.prepare(
+    `SELECT device_id, started_at
+       FROM (
+         SELECT device_id,
+                started_at,
+                ROW_NUMBER() OVER (
+                  PARTITION BY COALESCE(device_id, '__legacy__')
+                  ORDER BY started_at DESC
+                ) AS rn
+           FROM sessions
+          WHERE user_id = ?
+       )
+      WHERE rn = 1`,
+  )
+    .bind(userId)
+    .all<DeviceLatestRow>();
+
+  const totals30dByDevice = new Map<string | null, DeviceTotalsRow>();
+  for (const r of totals30dRowsResult.results ?? []) {
+    totals30dByDevice.set(r.device_id, r);
   }
 
+  const totalsAllTimeByDevice = new Map<string | null, DeviceTotalsRow>();
+  for (const r of totalsAllTimeRowsResult.results ?? []) {
+    totalsAllTimeByDevice.set(r.device_id, r);
+  }
+
+  const latestByDevice = new Map<string | null, number>();
+  for (const r of latestRowsResult.results ?? []) {
+    latestByDevice.set(r.device_id, r.started_at);
+  }
+
+  const topSourcesByDevice = topNByDevice(sourceRowsResult.results);
+  const topClientsByDevice = topNByDevice(clientRowsResult.results);
+  const topChannelsByDevice = topNByDevice(channelRowsResult.results);
+  const topProvidersByDevice = topNByDevice(providerRowsResult.results);
+  const topModelsByDevice = topNByDevice(modelRowsResult.results);
+
   const devicesOut = (deviceRowsResult.results ?? []).map((d) => {
-    const t = totalsByDevice.get(d.device_id);
+    const t30 = totals30dByDevice.get(d.device_id);
+    const tall = totalsAllTimeByDevice.get(d.device_id);
     const isLive =
       d.revoked_at === null &&
       d.last_heartbeat_at !== null &&
@@ -94,17 +232,55 @@ devices.get("/devices", requireAuth, async (c) => {
       lastUploadCount: d.last_upload_count,
       cliVersion: d.cli_version,
       revokedAt: d.revoked_at,
+      isLegacy: false,
+      lastSessionAt: latestByDevice.get(d.device_id) ?? null,
       totals: {
-        tokens: t?.tokens ?? 0,
-        costUsdCents: t?.cost_usd_cents ?? 0,
-        sessions: t?.sessions ?? 0,
+        tokens: t30?.tokens ?? 0,
+        costUsdCents: t30?.cost_usd_cents ?? 0,
+        sessions: t30?.sessions ?? 0,
       },
+      totalsAllTime: {
+        tokens: tall?.tokens ?? 0,
+        costUsdCents: tall?.cost_usd_cents ?? 0,
+        sessions: tall?.sessions ?? 0,
+      },
+      topSources: (topSourcesByDevice.get(d.device_id) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
+      topClients: (topClientsByDevice.get(d.device_id) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
+      topChannels: (topChannelsByDevice.get(d.device_id) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
+      topProviders: (topProvidersByDevice.get(d.device_id) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
+      topModels: (topModelsByDevice.get(d.device_id) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
     };
   });
 
   // Synthesize a "legacy" pseudo-device for pre-0017 sessions with NULL device_id.
-  const legacy = totalsByDevice.get(null);
-  if (legacy && legacy.sessions > 0) {
+  const legacyAllTime = totalsAllTimeByDevice.get(null);
+  const legacy30d = totals30dByDevice.get(null);
+  if (legacyAllTime && legacyAllTime.sessions > 0) {
     devicesOut.push({
       deviceId: "legacy",
       createdAt: 0,
@@ -114,11 +290,48 @@ devices.get("/devices", requireAuth, async (c) => {
       lastUploadCount: 0,
       cliVersion: null,
       revokedAt: null,
+      isLegacy: true,
+      lastSessionAt: latestByDevice.get(null) ?? null,
       totals: {
-        tokens: legacy.tokens,
-        costUsdCents: legacy.cost_usd_cents,
-        sessions: legacy.sessions,
+        tokens: legacy30d?.tokens ?? 0,
+        costUsdCents: legacy30d?.cost_usd_cents ?? 0,
+        sessions: legacy30d?.sessions ?? 0,
       },
+      totalsAllTime: {
+        tokens: legacyAllTime.tokens,
+        costUsdCents: legacyAllTime.cost_usd_cents,
+        sessions: legacyAllTime.sessions,
+      },
+      topSources: (topSourcesByDevice.get(null) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
+      topClients: (topClientsByDevice.get(null) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
+      topChannels: (topChannelsByDevice.get(null) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
+      topProviders: (topProvidersByDevice.get(null) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
+      topModels: (topModelsByDevice.get(null) ?? []).map((row) => ({
+        value: row.value,
+        tokens: row.tokens,
+        costUsdCents: row.cost_usd_cents,
+        sessions: row.sessions,
+      })),
     });
   }
 

@@ -129,9 +129,11 @@ describe("recordSession", () => {
 
     const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
     const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
-    // INSERT bind order: id, userId, source, provider, model, ...
+    // INSERT bind order: id, userId, source, provider, client, channel, model, ...
     expect(insertBind[2]).toBe("codex");
     expect(insertBind[3]).toBe("openai");
+    expect(insertBind[4]).toBe("codex-cli");
+    expect(insertBind[5]).toBe("cli");
 
     const granularBind = stmtResult?.bind?.mock.calls[2] as unknown[];
     // granular bind order: userId, day, source, provider, model, ...
@@ -149,7 +151,7 @@ describe("recordSession", () => {
 
     const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
     const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
-    // device_id is the LAST bind argument (column #15 in the INSERT).
+    // device_id is the LAST bind argument (column #17 in the INSERT).
     expect(insertBind[insertBind.length - 1]).toBe("device-aaa");
   });
 
@@ -203,10 +205,10 @@ describe("recordSession", () => {
     const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
     const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
     // INSERT bind order continues:
-    //   ..., in_tokens, out_tokens, cache_read, cache_write, reasoning, ...
-    expect(insertBind[7]).toBe(12_000);
-    expect(insertBind[8]).toBe(800);
-    expect(insertBind[9]).toBe(0);
+    //   ..., model, in_tokens, out_tokens, cache_read, cache_write, reasoning, ...
+    expect(insertBind[9]).toBe(12_000);
+    expect(insertBind[10]).toBe(800);
+    expect(insertBind[11]).toBe(0);
 
     const granularBind = stmtResult?.bind?.mock.calls[2] as unknown[];
     // granular bind order continues:
@@ -214,5 +216,24 @@ describe("recordSession", () => {
     expect(granularBind[7]).toBe(12_000);
     expect(granularBind[8]).toBe(800);
     expect(granularBind[9]).toBe(0);
+  });
+
+  it("preserves explicit client + channel when the caller provides them", async () => {
+    const d1 = makeD1Mock(1);
+    const env = makeEnv(d1);
+    const record = makeRecord({
+      source: "claude-code",
+      provider: "openrouter",
+      client: "openclaw",
+      channel: "api",
+    });
+
+    await recordSession(env, "user-1", record);
+
+    const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
+    const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
+    expect(insertBind[3]).toBe("openrouter");
+    expect(insertBind[4]).toBe("openclaw");
+    expect(insertBind[5]).toBe("api");
   });
 });

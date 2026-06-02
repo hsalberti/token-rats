@@ -261,7 +261,10 @@ proxy.post("/anthropic/v1/messages", async (c) => {
 
           return recordSession(c.env, userId, {
             id: sessionId,
-            source: "claude-code", // closest fit for raw-API usage
+            source: "claude-code",
+            provider: "anthropic",
+            client: "token-rats-proxy",
+            channel: "proxy",
             model: acc.model,
             inTokens: acc.input_tokens,
             outTokens: acc.output_tokens,
@@ -322,6 +325,9 @@ proxy.post("/anthropic/v1/messages", async (c) => {
           await recordSession(c.env, userId, {
             id: sessionId,
             source: "claude-code",
+            provider: "anthropic",
+            client: "token-rats-proxy",
+            channel: "proxy",
             model,
             inTokens,
             outTokens,
