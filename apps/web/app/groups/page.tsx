@@ -10,6 +10,7 @@
  * /signin for them, and at /settings/profile for signed-in viewers.
  */
 import type { Metadata } from "next";
+import { CountryFlag, countryLabel } from "../../components/CountryFlag";
 import { ApiError, getGroups } from "../../lib/api";
 import { getCookieHeader, getSession } from "../../lib/auth";
 
@@ -18,23 +19,6 @@ export const runtime = "edge";
 export const metadata: Metadata = {
   title: "Country board",
 };
-
-function flagFor(cc: string): string {
-  return cc
-    .toUpperCase()
-    .split("")
-    .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
-    .join("");
-}
-
-function countryLabel(cc: string): string {
-  try {
-    const names = new Intl.DisplayNames(["en"], { type: "region" });
-    return names.of(cc) ?? cc;
-  } catch {
-    return cc;
-  }
-}
 
 function fmtTokens(n: number) {
   if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(2)}B`;
@@ -68,7 +52,6 @@ export default async function GroupsPage() {
   }
 
   const countryName = country ? countryLabel(country) : null;
-  const flagLabel = country ? `${flagFor(country)} ${countryName}` : null;
   const viewerIsPublic = session?.publicProfile === true;
   // When signed-out, route through /signin so they land back on the settings
   // page after auth and can flip the toggle in one go.
@@ -93,11 +76,18 @@ export default async function GroupsPage() {
       <main className="mx-auto max-w-3xl px-6 py-12 space-y-10">
         <div>
           <h1 className="text-3xl font-black tracking-tight">
-            {flagLabel ? `${flagLabel} board` : "Country board"}
+            {country && countryName ? (
+              <span className="inline-flex items-center gap-3">
+                <CountryFlag country={country} className="h-7 w-9 rounded-sm" />
+                <span>{countryName} board</span>
+              </span>
+            ) : (
+              "Country board"
+            )}
           </h1>
           {country ? (
             <p className="mt-1 text-zinc-400">
-              Public Token Rats in {flagLabel}, ranked by tokens burned in the last 30 days.
+              Public Token Rats in {countryName}, ranked by tokens burned in the last 30 days.
             </p>
           ) : (
             <p className="mt-1 text-zinc-400">
@@ -110,7 +100,10 @@ export default async function GroupsPage() {
         {country && userBoard.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-lg font-bold text-zinc-200">
-              {flagLabel} leaderboard ({userBoard.length})
+              <span className="inline-flex items-center gap-2">
+                <CountryFlag country={country} className="h-5 w-6 rounded-[2px]" />
+                <span>{countryName} leaderboard ({userBoard.length})</span>
+              </span>
             </h2>
             <ol className="space-y-2">
               {userBoard.map((row) => (
@@ -149,7 +142,9 @@ export default async function GroupsPage() {
 
         {country && userBoard.length === 0 && (
           <section className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 px-8 py-12 text-center">
-            <p className="text-4xl">{flagFor(country)}</p>
+            <div className="flex justify-center">
+              <CountryFlag country={country} className="h-12 w-16 rounded-md" />
+            </div>
             <p className="mt-4 text-xl font-bold text-zinc-100">
               {viewerIsPublic
                 ? `You're the first one on ${countryName}'s board.`
@@ -192,8 +187,13 @@ export default async function GroupsPage() {
         {country && (
           <section className="space-y-3">
             <h2 className="text-lg font-bold text-zinc-200">
-              Public rooms in {flagLabel}
-              {groups.length > 0 ? ` (${groups.length})` : ""}
+              <span className="inline-flex items-center gap-2">
+                <CountryFlag country={country} className="h-5 w-6 rounded-[2px]" />
+                <span>
+                  Public rooms in {countryName}
+                  {groups.length > 0 ? ` (${groups.length})` : ""}
+                </span>
+              </span>
             </h2>
             {groups.length === 0 ? (
               <div className="rounded-xl border border-dashed border-zinc-800 px-6 py-8 text-center text-sm text-zinc-500">
