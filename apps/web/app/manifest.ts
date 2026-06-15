@@ -4,7 +4,8 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "Token Rats",
     short_name: "Token Rats",
-    description: "Strava for AI token burn. Track your Claude Code + Cursor usage with friends.",
+    description:
+      "Strava for AI token burn. Track your Claude Code, Codex, and Cursor usage with friends.",
     start_url: "/",
     display: "standalone",
     background_color: "#09090b",

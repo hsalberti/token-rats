@@ -251,9 +251,9 @@ function SyncChip({ status }: { status: Status }) {
   // manual
   return (
     <a
-      href="/cli"
+      href="/cli/daemon"
       className="hidden sm:inline-flex items-center gap-1.5 rounded-full border border-zinc-700 bg-zinc-800/60 px-2.5 py-1 text-xs font-semibold text-zinc-300 hover:border-rat-500/70 hover:text-rat-200"
-      title="No autosync daemon detected — install it from the CLI page"
+      title="No autosync daemon detected — install it with token-rats install-daemon"
     >
       <span className="h-1.5 w-1.5 rounded-full bg-zinc-500" />
       Manual · {fresh} · Enable autosync →

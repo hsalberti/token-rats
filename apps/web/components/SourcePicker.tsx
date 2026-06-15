@@ -4,10 +4,10 @@
  * SourcePicker — three-option segmented control for the "Add a source"
  * surface on /app. Top-level choices:
  *
- *   Claude Code · Codex · Other
+ *   Claude Code · Codex · Cursor · Other
  *
- * Claude Code and Codex tiles each direct the user at the CLI quick-start
- * for that source. "Other" is a no-op in v1 — it surfaces a placeholder
+ * Claude Code, Codex, and Cursor tiles each direct the user at the CLI
+ * quick-start for that source. "Other" is a no-op in v1 — it surfaces a placeholder
  * explaining that the broader IDE / API / Open-Source picker is coming
  * (Track P in roadmap-providers.md).
  *
@@ -22,7 +22,7 @@ import { InstallBlock } from "./InstallBlock";
 import { NodeInstallHint } from "./NodeInstallHint";
 import { OtherSourcePicker } from "./OtherSourcePicker";
 
-type SourceId = "claude-code" | "codex" | "other";
+type SourceId = "claude-code" | "codex" | "cursor" | "other";
 
 const OPTIONS: { id: SourceId; label: string; icon: string | null; subtitle: string }[] = [
   {
@@ -37,6 +37,12 @@ const OPTIONS: { id: SourceId; label: string; icon: string | null; subtitle: str
     icon: "/providers/codex.svg",
     subtitle: "~/.codex/sessions/**/*.jsonl",
   },
+  {
+    id: "cursor",
+    label: "Cursor",
+    icon: "/providers/cursor.svg",
+    subtitle: "Cursor/User/globalStorage/state.vscdb",
+  },
   { id: "other", label: "Other", icon: null, subtitle: "IDE · API · Open Source" },
 ];
 
@@ -49,7 +55,11 @@ export function SourcePicker({ locale = "en" }: SourcePickerProps) {
 
   return (
     <div className="space-y-4">
-      <div role="radiogroup" aria-label="Add a source" className="grid gap-3 sm:grid-cols-3">
+      <div
+        role="radiogroup"
+        aria-label="Add a source"
+        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      >
         {OPTIONS.map((opt) => {
           const isActive = selected === opt.id;
           return (
@@ -100,7 +110,7 @@ function SelectedDetail({ id, locale }: { id: SourceId; locale: Locale }) {
     return <OtherSourcePicker />;
   }
 
-  const sourceName = id === "claude-code" ? "Claude Code" : "Codex";
+  const sourceName = id === "claude-code" ? "Claude Code" : id === "cursor" ? "Cursor" : "Codex";
 
   return (
     <div className="space-y-3">

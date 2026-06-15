@@ -26,7 +26,7 @@ function buildReferralShareText(link: string): string {
   return [
     "[TR🔶🐭] Come burn tokens with me",
     "",
-    "Auto-tracked Claude Code + Cursor leaderboard with your crew.",
+    "Auto-tracked Claude Code, Codex, and Cursor leaderboard with your crew.",
     "",
     link,
   ].join("\n");

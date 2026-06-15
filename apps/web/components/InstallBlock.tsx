@@ -23,17 +23,17 @@ interface Props {
   locale?: Locale;
 }
 
-const COMBINED = "npx token-rats login && npx token-rats sync";
+const COMBINED = "npm install -g token-rats && token-rats login";
 
 export function InstallBlock({ variant = "two-step", locale = "en" }: Props) {
   if (variant === "oneline") {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900 px-5 py-4">
         <span className="select-all font-mono text-sm text-zinc-100 sm:text-base">
-          npx token-rats sync
+          token-rats login
         </span>
         <CopyButton
-          text="npx token-rats sync"
+          text="token-rats login"
           label={t(locale, "common.copy")}
           className="ml-auto shrink-0"
         />
@@ -44,8 +44,8 @@ export function InstallBlock({ variant = "two-step", locale = "en" }: Props) {
   return (
     <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4 sm:p-5">
       <div className="space-y-2 font-mono text-sm">
-        <Line cmd="npx token-rats login" />
-        <Line cmd="npx token-rats sync" />
+        <Line cmd="npm install -g token-rats" />
+        <Line cmd="token-rats login" />
       </div>
       <div className="mt-3 flex items-center justify-between gap-3">
         <p className="text-[11px] text-zinc-500">{t(locale, "install.runsLocally")}</p>

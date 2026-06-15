@@ -112,7 +112,7 @@ function buildInviteText(opts: { roomName: string; joinUrl: string }): string {
   return [
     `[TR🔶🐭] You're invited to ${opts.roomName}`,
     "",
-    "Auto-tracked Claude Code + Cursor leaderboard with your crew.",
+    "Auto-tracked Claude Code, Codex, and Cursor leaderboard with your crew.",
     "",
     opts.joinUrl,
   ].join("\n");

@@ -11,7 +11,7 @@ export const metadata: Metadata = {
     template: "%s | Token Rats",
   },
   description:
-    "Strava for AI token burn. Auto-sync your Claude Code + Cursor usage to a leaderboard with your crew.",
+    "Strava for AI token burn. Auto-sync your Claude Code, Codex, and Cursor usage to a leaderboard with your crew.",
   metadataBase: new URL("https://tokenrats.com"),
   openGraph: {
     title: "Token Rats",

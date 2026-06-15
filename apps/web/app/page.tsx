@@ -53,7 +53,7 @@ function buildStartUrl(params: {
 export const metadata: Metadata = {
   title: "Token Rats — Global Token Consumption Leaderboard",
   description:
-    "Live global leaderboard of public Claude Code + Codex token burn. Auto-sync, then token-maxx.",
+    "Live global leaderboard of public Claude Code, Codex, and Cursor token burn. Auto-sync, then token-maxx.",
   openGraph: {
     title: "Token Rats — Global Token Consumption Leaderboard",
     description: "Live global leaderboard of who's burning the most AI tokens.",

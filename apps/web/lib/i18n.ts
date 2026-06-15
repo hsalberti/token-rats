@@ -58,14 +58,14 @@ const EN = {
 
   /* Landing */
   "landing.tagline":
-    "Strava for AI token burn. Auto-sync your Claude Code or Codex logs. Compete with friends and token-maxx your way to the top of the leaderboards.",
+    "Strava for AI token burn. Auto-sync your Claude Code, Codex, and Cursor logs. Compete with friends and token-maxx your way to the top of the leaderboards.",
   "landing.signin": "Sign in with GitHub",
   "landing.boardTitle": "Global Token Consumption Leaderboard",
   "landing.boardSub": "Live global leaderboard of public Token Rats. Opt-in only.",
   "landing.howItWorks": "How it works",
   "landing.step1.title": "Install",
   "landing.step1.desc":
-    "One command to connect your Claude Code and Cursor logs. Runs locally — no prompt content leaves your machine.",
+    "One command installs a background watcher that auto-syncs your Claude Code, Codex, and Cursor usage. Runs locally — no prompt content leaves your machine.",
   "landing.step2.title": "Compete",
   "landing.step2.desc":
     "Create a board with friends, or hit the global / country leaderboards. Climb, post, repeat.",
@@ -162,13 +162,15 @@ const EN = {
 
   /* Onboarding (no-sessions view) */
   "onb.noSync.greeting": "@{handle}, you haven’t synced yet.",
-  "onb.noSync.body": "Run the CLI to upload your Claude Code + Cursor usage, then come back here.",
+  "onb.noSync.body":
+    "Run the CLI to upload your Claude Code, Codex, and Cursor usage, then come back here.",
   "onb.quickStart": "Quick start",
   "onb.gotoDash": "Go to dashboard",
   "onb.refresh": "Refresh",
 
   /* InstallBlock */
-  "install.runsLocally": "Runs locally · counts only · never reads your prompts",
+  "install.runsLocally":
+    "Login installs a background watcher that auto-syncs · counts only · never reads your prompts",
   "install.copyBoth": "Copy both",
 
   /* NodeInstallHint */
@@ -198,14 +200,14 @@ const PT_BR: Record<keyof typeof EN, string> = {
 
   /* Landing — keep "Strava", "Flex the burn", "Token Rats" intact */
   "landing.tagline":
-    "Strava da queima de tokens de IA. Sincroniza seus logs do Claude Code ou Codex. Compita com amigos e token-maxx até o topo dos rankings.",
+    "Strava da queima de tokens de IA. Sincroniza seus logs do Claude Code, Codex e Cursor. Compita com amigos e token-maxx até o topo dos rankings.",
   "landing.signin": "Entrar com GitHub",
   "landing.boardTitle": "Ranking Global de Consumo de Tokens",
   "landing.boardSub": "Ranking global ao vivo dos Token Rats públicos. Só com opt-in.",
   "landing.howItWorks": "Como funciona",
   "landing.step1.title": "Instalar",
   "landing.step1.desc":
-    "Um comando para conectar seus logs do Claude Code e Cursor. Roda local — nenhum prompt sai da sua máquina.",
+    "Um comando instala um watcher em segundo plano que sincroniza automaticamente seu uso de Claude Code, Codex e Cursor. Roda local — nenhum prompt sai da sua máquina.",
   "landing.step2.title": "Competir",
   "landing.step2.desc":
     "Crie uma board com a galera, ou caia nos rankings global / por país. Sobe, posta, repete.",
@@ -302,13 +304,14 @@ const PT_BR: Record<keyof typeof EN, string> = {
 
   /* Onboarding */
   "onb.noSync.greeting": "@{handle}, você ainda não sincronizou.",
-  "onb.noSync.body": "Rode a CLI para enviar seu uso do Claude Code + Cursor e volte aqui.",
+  "onb.noSync.body": "Rode a CLI para enviar seu uso do Claude Code, Codex e Cursor e volte aqui.",
   "onb.quickStart": "Início rápido",
   "onb.gotoDash": "Ir para o dashboard",
   "onb.refresh": "Atualizar",
 
   /* InstallBlock */
-  "install.runsLocally": "Roda local · só contagens · nunca lê seus prompts",
+  "install.runsLocally":
+    "O login instala um watcher em segundo plano que sincroniza automaticamente · só contagens · nunca lê seus prompts",
   "install.copyBoth": "Copiar tudo",
 
   /* NodeInstallHint */

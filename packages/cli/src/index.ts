@@ -44,7 +44,7 @@ function printHelp(): void {
 
 \x1b[1mCommands:\x1b[0m
   login              Authenticate with Token Rats (opens browser); installs the background watcher by default
-  sync               Read local Claude Code + Cursor logs and upload counts
+  sync               Read local Claude Code, Codex + Cursor logs and upload counts
   watch              Watch logs in real-time; upload new sessions as they appear
   whoami             Show the currently signed-in account + device id
   logout             Clear your stored credentials
