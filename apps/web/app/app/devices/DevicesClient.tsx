@@ -211,7 +211,9 @@ export function DevicesClient({ initial }: Props) {
       {legacyDevice && (
         <Card>
           <div className="space-y-2 p-4">
-            <div className="text-sm font-semibold text-amber-300">Legacy sessions need reconnecting</div>
+            <div className="text-sm font-semibold text-amber-300">
+              Legacy sessions need reconnecting
+            </div>
             <p className="text-sm text-zinc-400">
               Some of your history predates per-device ids, so Token Rats can preserve those uploads
               but cannot split them back into the original machines. Re-running{" "}
@@ -244,7 +246,10 @@ export function DevicesClient({ initial }: Props) {
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div className="flex items-center gap-3">
                   {isLegacy ? (
-                    <span className="inline-block h-2 w-2 rounded-full bg-zinc-600" title="Legacy" />
+                    <span
+                      className="inline-block h-2 w-2 rounded-full bg-zinc-600"
+                      title="Legacy"
+                    />
                   ) : isRevoked ? (
                     <span
                       className="inline-block h-2 w-2 rounded-full bg-zinc-700"
@@ -312,7 +317,10 @@ export function DevicesClient({ initial }: Props) {
 
               <div className="grid gap-3 text-sm md:grid-cols-2 xl:grid-cols-3">
                 <InfoLine label="Latest upload" value={fmtAbsolute(d.lastSessionAt)} />
-                <InfoLine label="Registered" value={isLegacy ? "Pre-device-id" : fmtAbsolute(d.createdAt)} />
+                <InfoLine
+                  label="Registered"
+                  value={isLegacy ? "Pre-device-id" : fmtAbsolute(d.createdAt)}
+                />
                 <InfoLine
                   label="Top sources (30d)"
                   value={joinBreakdown(d.topSources, labelForSource)}

@@ -678,7 +678,9 @@ function LeaderboardTable({
               )}
               {(row.topClients?.length || row.topSources?.length) && (
                 <SourceBadges
-                  sources={row.topClients && row.topClients.length > 0 ? row.topClients : row.topSources}
+                  sources={
+                    row.topClients && row.topClients.length > 0 ? row.topClients : row.topSources
+                  }
                 />
               )}
             </div>
