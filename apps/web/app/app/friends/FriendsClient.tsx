@@ -38,6 +38,12 @@ function fmtCost(cents: number): string {
   })}`;
 }
 
+/** "—" when a row has tokens but $0 cost (genuinely unpriced); never for 0-token rows. */
+function fmtCostOrDash(cents: number, tokens: number): string {
+  if (cents === 0 && tokens > 0) return "—";
+  return fmtCost(cents);
+}
+
 export function FriendsClient({ initial }: Props) {
   const [range, setRange] = useState<LeaderboardRange>(initial.range);
   const [friends, setFriends] = useState<FriendRow[]>(initial.friends);
@@ -129,7 +135,7 @@ function FriendRowItem({ friend, fade }: { friend: FriendRow; fade: boolean }) {
 
       <div className="flex shrink-0 items-center gap-5 sm:gap-6">
         <Stat label="tokens" value={fmtTokens(friend.tokens)} />
-        <Stat label="spend" value={fmtCost(friend.costUsdCents)} mono />
+        <Stat label="spend" value={fmtCostOrDash(friend.costUsdCents, friend.tokens)} mono />
         <Stat label="sessions" value={`${friend.sessions}`} />
       </div>
     </li>

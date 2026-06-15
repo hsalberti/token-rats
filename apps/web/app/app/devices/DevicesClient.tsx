@@ -24,6 +24,15 @@ function fmtCost(cents: number): string {
   })}`;
 }
 
+/**
+ * Show "—" when a row has tokens but $0 cost (genuinely unpriced model) rather
+ * than a misleading "$0.00". Truly zero-token rows keep "$0.00".
+ */
+function fmtCostOrDash(cents: number, tokens: number): string {
+  if (cents === 0 && tokens > 0) return "—";
+  return fmtCost(cents);
+}
+
 function fmtRelative(tsMs: number, now: number): string {
   if (tsMs <= 0) return "never";
   const diff = now - tsMs;
@@ -296,11 +305,12 @@ export function DevicesClient({ initial }: Props) {
                       {fmtTokens(d.totals.tokens)} tokens
                     </div>
                     <div className="text-xs text-zinc-500">
-                      {fmtCost(d.totals.costUsdCents)} · {d.totals.sessions} sessions (30d)
+                      {fmtCostOrDash(d.totals.costUsdCents, d.totals.tokens)} · {d.totals.sessions}{" "}
+                      sessions (30d)
                     </div>
                     <div className="mt-1 text-[11px] text-zinc-600">
                       All-time: {fmtTokens(d.totalsAllTime.tokens)} ·{" "}
-                      {fmtCost(d.totalsAllTime.costUsdCents)}
+                      {fmtCostOrDash(d.totalsAllTime.costUsdCents, d.totalsAllTime.tokens)}
                     </div>
                   </div>
                   {!isLegacy && !isRevoked && (

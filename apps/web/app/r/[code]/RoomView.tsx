@@ -73,6 +73,12 @@ function fmtCost(cents: number) {
   })}`;
 }
 
+/** "—" when a row has tokens but $0 cost (genuinely unpriced); never for 0-token rows. */
+function fmtCostOrDash(cents: number, tokens: number) {
+  if (cents === 0 && tokens > 0) return "—";
+  return fmtCost(cents);
+}
+
 function copyText(text: string) {
   navigator.clipboard.writeText(text).catch(() => undefined);
 }
@@ -701,7 +707,7 @@ function LeaderboardTable({
                 {fmtTokens(row.tokens)}
               </span>
               <span className="text-right font-mono text-sm text-zinc-400">
-                {fmtCost(row.costUsdCents)}
+                {fmtCostOrDash(row.costUsdCents, row.tokens)}
               </span>
               <span className="hidden text-right font-mono text-sm text-zinc-500 sm:block">
                 {row.sessions}

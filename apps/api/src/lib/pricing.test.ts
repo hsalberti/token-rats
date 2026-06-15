@@ -166,6 +166,29 @@ describe("priceOf", () => {
     expect(r.costUsdCents).toBe(Math.round((1 * 0.8 + 1 * 4.0) * 100));
   });
 
+  it("prices the synthetic cursor-composer model from its early snapshot (regression)", async () => {
+    // Migration 0016 seeded cursor-composer at claude-3-5-sonnet rates but with
+    // a snapshot dated the migration day, so historical sessions found no
+    // snapshot ≤ their day and billed $0. Migration 0020 backfills an early
+    // (2024-01-01) snapshot so carry-forward covers every Cursor session.
+    const env = makeEnv(
+      { resolutions: { "cursor-composer": "cursor-composer" } },
+      {
+        byModel: {
+          "cursor-composer": [{ day: "2024-01-01", input_per_mtok: 3.0, output_per_mtok: 15.0 }],
+        },
+      },
+    );
+
+    // A composer turn = 10_000 in / 2_000 out (see packages/parsers/src/cursor.ts).
+    // 10_000*3 + 2_000*15 = 60_000 → /1e6 = $0.06 → 6 cents.
+    const r = await priceOf(env, "cursor-composer", "2026-06-15", 10_000, 2_000);
+    expect(r.known).toBe(true);
+    expect(r.resolvedModelId).toBe("cursor-composer");
+    expect(r.sourceDay).toBe("2024-01-01");
+    expect(r.costUsdCents).toBe(6);
+  });
+
   it("returns known=false and costUsdCents=0 for an unknown model", async () => {
     const env = makeEnv({ resolutions: {} }, {});
 

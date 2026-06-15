@@ -108,6 +108,16 @@ function fmtCost(cents: number): string {
   })}`;
 }
 
+/**
+ * Honest cost display: when a row has token volume but $0 cost, the price is
+ * genuinely unknown (e.g. an as-yet-unpriced model) rather than free — show an
+ * em-dash instead of a misleading "$0.00". A truly zero-token row stays "$0.00".
+ */
+function fmtCostOrDash(cents: number, tokens: number): string {
+  if (cents === 0 && tokens > 0) return "—";
+  return fmtCost(cents);
+}
+
 export interface SourceTileProps {
   source: string;
   tokens: number;
@@ -146,7 +156,7 @@ export function SourceTile({ source, tokens, costUsdCents, sessions }: SourceTil
       </div>
       <div className="mt-3 flex items-baseline justify-between gap-2">
         <p className="text-xl font-black text-zinc-100">{fmtTokens(tokens)}</p>
-        <p className="font-mono text-xs text-zinc-500">{fmtCost(costUsdCents)}</p>
+        <p className="font-mono text-xs text-zinc-500">{fmtCostOrDash(costUsdCents, tokens)}</p>
       </div>
     </div>
   );

@@ -35,6 +35,12 @@ function fmtCost(cents: number) {
   })}`;
 }
 
+/** "—" when a row has tokens but $0 cost (genuinely unpriced); never for 0-token rows. */
+function fmtCostOrDash(cents: number, tokens: number) {
+  if (cents === 0 && tokens > 0) return "—";
+  return fmtCost(cents);
+}
+
 export function GlobalBoardPreview({ viewerUserId, viewerPublicProfile }: Props) {
   const [rows, setRows] = useState<LeaderboardRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -145,7 +151,9 @@ function PreviewRow({ row, isViewer }: { row: LeaderboardRow; isViewer: boolean 
       </span>
       <div className="shrink-0 text-right">
         <p className="text-sm font-bold text-zinc-100">{fmtTokens(row.tokens)}</p>
-        <p className="font-mono text-[10px] text-zinc-500">{fmtCost(row.costUsdCents)}</p>
+        <p className="font-mono text-[10px] text-zinc-500">
+          {fmtCostOrDash(row.costUsdCents, row.tokens)}
+        </p>
       </div>
     </a>
   );
