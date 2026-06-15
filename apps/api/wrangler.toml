@@ -40,7 +40,7 @@ WEB_ORIGIN = "https://tokenrats.com"
 # Bumped manually when a new `token-rats` npm version is published. Drives
 # the in-app upgrade banner. Set MIN_SUPPORTED_CLI_VERSION to flag installs
 # below it as unsupported (currently informational only).
-LATEST_CLI_VERSION = "0.1.0"
+LATEST_CLI_VERSION = "0.2.0"
 MIN_SUPPORTED_CLI_VERSION = "0.1.0"
 
 # Secrets (set via `wrangler secret put`):
