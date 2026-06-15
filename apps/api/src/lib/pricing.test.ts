@@ -8,7 +8,7 @@
 
 import { describe, expect, it, vi } from "vitest";
 import type { Env } from "../env.js";
-import { priceOf } from "./pricing.js";
+import { type PriceIndex, priceOf, priceWithIndex } from "./pricing.js";
 
 /* -------------------------------------------------------------------------- */
 /* Mock builders                                                              */
@@ -229,5 +229,79 @@ describe("priceOf", () => {
 
     await priceOf(env, "ghost-model", "2026-05-19", 99, 99);
     expect(prepareMock.mock.calls.length).toBe(callsAfterFirst);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* priceWithIndex — the I/O-free bulk pricer used by the admin recompute.      */
+/* Must mirror priceOf's exact→prefix resolution + carry-forward semantics.    */
+/* -------------------------------------------------------------------------- */
+
+function makeIndex(
+  ids: string[],
+  snapshots: Record<string, Array<{ day: string; input: number; output: number }>>,
+): PriceIndex {
+  // snapshotsByModel must be day-ASC, matching loadPriceIndex's ORDER BY day ASC.
+  const snapshotsByModel = new Map<string, Array<{ day: string; input: number; output: number }>>();
+  for (const [id, rows] of Object.entries(snapshots)) {
+    snapshotsByModel.set(
+      id,
+      [...rows].sort((a, b) => (a.day < b.day ? -1 : 1)),
+    );
+  }
+  return {
+    catalogIdsByLenDesc: [...ids].sort((a, b) => b.length - a.length),
+    catalogIdSet: new Set(ids),
+    snapshotsByModel,
+  };
+}
+
+describe("priceWithIndex", () => {
+  it("exact-matches and computes cost from the latest snapshot", () => {
+    const index = makeIndex(["claude-opus-4-7"], {
+      "claude-opus-4-7": [{ day: "2026-05-01", input: 15, output: 75 }],
+    });
+    const r = priceWithIndex(index, "claude-opus-4-7", "2026-05-19", 1_000_000, 1_000_000);
+    expect(r.known).toBe(true);
+    expect(r.costUsdCents).toBe(9000);
+    expect(r.sourceDay).toBe("2026-05-01");
+  });
+
+  it("resolves a date-suffixed model via longest-prefix", () => {
+    const index = makeIndex(["claude-opus-4-7", "claude-opus-4-6"], {
+      "claude-opus-4-7": [{ day: "2026-05-01", input: 15, output: 75 }],
+    });
+    const r = priceWithIndex(index, "claude-opus-4-7-20260101", "2026-05-19", 0, 100);
+    expect(r.resolvedModelId).toBe("claude-opus-4-7");
+    expect(r.known).toBe(true);
+  });
+
+  it("carries forward the latest snapshot whose day <= sessionDay", () => {
+    const index = makeIndex(["claude-haiku-4-5"], {
+      "claude-haiku-4-5": [
+        { day: "2026-01-01", input: 1.0, output: 5.0 },
+        { day: "2026-03-15", input: 0.8, output: 4.0 },
+        { day: "2026-06-01", input: 0.5, output: 2.5 },
+      ],
+    });
+    const r = priceWithIndex(index, "claude-haiku-4-5", "2026-04-01", 1_000_000, 1_000_000);
+    expect(r.sourceDay).toBe("2026-03-15");
+    expect(r.costUsdCents).toBe(Math.round((1 * 0.8 + 1 * 4.0) * 100));
+  });
+
+  it("prices cursor-composer off the backfilled early snapshot (regression)", () => {
+    const index = makeIndex(["cursor-composer"], {
+      "cursor-composer": [{ day: "2024-01-01", input: 3.0, output: 15.0 }],
+    });
+    const r = priceWithIndex(index, "cursor-composer", "2026-06-15", 10_000, 2_000);
+    expect(r.costUsdCents).toBe(6);
+    expect(r.sourceDay).toBe("2024-01-01");
+  });
+
+  it("returns known=false for an unknown model and for a snapshot-less catalog row", () => {
+    const index = makeIndex(["known-model"], { "known-model": [] });
+    expect(priceWithIndex(index, "totally-fake", "2026-05-19", 100, 200).known).toBe(false);
+    // Catalog row exists but no snapshot <= day → still unpriced (the pre-0020 cursor bug).
+    expect(priceWithIndex(index, "known-model", "2026-05-19", 100, 200).known).toBe(false);
   });
 });

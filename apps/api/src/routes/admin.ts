@@ -21,7 +21,7 @@ import { isAdmin } from "../lib/admin.js";
 import { forbidden, notFound } from "../lib/errors.js";
 import { toUtcDay } from "../lib/ingest.js";
 import { refreshPrices } from "../lib/price-refresh.js";
-import { priceOf } from "../lib/pricing.js";
+import { loadPriceIndex, priceWithIndex } from "../lib/pricing.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -451,6 +451,11 @@ admin.post("/prices/recompute", async (c) => {
   }>();
   const total = countRow?.n ?? 0;
 
+  // Load the (small) price tables into memory ONCE. Pricing per-session via
+  // priceOf would do a KV/D1 round-trip each, blowing the Worker subrequest
+  // budget on a full-table walk; priceWithIndex resolves in-memory with no I/O.
+  const priceIndex = await loadPriceIndex(c.env);
+
   let processed = 0;
   let changed = 0;
   let centsDelta = 0;
@@ -471,8 +476,8 @@ admin.post("/prices/recompute", async (c) => {
 
     const updates: { id: string; newCost: number; oldCost: number }[] = [];
     for (const r of rows) {
-      const { costUsdCents } = await priceOf(
-        c.env,
+      const { costUsdCents } = priceWithIndex(
+        priceIndex,
         r.model,
         toUtcDay(r.started_at),
         r.in_tokens,

@@ -190,6 +190,93 @@ export async function priceOf(
   };
 }
 
+/**
+ * In-memory price index for bulk pricing (e.g. the admin recompute).
+ *
+ * `priceOf` does at least one KV/D1 round-trip per call, which is fine on the
+ * single-session ingest path but explodes the Cloudflare subrequest budget
+ * when pricing the whole `sessions` table in one request. `loadPriceIndex`
+ * pulls the two (small) price tables into memory once; `priceWithIndex` then
+ * resolves each session with zero I/O, replicating priceOf's exact→prefix
+ * resolution + carry-forward snapshot semantics.
+ */
+export interface PriceIndex {
+  /** All catalog ids, longest-first, for prefix resolution. */
+  catalogIdsByLenDesc: string[];
+  catalogIdSet: Set<string>;
+  /** model_id → snapshots sorted by day ASC (ISO strings sort chronologically). */
+  snapshotsByModel: Map<string, Array<{ day: string; input: number; output: number }>>;
+}
+
+export async function loadPriceIndex(env: Env): Promise<PriceIndex> {
+  const cat = await env.DB.prepare("SELECT id FROM models_catalog").all<{ id: string }>();
+  const ids = (cat.results ?? []).map((r) => r.id);
+
+  const snaps = await env.DB.prepare(
+    "SELECT model_id, day, input_per_mtok, output_per_mtok FROM model_price_snapshots ORDER BY day ASC",
+  ).all<{
+    model_id: string;
+    day: string;
+    input_per_mtok: number;
+    output_per_mtok: number | null;
+  }>();
+
+  const snapshotsByModel = new Map<string, Array<{ day: string; input: number; output: number }>>();
+  for (const s of snaps.results ?? []) {
+    const arr = snapshotsByModel.get(s.model_id) ?? [];
+    arr.push({ day: s.day, input: s.input_per_mtok, output: s.output_per_mtok ?? 0 });
+    snapshotsByModel.set(s.model_id, arr);
+  }
+
+  return {
+    catalogIdsByLenDesc: [...ids].sort((a, b) => b.length - a.length),
+    catalogIdSet: new Set(ids),
+    snapshotsByModel,
+  };
+}
+
+/** Pure, I/O-free equivalent of `priceOf` backed by a preloaded `PriceIndex`. */
+export function priceWithIndex(
+  index: PriceIndex,
+  model: string,
+  dayIso: string,
+  inTokens: number,
+  outTokens: number,
+): PriceResult {
+  let resolvedId: string | null = null;
+  if (index.catalogIdSet.has(model)) {
+    resolvedId = model;
+  } else {
+    for (const id of index.catalogIdsByLenDesc) {
+      if (model.startsWith(id)) {
+        resolvedId = id;
+        break;
+      }
+    }
+  }
+  if (!resolvedId) {
+    return { costUsdCents: 0, known: false, resolvedModelId: model, sourceDay: null };
+  }
+
+  // Carry-forward: latest snapshot with day <= dayIso (snapshots are day-ASC).
+  let chosen: { day: string; input: number; output: number } | null = null;
+  for (const s of index.snapshotsByModel.get(resolvedId) ?? []) {
+    if (s.day <= dayIso) chosen = s;
+    else break;
+  }
+  if (!chosen) {
+    return { costUsdCents: 0, known: false, resolvedModelId: resolvedId, sourceDay: null };
+  }
+
+  const dollars = (inTokens * chosen.input + outTokens * chosen.output) / 1_000_000;
+  return {
+    costUsdCents: Math.round(dollars * 100),
+    known: true,
+    resolvedModelId: resolvedId,
+    sourceDay: chosen.day,
+  };
+}
+
 /** Convenience wrapper for callers that have a millisecond timestamp. */
 export async function priceOfAtMs(
   env: Env,
