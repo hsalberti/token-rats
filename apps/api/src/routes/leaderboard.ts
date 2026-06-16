@@ -19,7 +19,7 @@ type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 const leaderboard = new Hono<HonoEnv>();
 
 /** Return the SQL date filter clause and bind values for a given range. */
-function dateFilter(
+export function dateFilter(
   range: LeaderboardRange,
   todayUtc: string,
 ): { clause: string; params: string[] } {
@@ -40,10 +40,72 @@ function dateFilter(
 }
 
 /** Offset a YYYY-MM-DD string by `days` days. */
-function offsetDay(yyyy_mm_dd: string, days: number): string {
+export function offsetDay(yyyy_mm_dd: string, days: number): string {
   const d = new Date(`${yyyy_mm_dd}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
+}
+
+/** A single aggregated row coming back from the leaderboard query. */
+export interface LeaderboardAggregateRow {
+  user_id: string;
+  handle: string;
+  avatar_url: string | null;
+  country: string | null;
+  tokens: number;
+  cost_usd_cents: number;
+  sessions: number;
+}
+
+/** A per-(user, source) tokens row used for the top-2 breakdowns. */
+export interface SourceTokensRow {
+  user_id: string;
+  source: string;
+  tokens: number;
+}
+
+/**
+ * Keep at most the first two rows per user. The breakdown queries already sort
+ * by `tokens DESC` within each user, so the first two are the dominant ones.
+ */
+export function top2ByUser(
+  rows: SourceTokensRow[],
+): Map<string, { source: string; tokens: number }[]> {
+  const map = new Map<string, { source: string; tokens: number }[]>();
+  for (const r of rows) {
+    const list = map.get(r.user_id) ?? [];
+    if (list.length < 2) list.push({ source: r.source, tokens: r.tokens });
+    map.set(r.user_id, list);
+  }
+  return map;
+}
+
+/**
+ * Shape the aggregated rows into the ranked leaderboard payload. Members with
+ * no `daily_rollup` rows in the window still arrive here (the route uses a
+ * LEFT JOIN + COALESCE) with zeroed counts, so every room member ranks — this
+ * is the invariant the Brazil ⊂ Global divergence broke. Ranking is stable in
+ * the input order, which the route sorts by `tokens DESC`.
+ */
+export function buildLeaderboardRows(
+  rows: LeaderboardAggregateRow[],
+  sources: Map<string, { source: string; tokens: number }[]>,
+  clients: Map<string, { source: string; tokens: number }[]>,
+  channels: Map<string, { source: string; tokens: number }[]>,
+) {
+  return rows.map((r, i) => ({
+    rank: i + 1,
+    userId: r.user_id,
+    handle: r.handle,
+    avatarUrl: r.avatar_url,
+    country: r.country,
+    tokens: r.tokens,
+    costUsdCents: r.cost_usd_cents,
+    sessions: r.sessions,
+    topSources: sources.get(r.user_id) ?? [],
+    topClients: clients.get(r.user_id) ?? [],
+    topChannels: channels.get(r.user_id) ?? [],
+  }));
 }
 
 leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
@@ -167,40 +229,12 @@ leaderboard.get("/:code/leaderboard", requireAuth, async (c) => {
     .bind(room.id)
     .all<{ user_id: string; source: string; tokens: number }>();
 
-  const top2ByUser = new Map<string, { source: string; tokens: number }[]>();
-  for (const r of sourcesResult.results ?? []) {
-    const list = top2ByUser.get(r.user_id) ?? [];
-    if (list.length < 2) list.push({ source: r.source, tokens: r.tokens });
-    top2ByUser.set(r.user_id, list);
-  }
-
-  const top2ClientsByUser = new Map<string, { source: string; tokens: number }[]>();
-  for (const r of clientsResult.results ?? []) {
-    const list = top2ClientsByUser.get(r.user_id) ?? [];
-    if (list.length < 2) list.push({ source: r.source, tokens: r.tokens });
-    top2ClientsByUser.set(r.user_id, list);
-  }
-
-  const top2ChannelsByUser = new Map<string, { source: string; tokens: number }[]>();
-  for (const r of channelsResult.results ?? []) {
-    const list = top2ChannelsByUser.get(r.user_id) ?? [];
-    if (list.length < 2) list.push({ source: r.source, tokens: r.tokens });
-    top2ChannelsByUser.set(r.user_id, list);
-  }
-
-  const rows = (result.results ?? []).map((r, i) => ({
-    rank: i + 1,
-    userId: r.user_id,
-    handle: r.handle,
-    avatarUrl: r.avatar_url,
-    country: r.country,
-    tokens: r.tokens,
-    costUsdCents: r.cost_usd_cents,
-    sessions: r.sessions,
-    topSources: top2ByUser.get(r.user_id) ?? [],
-    topClients: top2ClientsByUser.get(r.user_id) ?? [],
-    topChannels: top2ChannelsByUser.get(r.user_id) ?? [],
-  }));
+  const rows = buildLeaderboardRows(
+    result.results ?? [],
+    top2ByUser(sourcesResult.results ?? []),
+    top2ByUser(clientsResult.results ?? []),
+    top2ByUser(channelsResult.results ?? []),
+  );
 
   const generatedAt = Date.now();
   const response = {
