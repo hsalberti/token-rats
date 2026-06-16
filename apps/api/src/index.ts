@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import type { Env } from "./env.js";
+import { checkHealth } from "./lib/health.js";
 import type { AuthVariables } from "./middleware/auth.js";
 import abuseRoutes from "./routes/abuse.js";
 import adminRoutes from "./routes/admin.js";
@@ -51,7 +52,16 @@ app.use(
 /* Health                                                                      */
 /* -------------------------------------------------------------------------- */
 
-app.get("/healthz", (c) => c.json({ ok: true, ts: Date.now() }));
+// Deep probe — exercises D1 + KV with short timeouts. 503 if any dep is down,
+// so deploy smoke tests and the canary cron can gate on it.
+app.get("/healthz", async (c) => {
+  const report = await checkHealth(c.env);
+  return c.json(report, report.ok ? 200 : 503);
+});
+
+// Shallow liveness — never touches a binding. For an external dead-man switch
+// that should only flag a fully unresponsive Worker, not a degraded dependency.
+app.get("/healthz/live", (c) => c.json({ ok: true }));
 
 /* -------------------------------------------------------------------------- */
 /* Auth                                                                        */
@@ -141,6 +151,17 @@ app.route("/webhooks/stripe", stripeWebhookRoutes);
 /* -------------------------------------------------------------------------- */
 
 app.route("/v1/admin", adminRoutes);
+
+/* -------------------------------------------------------------------------- */
+/* Error + 404 handlers — log server-side, never leak internals to the client */
+/* -------------------------------------------------------------------------- */
+
+app.notFound((c) => c.json({ error: "not_found" }, 404));
+
+app.onError((err, c) => {
+  console.error("[api] unhandled error", c.req.method, c.req.path, err);
+  return c.json({ error: "internal_error" }, 500);
+});
 
 /* -------------------------------------------------------------------------- */
 /* Worker exports                                                              */
