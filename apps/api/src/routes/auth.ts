@@ -8,7 +8,7 @@
  */
 
 import { Hono } from "hono";
-import { deleteCookie, setCookie } from "hono/cookie";
+import { deleteCookie, getSignedCookie, setCookie, setSignedCookie } from "hono/cookie";
 import { z } from "zod";
 import type { Env } from "../env.js";
 import {
@@ -50,6 +50,16 @@ const auth = new Hono<HonoEnv>();
 const EMAIL_REAUTH_COOKIE = "tr_email_reauth_seen";
 
 /**
+ * Signed, httpOnly cookie that binds the OAuth `state` to the browser that
+ * started the flow. The callback requires the cookie value to equal the
+ * round-tripped `state` query param (on top of the KV check), so a `state`
+ * leaked or replayed from another browser can't complete a login. Short-lived
+ * to match the KV state TTL.
+ */
+const OAUTH_STATE_COOKIE = "tr_oauth_state";
+const OAUTH_STATE_TTL = 600;
+
+/**
  * Sanitize a UTM-style query param before round-tripping it through KV /
  * persisting it on the user's row. Lowercased, restricted to a small charset,
  * capped at 40 chars. Returns null for anything that doesn't survive.
@@ -79,6 +89,17 @@ auth.get("/github/start", async (c) => {
 
   await c.env.CACHE.put(stateKey, JSON.stringify({ ref, utmSource, utmMedium, utmCampaign }), {
     expirationTtl: 600,
+  });
+
+  // Bind the state to this browser: a signed, httpOnly cookie the callback
+  // must echo back. Host-scoped (no Domain) since the callback lives on this
+  // same Worker origin. SameSite=Lax so it survives the GitHub redirect back.
+  await setSignedCookie(c, OAUTH_STATE_COOKIE, state, c.env.SESSION_SIGNING_KEY, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax",
+    path: "/v1/auth",
+    maxAge: OAUTH_STATE_TTL,
   });
 
   // v1.2 email-capture flow: when the web app redirects an existing user
@@ -125,7 +146,16 @@ auth.get("/github/callback", async (c) => {
     return c.text("Missing code or state", 400);
   }
 
-  // Verify state
+  // Verify state — it must match BOTH the server-side KV record and the
+  // signed cookie set on this browser at /github/start. The cookie binding
+  // defeats a leaked/replayed `state` from a different browser; the KV record
+  // gives us the one-time-use + carried ref/utm payload.
+  const cookieState = await getSignedCookie(c, c.env.SESSION_SIGNING_KEY, OAUTH_STATE_COOKIE);
+  deleteCookie(c, OAUTH_STATE_COOKIE, { path: "/v1/auth", secure: true, sameSite: "Lax" });
+  if (!cookieState || cookieState !== state) {
+    return c.text("Invalid or expired state", 400);
+  }
+
   const stateKey = `oauth:state:${state}`;
   const stateVal = await c.env.CACHE.get(stateKey);
   if (!stateVal) {
@@ -435,6 +465,11 @@ const ApproveBody = z.object({ verificationCode: z.string().min(1) });
 auth.post("/cli/approve", requireAuth, async (c) => {
   const userId = c.var.userId;
 
+  // Rate limit per user — caps brute-forcing verification codes from a single
+  // authenticated session.
+  const rl = await rateLimit(c.env.CACHE, `cli-approve:${userId}`, 10);
+  if (!rl.allowed) return rateLimited(c);
+
   let body: { verificationCode: string };
   try {
     const raw: unknown = await c.req.json();
@@ -480,6 +515,12 @@ auth.post("/cli/approve", requireAuth, async (c) => {
 const PollBody = z.object({ pollToken: z.string().min(1) });
 
 auth.post("/cli/poll", async (c) => {
+  // Rate limit per IP — the CLI polls on a 2s interval, so 60/min leaves
+  // ample headroom while capping enumeration of poll tokens.
+  const ip = c.req.header("cf-connecting-ip") ?? c.req.header("x-forwarded-for") ?? "unknown";
+  const rl = await rateLimit(c.env.CACHE, `cli-poll:${ip}`, 60);
+  if (!rl.allowed) return rateLimited(c);
+
   let body: { pollToken: string };
   try {
     const raw: unknown = await c.req.json();

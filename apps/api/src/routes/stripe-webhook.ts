@@ -38,11 +38,19 @@ interface StripeSubscription {
 }
 
 interface StripeEvent {
+  id: string;
   type: string;
   data: {
     object: StripeSubscription;
   };
 }
+
+/**
+ * Idempotency window for processed Stripe events. Stripe retries a failing
+ * webhook for up to ~3 days, so a 7-day TTL safely covers the retry horizon
+ * while letting KV expire the marker automatically.
+ */
+const EVENT_DEDUPE_TTL = 60 * 60 * 24 * 7;
 
 /* ------------------------------------------------------------------ handler */
 
@@ -69,7 +77,20 @@ stripeWebhook.post("/", async (c) => {
     return c.json({ error: "Invalid JSON body" }, 400);
   }
 
-  const { type, data } = event;
+  const { id: eventId, type, data } = event;
+
+  // Idempotency: Stripe delivers at-least-once and retries on any non-2xx.
+  // Persist each processed event.id and no-op on repeats so a retried delivery
+  // can't double-apply a plan/seat change. Signature verification above stays
+  // the gate — we only reach here for authentic events.
+  if (eventId) {
+    const dedupeKey = `stripe:event:${eventId}`;
+    const seen = await c.env.CACHE.get(dedupeKey);
+    if (seen) {
+      return c.json({ received: true, note: "duplicate" });
+    }
+    await c.env.CACHE.put(dedupeKey, "1", { expirationTtl: EVENT_DEDUPE_TTL });
+  }
 
   // Handle subscription lifecycle events
   if (

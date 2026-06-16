@@ -30,18 +30,20 @@ import { runScheduled } from "./scheduled.js";
 const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 // CORS — credentials required for cookie-based auth.
-// Accepts the configured WEB_ORIGIN plus localhost on any port for local dev.
-// (Localhost can never present a valid prod cookie — different origin — so
-// allowing it everywhere is safe and removes the wrangler-3 `.dev.vars` quirk
-// where vars defined there don't override `[vars]` in wrangler.toml.)
+// Always allows the configured WEB_ORIGIN. Localhost origins are reflected
+// ONLY when WEB_ORIGIN is itself a localhost origin (i.e. a dev deployment) —
+// in production we never reflect arbitrary localhost origins.
+const LOCALHOST_ORIGIN_RE = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 app.use(
   "*",
   cors({
     origin: (origin, c) => {
-      if (origin && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      const webOrigin = c.env.WEB_ORIGIN;
+      const devMode = LOCALHOST_ORIGIN_RE.test(webOrigin);
+      if (devMode && origin && LOCALHOST_ORIGIN_RE.test(origin)) {
         return origin;
       }
-      return c.env.WEB_ORIGIN;
+      return webOrigin;
     },
     credentials: true,
   }),

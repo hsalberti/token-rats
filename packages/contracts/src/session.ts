@@ -43,13 +43,25 @@ export type SessionChannel = z.infer<typeof SessionChannel>;
  * `openclaw`, `token-rats-proxy`, …) from the broader `source` bucket and the
  * transport (`cli`, `proxy`, `api`, `local`, …).
  */
+/**
+ * Charsets for the free-text identifier fields. Kept deliberately permissive
+ * to cover every shape the parsers emit today — `id` is `"<source>:<uuid>"`,
+ * `model` includes vendor slugs like `anthropic/claude-opus-4.7`, `dedupeKey`
+ * is an FNV-1a hex digest, `client` is a tool slug — while still rejecting
+ * control characters and unbounded blobs that could poison D1 / logs.
+ */
+const ID_RE = /^[A-Za-z0-9._:/+ -]+$/;
+const MODEL_RE = /^[A-Za-z0-9._:/+ -]+$/;
+const DEDUPE_KEY_RE = /^[A-Za-z0-9._:-]+$/;
+const CLIENT_RE = /^[A-Za-z0-9._-]+$/;
+
 export const SessionRecord = z.object({
-  id: z.string().min(1),
+  id: z.string().min(1).max(256).regex(ID_RE),
   source: Source,
   provider: Provider.optional(),
-  client: z.string().min(1).max(64).optional(),
+  client: z.string().min(1).max(64).regex(CLIENT_RE).optional(),
   channel: SessionChannel.optional(),
-  model: z.string().min(1),
+  model: z.string().min(1).max(128).regex(MODEL_RE),
   inTokens: z.number().int().nonnegative(),
   outTokens: z.number().int().nonnegative(),
   /** Anthropic cache reads / OpenAI `cached_input_tokens`. Billed cheap-or-free. */
@@ -61,7 +73,7 @@ export const SessionRecord = z.object({
   costUsdCents: z.number().int().nonnegative(),
   startedAt: z.number().int().positive(),
   endedAt: z.number().int().positive(),
-  dedupeKey: z.string().min(1),
+  dedupeKey: z.string().min(1).max(128).regex(DEDUPE_KEY_RE),
 });
 export type SessionRecord = z.infer<typeof SessionRecord>;
 
