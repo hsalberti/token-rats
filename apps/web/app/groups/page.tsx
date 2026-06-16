@@ -102,7 +102,9 @@ export default async function GroupsPage() {
             <h2 className="text-lg font-bold text-zinc-200">
               <span className="inline-flex items-center gap-2">
                 <CountryFlag country={country} className="h-5 w-6 rounded-[2px]" />
-                <span>{countryName} leaderboard ({userBoard.length})</span>
+                <span>
+                  {countryName} leaderboard ({userBoard.length})
+                </span>
               </span>
             </h2>
             <ol className="space-y-2">
