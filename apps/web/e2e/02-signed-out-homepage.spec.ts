@@ -14,7 +14,7 @@ test("/ as signed-out renders the trending board with the hero strip", async ({ 
   // Hero: wordmark + tagline + install snippet + sign-in CTA.
   await expect(page.getByText(/Token\s+Rats/i).first()).toBeVisible();
   await expect(page.getByText(/Strava for AI token burn/i)).toBeVisible();
-  await expect(page.getByText(/npx token-rats/i).first()).toBeVisible();
+  await expect(page.getByText(/token-rats login/i).first()).toBeVisible();
   await expect(page.getByRole("link", { name: /Sign in with GitHub/i }).first()).toBeVisible();
 
   // Live board section.

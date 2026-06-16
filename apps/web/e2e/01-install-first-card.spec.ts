@@ -13,10 +13,10 @@ import { expect, test } from "@playwright/test";
 test("homepage exposes the install snippet that callers will copy", async ({ page }) => {
   await page.goto("/");
 
-  // The InstallBlock renders the canonical `npx token-rats login` line.
+  // The InstallBlock renders the canonical `token-rats login` line.
   // We assert it's *visible*, not just in the DOM — the install snippet is
   // the conversion CTA for new users.
-  const code = page.getByText(/npx token-rats/i);
+  const code = page.getByText(/token-rats login/i);
   await expect(code.first()).toBeVisible();
 });
 

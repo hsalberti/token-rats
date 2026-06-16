@@ -5,6 +5,7 @@
  * when the user switches ranges.
  */
 
+import { CountryFlag } from "@/components/CountryFlag";
 import { Avatar } from "@/components/ui/Avatar";
 import { getTrending } from "@/lib/api";
 import { useState, useTransition } from "react";
@@ -23,15 +24,6 @@ interface TrendingRow {
 }
 
 /** ISO 3166-1 alpha-2 → regional-indicator flag emoji. Null/invalid → null. */
-function flagFor(cc: string | null): string | null {
-  if (!cc || cc.length !== 2) return null;
-  return cc
-    .toUpperCase()
-    .split("")
-    .map((ch) => String.fromCodePoint(127397 + ch.charCodeAt(0)))
-    .join("");
-}
-
 interface Props {
   initialRows: TrendingRow[];
   initialRange: Range;
@@ -148,7 +140,6 @@ export function TrendingClient({ initialRows, initialRange, generatedAtLabel }: 
       ) : (
         <ol className="space-y-2">
           {rows.map((row) => {
-            const flag = flagFor(row.country);
             return (
               <li key={row.userId}>
                 <a
@@ -188,15 +179,10 @@ export function TrendingClient({ initialRows, initialRange, generatedAtLabel }: 
                   {/* Stats */}
                   <div className="text-right shrink-0">
                     <p className="font-black text-zinc-100">
-                      {flag && (
-                        <span
-                          className="mr-1.5 align-baseline"
-                          aria-label={row.country ?? undefined}
-                          title={row.country ?? undefined}
-                        >
-                          {flag}
-                        </span>
-                      )}
+                      <CountryFlag
+                        country={row.country}
+                        className="mr-1.5 inline-block h-3.5 w-5 rounded-[2px] align-baseline"
+                      />
                       {fmtTokens(row.tokens)}
                     </p>
                     <p className="text-xs text-zinc-500 font-mono">{fmtCost(row.costUsdCents)}</p>

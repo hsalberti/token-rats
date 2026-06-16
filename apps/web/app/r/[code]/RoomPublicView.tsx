@@ -8,6 +8,7 @@
  */
 
 import type { RoomSummary } from "@token-rats/contracts";
+import { CountryFlag, countryLabel } from "../../../components/CountryFlag";
 
 interface Props {
   summary: RoomSummary;
@@ -17,23 +18,6 @@ interface Props {
    * public + country-mismatched, we replace the CTA with a country pill.
    */
   viewerCountry?: string | null;
-}
-
-function flagFor(cc: string): string {
-  return cc
-    .toUpperCase()
-    .split("")
-    .map((c) => String.fromCodePoint(127397 + c.charCodeAt(0)))
-    .join("");
-}
-
-function countryLabel(cc: string): string {
-  try {
-    const names = new Intl.DisplayNames(["en"], { type: "region" });
-    return names.of(cc) ?? cc;
-  } catch {
-    return cc;
-  }
 }
 
 function fmtTokens(n: number) {
@@ -107,7 +91,9 @@ export function RoomPublicView({ summary, signedIn, viewerCountry }: Props) {
               className="inline-flex items-center gap-2 rounded-lg border border-zinc-700 bg-zinc-800 px-4 py-2 text-sm font-semibold text-zinc-300"
               title={`Lock: ${countryLabel(summary.country)}`}
             >
-              For viewers in {flagFor(summary.country)} {countryLabel(summary.country)}
+              For viewers in
+              <CountryFlag country={summary.country} className="h-4 w-5 rounded-[2px]" />
+              {countryLabel(summary.country)}
             </span>
           ) : (
             <a
