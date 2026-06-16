@@ -45,3 +45,11 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: apps/api
+
+      # Post-deploy smoke: deep health probe must return 200, else fail the job
+      # so the deploy shows red and the canary/alerting picks it up.
+      - name: Smoke test deep health
+        run: |
+          code=$(curl -sS -o /dev/null -w "%{http_code}" --max-time 15 https://api.tokenrats.com/healthz)
+          echo "healthz returned HTTP $code"
+          test "$code" = "200"

@@ -1,0 +1,23 @@
+name: lint
+
+# Biome lint/format check. Intentionally a SEPARATE workflow from `ci` so a
+# style nit never blocks a deploy — deploy.yml keys on `ci` (typecheck + test +
+# build) only. Lint still runs on every push/PR and shows up as its own status.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint

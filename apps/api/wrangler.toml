@@ -33,6 +33,7 @@ new_sqlite_classes = ["RoomLiveHub"]
 crons = [
   "0 16 * * 1",  # Mondays 16:00 UTC — weekly digest (lib/digest.ts via scheduled.ts)
   "0 4 * * *",   # Daily 04:00 UTC — refresh model catalog + price snapshots (lib/price-refresh.ts)
+  "*/5 * * * *", # Every 5 min — canary: probe /healthz + key public endpoints, alert Discord on failure (scheduled.ts)
 ]
 
 [vars]
@@ -49,6 +50,8 @@ MIN_SUPPORTED_CLI_VERSION = "0.1.0"
 #   SESSION_SIGNING_KEY
 #   VAPID_PRIVATE_KEY   (base64url-encoded raw 32-byte EC P-256 private key)
 #   VAPID_PUBLIC_KEY    (base64url-encoded uncompressed P-256 point, 65 bytes)
+#   DISCORD_ALERT_WEBHOOK  (Discord webhook URL the canary cron posts to on a
+#                           failed probe; optional — canary no-ops the alert if unset)
 
 [observability]
 enabled = true

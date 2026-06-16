@@ -17,6 +17,64 @@ import { refreshPrices } from "./lib/price-refresh.js";
 
 const WEEKLY_DIGEST_CRON = "0 16 * * 1";
 const DAILY_PRICE_REFRESH_CRON = "0 4 * * *";
+const CANARY_CRON = "*/5 * * * *";
+
+/** Public origin the canary probes. Matches the custom domain in wrangler.toml. */
+const CANARY_BASE_URL = "https://api.tokenrats.com";
+
+/** Endpoints the canary hits every 5 minutes. Deep health first, then a couple
+ *  of unauthenticated read paths that exercise the D1 read path end to end. */
+const CANARY_TARGETS = ["/healthz", "/v1/trending", "/v1/cli/version"];
+
+const CANARY_FETCH_TIMEOUT_MS = 5000;
+
+/** Fire a short alert to the Discord webhook. No-op when the secret is unset. */
+async function sendDiscordAlert(env: Env, content: string): Promise<void> {
+  if (!env.DISCORD_ALERT_WEBHOOK) return;
+  try {
+    await fetch(env.DISCORD_ALERT_WEBHOOK, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ content }),
+    });
+  } catch (err) {
+    console.error("[scheduled] canary alert post failed", err);
+  }
+}
+
+/**
+ * Canary cron handler. Probes the deep health endpoint plus a couple of key
+ * public endpoints from the public edge and alerts Discord on any failure.
+ */
+async function runCanary(env: Env): Promise<void> {
+  const failures: string[] = [];
+  for (const path of CANARY_TARGETS) {
+    const url = `${CANARY_BASE_URL}${path}`;
+    try {
+      const res = await fetch(url, {
+        signal: AbortSignal.timeout(CANARY_FETCH_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        failures.push(`${path} → HTTP ${res.status}`);
+      }
+    } catch (err) {
+      failures.push(`${path} → ${err instanceof Error ? err.message : "fetch error"}`);
+    }
+  }
+
+  if (failures.length === 0) {
+    console.log("[scheduled] canary ok", { targets: CANARY_TARGETS.length });
+    return;
+  }
+
+  console.error("[scheduled] canary detected failures", { failures });
+  await sendDiscordAlert(
+    env,
+    `🐀 Token Rats canary: ${failures.length} probe(s) failing\n${failures
+      .map((f) => `• ${f}`)
+      .join("\n")}`,
+  );
+}
 
 /**
  * Weekly digest cron handler.
@@ -56,6 +114,9 @@ export async function runScheduled(event: ScheduledEvent, env: Env): Promise<voi
       return;
     case DAILY_PRICE_REFRESH_CRON:
       await runDailyPriceRefresh(env);
+      return;
+    case CANARY_CRON:
+      await runCanary(env);
       return;
     default:
       console.warn("[scheduled] unhandled cron", { cron: event.cron });

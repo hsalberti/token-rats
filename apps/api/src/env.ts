@@ -36,4 +36,8 @@ export type Env = {
   LATEST_CLI_VERSION?: string;
   /** Minimum supported CLI version. Same plumbing as LATEST_CLI_VERSION. */
   MIN_SUPPORTED_CLI_VERSION?: string;
+  /** Discord webhook URL the canary cron POSTs to when a probe fails. Optional —
+   *  when unset the canary still runs but the alert step is a no-op. Set as a
+   *  Worker secret via `wrangler secret put DISCORD_ALERT_WEBHOOK`. */
+  DISCORD_ALERT_WEBHOOK?: string;
 };
