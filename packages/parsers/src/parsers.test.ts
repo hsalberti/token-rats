@@ -134,6 +134,31 @@ describe("parseClaudeCode", () => {
     expect(ids2).toEqual(ids1);
   });
 
+  it("ignores <synthetic> model so the real model from an earlier turn is preserved", () => {
+    const input = [
+      JSON.stringify({
+        type: "assistant",
+        sessionId: "syn-test",
+        timestamp: 1700010000000,
+        message: {
+          model: "claude-sonnet-4-6",
+          usage: { input_tokens: 100, output_tokens: 50 },
+        },
+      }),
+      JSON.stringify({
+        type: "assistant",
+        sessionId: "syn-test",
+        timestamp: 1700010001000,
+        message: {
+          model: "<synthetic>",
+          usage: { input_tokens: 0, output_tokens: 0 },
+        },
+      }),
+    ].join("\n");
+    const [rec] = parseClaudeCode(input);
+    expect(rec!.model).toBe("claude-sonnet-4-6");
+  });
+
   it("returns empty array for empty input", () => {
     expect(parseClaudeCode("")).toHaveLength(0);
   });

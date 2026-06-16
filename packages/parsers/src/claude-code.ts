@@ -141,8 +141,11 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     if (typeof message !== "object" || message === null) continue;
     const msg = message as Record<string, unknown>;
 
-    // Model: last one seen per session wins
-    if (typeof msg.model === "string" && msg.model.length > 0) {
+    // Model: last real model seen per session wins.
+    // Skip synthetic internal markers like "<synthetic>" that Claude Code
+    // injects for context-window summaries — they contain "<" which fails
+    // the API's MODEL_RE charset and carry no real model identity.
+    if (typeof msg.model === "string" && msg.model.length > 0 && !msg.model.includes("<")) {
       acc.model = msg.model;
     }
 
