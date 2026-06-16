@@ -8,7 +8,7 @@
 import type { SessionRecord } from "@token-rats/contracts";
 import { type Mock, describe, expect, it, vi } from "vitest";
 import type { Env } from "../env.js";
-import { recordSession, toUtcDay } from "./ingest.js";
+import { recordSession, recordSessionsBatch, toUtcDay } from "./ingest.js";
 
 /* -------------------------------------------------------------------------- */
 /* Helpers                                                                     */
@@ -235,5 +235,149 @@ describe("recordSession", () => {
     expect(insertBind[3]).toBe("openrouter");
     expect(insertBind[4]).toBe("openclaw");
     expect(insertBind[5]).toBe("api");
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Batched ingest                                                              */
+/* -------------------------------------------------------------------------- */
+
+interface BatchCall {
+  sql: string;
+  binds: unknown[];
+}
+
+/**
+ * D1 mock that records every prepared statement (SQL + its bind args) and
+ * returns one result per statement on `batch()` — so the chunked-batch path
+ * can map per-row `meta.changes` back to each record.
+ *
+ * `insertedFor(id)` decides which `INSERT OR IGNORE` rows count as new
+ * (changes=1) vs duplicate (changes=0); every other statement reports changes=1.
+ */
+function makeBatchD1Mock(insertedFor: (sessionId: string) => boolean): {
+  db: Pick<D1Database, "prepare">;
+  calls: BatchCall[];
+  batchSizes: number[];
+} {
+  const calls: BatchCall[] = [];
+  const batchSizes: number[] = [];
+
+  const db = {
+    prepare: (sql: string) => {
+      const stmt = {
+        sql,
+        binds: [] as unknown[],
+        bind(...args: unknown[]) {
+          stmt.binds = args;
+          calls.push({ sql, binds: args });
+          return stmt;
+        },
+      };
+      return stmt;
+    },
+    batch: async (stmts: Array<{ sql: string; binds: unknown[] }>) => {
+      batchSizes.push(stmts.length);
+      return stmts.map((s) => {
+        const isInsert = s.sql.includes("INSERT OR IGNORE INTO sessions");
+        const sessionId = isInsert ? String(s.binds[0]) : "";
+        const changes = isInsert ? (insertedFor(sessionId) ? 1 : 0) : 1;
+        return { meta: { changes } };
+      });
+    },
+  } as unknown as Pick<D1Database, "prepare">;
+
+  return { db, calls, batchSizes };
+}
+
+describe("recordSessionsBatch", () => {
+  it("prices + writes a large multi-record ingest via chunked batches", async () => {
+    // 250 records → INSERT batches chunk at 100 (100 + 100 + 50), and each of
+    // the 250 inserts contributes 2 rollup upserts = 500 statements chunked at
+    // 100 (5 batches of 100).
+    const COUNT = 250;
+    const { db, calls, batchSizes } = makeBatchD1Mock(() => true);
+    const env = makeEnv(db);
+
+    const records = Array.from({ length: COUNT }, (_, i) =>
+      makeRecord({
+        id: `sess-${i}`,
+        dedupeKey: `hash-${i}`,
+        inTokens: i,
+        outTokens: i * 2,
+        costUsdCents: i + 1,
+      }),
+    );
+
+    const result = await recordSessionsBatch(env, "user-bulk", records, {
+      deviceId: "device-bulk",
+    });
+
+    expect(result.acceptedCount).toBe(COUNT);
+    expect(result.inserted.every((x) => x === true)).toBe(true);
+
+    // No batch may exceed the D1 100-statement limit.
+    expect(Math.max(...batchSizes)).toBeLessThanOrEqual(100);
+    // 3 insert chunks (100/100/50) + 5 rollup chunks (100×5 of 500 statements).
+    expect(batchSizes).toEqual([100, 100, 50, 100, 100, 100, 100, 100]);
+
+    const insertCalls = calls.filter((c) => c.sql.includes("INSERT OR IGNORE INTO sessions"));
+    expect(insertCalls.length).toBe(COUNT);
+    // device_id is stamped on every insert (last bind arg).
+    expect(insertCalls.every((c) => c.binds[c.binds.length - 1] === "device-bulk")).toBe(true);
+    // cost is carried through to the insert (column 13, 0-indexed 12).
+    expect(insertCalls[10]?.binds[12]).toBe(11);
+
+    const legacyRollupCalls = calls.filter((c) => c.sql.includes("INSERT INTO daily_rollup ("));
+    const modelRollupCalls = calls.filter((c) =>
+      c.sql.includes("INSERT INTO daily_rollup_by_model"),
+    );
+    expect(legacyRollupCalls.length).toBe(COUNT);
+    expect(modelRollupCalls.length).toBe(COUNT);
+  });
+
+  it("skips rollups for duplicate rows and reports them as not inserted", async () => {
+    // Even-indexed sessions are duplicates (changes=0) → no rollup statements.
+    const { db, calls } = makeBatchD1Mock((id) => {
+      const n = Number(id.split("-")[1]);
+      return n % 2 === 1;
+    });
+    const env = makeEnv(db);
+
+    const records = Array.from({ length: 10 }, (_, i) =>
+      makeRecord({ id: `sess-${i}`, dedupeKey: `hash-${i}` }),
+    );
+
+    const result = await recordSessionsBatch(env, "user-1", records);
+
+    // 5 odd indices inserted, 5 even duplicates skipped.
+    expect(result.acceptedCount).toBe(5);
+    expect(result.inserted).toEqual([
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+      false,
+      true,
+    ]);
+
+    const legacyRollupCalls = calls.filter((c) => c.sql.includes("INSERT INTO daily_rollup ("));
+    // Only the 5 inserted rows get a rollup upsert.
+    expect(legacyRollupCalls.length).toBe(5);
+  });
+
+  it("returns an empty result without touching the DB for zero records", async () => {
+    const { db, calls } = makeBatchD1Mock(() => true);
+    const env = makeEnv(db);
+
+    const result = await recordSessionsBatch(env, "user-1", []);
+
+    expect(result.acceptedCount).toBe(0);
+    expect(result.inserted).toEqual([]);
+    expect(calls.length).toBe(0);
   });
 });

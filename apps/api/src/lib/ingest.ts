@@ -43,15 +43,45 @@ export async function recordSession(
   record: SessionRecord,
   opts: RecordSessionOptions = {},
 ): Promise<RecordSessionResult> {
+  const deviceId = opts.deviceId ?? null;
+
+  const insertStmt = buildInsertStmt(env, userId, record, deviceId);
+  const [insertResult] = await env.DB.batch([insertStmt]);
+  const inserted = (insertResult?.meta?.changes ?? 0) > 0;
+
+  if (inserted) {
+    await env.DB.batch(buildRollupStmts(env, userId, record));
+  }
+
+  return { inserted };
+}
+
+/** Max statements per D1 `batch()` call (D1 caps a batch at 100 statements). */
+const D1_BATCH_LIMIT = 100;
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+
+/** Build the `INSERT OR IGNORE INTO sessions` statement for one record. */
+function buildInsertStmt(
+  env: Env,
+  userId: string,
+  record: SessionRecord,
+  deviceId: string | null,
+): D1PreparedStatement {
   const provider = record.provider ?? defaultProviderForSource(record.source);
   const client = record.client ?? defaultClientForSource(record.source);
   const channel = record.channel ?? defaultChannelForSource(record.source);
   const cacheReadTokens = record.cacheReadTokens ?? 0;
   const cacheWriteTokens = record.cacheWriteTokens ?? 0;
   const reasoningTokens = record.reasoningTokens ?? 0;
-  const deviceId = opts.deviceId ?? null;
 
-  const insertStmt = env.DB.prepare(
+  return env.DB.prepare(
     `INSERT OR IGNORE INTO sessions
        (id, user_id, source, provider, client, channel, model,
         in_tokens, out_tokens,
@@ -77,56 +107,122 @@ export async function recordSession(
     record.dedupeKey,
     deviceId,
   );
+}
 
-  const [insertResult] = await env.DB.batch([insertStmt]);
-  const inserted = (insertResult?.meta?.changes ?? 0) > 0;
+/** Build the legacy + granular rollup upserts for one inserted record. */
+function buildRollupStmts(
+  env: Env,
+  userId: string,
+  record: SessionRecord,
+): [D1PreparedStatement, D1PreparedStatement] {
+  const provider = record.provider ?? defaultProviderForSource(record.source);
+  const cacheReadTokens = record.cacheReadTokens ?? 0;
+  const cacheWriteTokens = record.cacheWriteTokens ?? 0;
+  const reasoningTokens = record.reasoningTokens ?? 0;
+  const day = toUtcDay(record.startedAt);
+  const tokens = record.inTokens + record.outTokens;
 
-  if (inserted) {
-    const day = toUtcDay(record.startedAt);
-    const tokens = record.inTokens + record.outTokens;
+  return [
+    env.DB.prepare(
+      `INSERT INTO daily_rollup (user_id, day, tokens, cost_usd_cents, sessions)
+         VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(user_id, day) DO UPDATE SET
+           tokens         = tokens         + excluded.tokens,
+           cost_usd_cents = cost_usd_cents + excluded.cost_usd_cents,
+           sessions       = sessions       + excluded.sessions`,
+    ).bind(userId, day, tokens, record.costUsdCents, 1),
+    env.DB.prepare(
+      `INSERT INTO daily_rollup_by_model
+         (user_id, day, source, provider, model,
+          in_tokens, out_tokens,
+          cache_read_tokens, cache_write_tokens, reasoning_tokens,
+          cost_usd_cents, sessions)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(user_id, day, source, provider, model) DO UPDATE SET
+         in_tokens          = in_tokens          + excluded.in_tokens,
+         out_tokens         = out_tokens         + excluded.out_tokens,
+         cache_read_tokens  = cache_read_tokens  + excluded.cache_read_tokens,
+         cache_write_tokens = cache_write_tokens + excluded.cache_write_tokens,
+         reasoning_tokens   = reasoning_tokens   + excluded.reasoning_tokens,
+         cost_usd_cents     = cost_usd_cents     + excluded.cost_usd_cents,
+         sessions           = sessions           + excluded.sessions`,
+    ).bind(
+      userId,
+      day,
+      record.source,
+      provider,
+      record.model,
+      record.inTokens,
+      record.outTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+      reasoningTokens,
+      record.costUsdCents,
+      1,
+    ),
+  ];
+}
 
-    await env.DB.batch([
-      env.DB.prepare(
-        `INSERT INTO daily_rollup (user_id, day, tokens, cost_usd_cents, sessions)
-           VALUES (?, ?, ?, ?, ?)
-           ON CONFLICT(user_id, day) DO UPDATE SET
-             tokens         = tokens         + excluded.tokens,
-             cost_usd_cents = cost_usd_cents + excluded.cost_usd_cents,
-             sessions       = sessions       + excluded.sessions`,
-      ).bind(userId, day, tokens, record.costUsdCents, 1),
-      env.DB.prepare(
-        `INSERT INTO daily_rollup_by_model
-           (user_id, day, source, provider, model,
-            in_tokens, out_tokens,
-            cache_read_tokens, cache_write_tokens, reasoning_tokens,
-            cost_usd_cents, sessions)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(user_id, day, source, provider, model) DO UPDATE SET
-           in_tokens          = in_tokens          + excluded.in_tokens,
-           out_tokens         = out_tokens         + excluded.out_tokens,
-           cache_read_tokens  = cache_read_tokens  + excluded.cache_read_tokens,
-           cache_write_tokens = cache_write_tokens + excluded.cache_write_tokens,
-           reasoning_tokens   = reasoning_tokens   + excluded.reasoning_tokens,
-           cost_usd_cents     = cost_usd_cents     + excluded.cost_usd_cents,
-           sessions           = sessions           + excluded.sessions`,
-      ).bind(
-        userId,
-        day,
-        record.source,
-        provider,
-        record.model,
-        record.inTokens,
-        record.outTokens,
-        cacheReadTokens,
-        cacheWriteTokens,
-        reasoningTokens,
-        record.costUsdCents,
-        1,
-      ),
-    ]);
+export interface RecordSessionsBatchResult {
+  /** Parallel to the input array: `true` where the session was newly inserted. */
+  inserted: boolean[];
+  /** Count of newly inserted (non-duplicate) sessions. */
+  acceptedCount: number;
+}
+
+/**
+ * Bulk equivalent of `recordSession` for the ingest hot path.
+ *
+ * Collapses what used to be `O(records)` sequential `DB.batch` round-trips into
+ * a handful of chunked batches (≤ `D1_BATCH_LIMIT` statements each):
+ *   1. All `INSERT OR IGNORE` statements, in one set of chunks. The per-row
+ *      `meta.changes` tells us which rows were genuinely new (PK dedupe).
+ *   2. The two rollup upserts for every newly-inserted row, in another set of
+ *      chunks — duplicates contribute nothing, exactly as before.
+ *
+ * Behaviour is identical to calling `recordSession` once per record: same
+ * dedupe-via-PK semantics, same rollup math, same device stamping. Records are
+ * expected to already carry their server-priced `costUsdCents`.
+ */
+export async function recordSessionsBatch(
+  env: Env,
+  userId: string,
+  records: SessionRecord[],
+  opts: RecordSessionOptions = {},
+): Promise<RecordSessionsBatchResult> {
+  const deviceId = opts.deviceId ?? null;
+
+  const inserted: boolean[] = new Array(records.length).fill(false);
+  if (records.length === 0) {
+    return { inserted, acceptedCount: 0 };
   }
 
-  return { inserted };
+  const insertStmts = records.map((r) => buildInsertStmt(env, userId, r, deviceId));
+
+  // Track each statement's original index so we can map batched results back.
+  let cursor = 0;
+  for (const group of chunk(insertStmts, D1_BATCH_LIMIT)) {
+    const results = await env.DB.batch(group);
+    for (let i = 0; i < group.length; i++) {
+      inserted[cursor + i] = (results[i]?.meta?.changes ?? 0) > 0;
+    }
+    cursor += group.length;
+  }
+
+  const rollupStmts: D1PreparedStatement[] = [];
+  for (let i = 0; i < records.length; i++) {
+    if (!inserted[i]) continue;
+    const record = records[i];
+    if (!record) continue;
+    rollupStmts.push(...buildRollupStmts(env, userId, record));
+  }
+
+  for (const group of chunk(rollupStmts, D1_BATCH_LIMIT)) {
+    await env.DB.batch(group);
+  }
+
+  const acceptedCount = inserted.reduce((n, ins) => (ins ? n + 1 : n), 0);
+  return { inserted, acceptedCount };
 }
 
 /**
