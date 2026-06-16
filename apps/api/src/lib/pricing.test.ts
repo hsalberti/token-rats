@@ -48,17 +48,18 @@ function makeEnv(catalog: MockCatalog = {}, snaps: MockSnapshots = {}): Env {
           const resolved = catalog.resolutions?.[raw];
           return resolved ? ({ id: resolved } as unknown as T) : null;
         }
-        // Catalog longest-prefix
-        if (sql.includes("WHERE ? LIKE id || '%'")) {
+        // Catalog longest-prefix on a `-` boundary (mirrors `? LIKE id || '-%'`)
+        if (sql.includes("WHERE ? LIKE id || '-%'")) {
           const raw = this._bound[0] as string;
-          // Walk every known canonical id; pick the longest that `raw` starts with.
+          // Walk every known canonical id; pick the longest that `raw` matches
+          // as a `-`-delimited prefix.
           const candidates = Object.values(catalog.resolutions ?? {}).filter(
             (v): v is string => typeof v === "string",
           );
           const distinct = Array.from(new Set(candidates));
           let best: string | null = null;
           for (const id of distinct) {
-            if (raw.startsWith(id)) {
+            if (raw.startsWith(`${id}-`)) {
               if (best === null || id.length > best.length) best = id;
             }
           }
@@ -143,6 +144,24 @@ describe("priceOf", () => {
     const r = await priceOf(env, "claude-opus-4-7-20260101", "2026-05-19", 0, 100);
     expect(r.known).toBe(true);
     expect(r.resolvedModelId).toBe("claude-opus-4-7");
+  });
+
+  it("does not prefix-match across a non-boundary char (claude-opus-41-x ≠ claude-opus-4)", async () => {
+    const env = makeEnv(
+      { resolutions: { "claude-opus-4": "claude-opus-4" } },
+      {
+        byModel: {
+          "claude-opus-4": [{ day: "2026-05-01", input_per_mtok: 15, output_per_mtok: 75 }],
+        },
+      },
+    );
+
+    // 'claude-opus-41-x' starts with 'claude-opus-4' textually but the next
+    // char is '1', not '-' or end-of-string, so it must NOT resolve.
+    const r = await priceOf(env, "claude-opus-41-x", "2026-05-19", 100, 200);
+    expect(r.known).toBe(false);
+    expect(r.resolvedModelId).toBe("claude-opus-41-x");
+    expect(r.costUsdCents).toBe(0);
   });
 
   it("carries forward the latest snapshot whose day <= sessionDay", async () => {
@@ -274,6 +293,15 @@ describe("priceWithIndex", () => {
     const r = priceWithIndex(index, "claude-opus-4-7-20260101", "2026-05-19", 0, 100);
     expect(r.resolvedModelId).toBe("claude-opus-4-7");
     expect(r.known).toBe(true);
+  });
+
+  it("does not prefix-match across a non-boundary char (claude-opus-41-x ≠ claude-opus-4)", () => {
+    const index = makeIndex(["claude-opus-4"], {
+      "claude-opus-4": [{ day: "2026-05-01", input: 15, output: 75 }],
+    });
+    const r = priceWithIndex(index, "claude-opus-41-x", "2026-05-19", 100, 200);
+    expect(r.known).toBe(false);
+    expect(r.resolvedModelId).toBe("claude-opus-41-x");
   });
 
   it("carries forward the latest snapshot whose day <= sessionDay", () => {

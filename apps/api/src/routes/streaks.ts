@@ -1,10 +1,14 @@
 /**
  * Streak routes:
- *   GET /v1/rooms/:code/streaks — per-user-per-room streak computation
+ *   GET /v1/rooms/:code/streaks — per-room-member ACCOUNT-WIDE streak computation
  *
- * Streaks are computed on-demand from daily_rollup + room_members.
- * Definition: consecutive UTC days where the user has ≥1 session AND
- * is a member of the room.
+ * SCHEMA LIMITATION: `daily_rollup` has no room dimension — it's keyed by
+ * (user_id, day) and aggregates a user's activity across ALL their work, not
+ * per room. Joining `room_members` only filters WHO we report on; the streak
+ * itself reflects each member's account-wide activity (any day with ≥1 session
+ * counts, regardless of which room — if any — that session belonged to). A true
+ * per-room streak would need a room dimension on the rollup (or sessions). We do
+ * not attempt that migration here; the member-facing labels say "account-wide".
  *
  * The SQL approach:
  *   1. Fetch all distinct days each room member had activity (from daily_rollup).
@@ -102,7 +106,9 @@ streaks.get("/:code/streaks", requireAuth, async (c) => {
     return forbidden(c, "You are not a member of this room");
   }
 
-  // Fetch all days each room member had activity, ordered per user then by day ASC
+  // Fetch all days each room member had activity, ordered per user then by day ASC.
+  // NOTE: daily_rollup has no room dimension, so `dr.day` reflects the member's
+  // account-wide activity, not activity scoped to this room. See file header.
   const result = await c.env.DB.prepare(
     `SELECT
        rm.user_id,

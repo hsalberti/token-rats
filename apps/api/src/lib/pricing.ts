@@ -61,11 +61,13 @@ async function resolveCatalogId(env: Env, model: string): Promise<string | null>
     .first<{ id: string }>();
   if (exact) return exact.id;
 
-  // Longest-prefix match: `model` must start with `id`. Order by id length DESC
-  // so 'claude-opus-4-7-20260101' resolves to 'claude-opus-4-7' rather than
-  // 'claude-opus-4-6' if both happen to match a leading substring.
+  // Longest-prefix match on a `-` boundary: `model` must equal `id` followed by
+  // '-' (the exact case is handled above). The trailing '-' guard stops
+  // 'claude-opus-41-x' from matching the 'claude-opus-4' catalog row — only a
+  // real family/date suffix like 'claude-opus-4-7-20260101' resolves. Order by
+  // id length DESC so 'claude-opus-4-7' wins over 'claude-opus-4-6'.
   const prefix = await env.DB.prepare(
-    "SELECT id FROM models_catalog WHERE ? LIKE id || '%' ORDER BY length(id) DESC LIMIT 1",
+    "SELECT id FROM models_catalog WHERE ? LIKE id || '-%' ORDER BY length(id) DESC LIMIT 1",
   )
     .bind(model)
     .first<{ id: string }>();
@@ -247,8 +249,11 @@ export function priceWithIndex(
   if (index.catalogIdSet.has(model)) {
     resolvedId = model;
   } else {
+    // Prefix match on a '-' boundary, mirroring resolveCatalogId's `id || '-%'`
+    // SQL: 'claude-opus-41-x' must NOT match the 'claude-opus-4' row, only a
+    // real suffix like 'claude-opus-4-7-20260101' does.
     for (const id of index.catalogIdsByLenDesc) {
-      if (model.startsWith(id)) {
+      if (model.startsWith(`${id}-`)) {
         resolvedId = id;
         break;
       }
