@@ -10,19 +10,14 @@ export async function Footer() {
         <Wordmark size="sm" />
         <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-zinc-500">
           <a
-            href="https://github.com/hsalberti/token-rats"
+            href="https://www.npmjs.com/package/token-rats"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-zinc-300"
           >
-            GitHub
+            npm
           </a>
-          <a
-            href="https://github.com/hsalberti/token-rats/blob/main/mission.md"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-zinc-300"
-          >
+          <a href="/teams" className="hover:text-zinc-300">
             Mission
           </a>
           <a href="/changelog" className="hover:text-zinc-300">

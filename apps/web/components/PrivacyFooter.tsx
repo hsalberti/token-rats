@@ -22,7 +22,7 @@ export async function PrivacyFooter() {
         <span>{t(locale, "privacy.short")}</span>
         <span className="text-zinc-700">·</span>
         <a
-          href="https://github.com/hsalberti/token-rats"
+          href="https://www.npmjs.com/package/token-rats"
           target="_blank"
           rel="noopener noreferrer"
           className="text-zinc-400 hover:text-rat-400"

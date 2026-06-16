@@ -53,7 +53,7 @@ const EN = {
 
   /* Privacy line — repeated on every authed surface */
   "privacy.short": "Counts only — we literally can’t read your prompts.",
-  "privacy.verifyCli": "Verify the CLI on GitHub",
+  "privacy.verifyCli": "Verify the CLI on npm",
   "privacy.verifyShort": "Verify the CLI →",
 
   /* Landing */
@@ -195,7 +195,7 @@ const PT_BR: Record<keyof typeof EN, string> = {
 
   /* Privacy */
   "privacy.short": "Só contagens — literalmente não conseguimos ler seus prompts.",
-  "privacy.verifyCli": "Verifique a CLI no GitHub",
+  "privacy.verifyCli": "Verifique a CLI no npm",
   "privacy.verifyShort": "Verifique a CLI →",
 
   /* Landing — keep "Strava", "Flex the burn", "Token Rats" intact */
