@@ -456,9 +456,14 @@ export function RoomView({
           />
         </div>
 
-        {/* Group streak pill */}
+        {/* Group streak pill. daily_rollup has no room dimension, so this counts
+            consecutive days where ≥1 member had account-wide activity (not
+            necessarily in this room) — the title spells that out. */}
         {groupStreak && groupStreak.currentStreak > 0 && (
-          <div className="inline-flex items-center gap-2 rounded-full border border-rat-500/40 bg-rat-500/10 px-3 py-1 text-sm font-semibold text-rat-400">
+          <div
+            className="inline-flex items-center gap-2 rounded-full border border-rat-500/40 bg-rat-500/10 px-3 py-1 text-sm font-semibold text-rat-400"
+            title="Consecutive days where at least one member logged activity anywhere (account-wide, not room-scoped)"
+          >
             <span aria-hidden>🔥</span>
             <span>{groupStreak.currentStreak}-day group streak</span>
           </div>
@@ -559,11 +564,13 @@ export function RoomView({
               )}
             </div>
 
-            {/* Group activity heatmap */}
+            {/* Member activity heatmap. daily_rollup is keyed by user, not room,
+                so these buckets sum each member's account-wide tokens, not
+                room-scoped usage — titled accordingly. */}
             {heatmap && heatmap.days.length > 0 && (
               <HeatmapWithToggle
                 initial={heatmap}
-                title="Group activity"
+                title="Member activity (account-wide)"
                 fetcher={async (r) => {
                   const res = await api.getRoomHeatmap(room.code as RoomCode, r);
                   return res.heatmap;
@@ -655,7 +662,12 @@ function LeaderboardTable({
       <div className="hidden grid-cols-[48px_1fr_100px_140px_120px_80px] border-b border-zinc-800 px-4 py-3 text-xs font-semibold uppercase tracking-widest text-zinc-500 sm:grid">
         <span>#</span>
         <span>Developer</span>
-        <span className="text-right">Streak</span>
+        <span
+          className="text-right"
+          title="Account-wide daily streak — not scoped to this room (rollups have no room dimension)"
+        >
+          Streak
+        </span>
         <span className="text-right">Tokens</span>
         <span className="text-right">$ Spent</span>
         <span className="text-right">Sessions</span>

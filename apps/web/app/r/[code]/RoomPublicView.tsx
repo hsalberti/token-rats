@@ -99,7 +99,7 @@ export function RoomPublicView({ summary, signedIn, viewerCountry }: Props) {
             <p className="mt-1 text-xs text-zinc-500">
               {isCountryMismatch
                 ? "Public rooms are joinable only by viewers Cloudflare resolves to the room's country."
-                : "Members see the live leaderboard, streaks, and a group activity heatmap."}
+                : "Members see the live leaderboard, streaks, and a member activity heatmap (account-wide)."}
             </p>
           </div>
           {isCountryMismatch && summary.country ? (

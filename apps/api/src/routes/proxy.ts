@@ -112,14 +112,24 @@ async function resolveAnthropicKey(env: Env, userId: string): Promise<string | n
 /* SSE streaming helpers                                                       */
 /* -------------------------------------------------------------------------- */
 
-interface UsageAccumulator {
+export interface UsageAccumulator {
   input_tokens: number;
   output_tokens: number;
   model: string;
 }
 
-/** Parse a single SSE data line and accumulate usage if it's a message_delta event. */
-function parseSSELine(line: string, acc: UsageAccumulator): void {
+/**
+ * Parse a single SSE data line and update `acc` with Anthropic usage.
+ *
+ * Anthropic reports usage across two events: `message_start.message.usage`
+ * carries the prompt `input_tokens` (and a partial output count), while
+ * `message_delta.usage` carries the final cumulative `output_tokens`. Each
+ * field is authoritative on its own event, so we OVERWRITE rather than add —
+ * adding would double-count output (start's partial + delta's final) and let a
+ * stray delta corrupt the input count. This mirrors the non-streaming path,
+ * which reads each field once from the single JSON response.
+ */
+export function parseSSELine(line: string, acc: UsageAccumulator): void {
   if (!line.startsWith("data: ")) return;
   const json = line.slice(6).trim();
   if (json === "[DONE]") return;
@@ -130,19 +140,17 @@ function parseSSELine(line: string, acc: UsageAccumulator): void {
       message?: { model?: string; usage?: { input_tokens?: number; output_tokens?: number } };
     };
 
-    // message_start gives us the model + initial usage
+    // message_start gives us the model + the authoritative input_tokens.
     if (evt.type === "message_start" && evt.message) {
       if (evt.message.model) acc.model = evt.message.model;
-      if (evt.message.usage) {
-        acc.input_tokens += evt.message.usage.input_tokens ?? 0;
-        acc.output_tokens += evt.message.usage.output_tokens ?? 0;
+      if (evt.message.usage?.input_tokens !== undefined) {
+        acc.input_tokens = evt.message.usage.input_tokens;
       }
     }
 
-    // message_delta gives us the final output_tokens count
-    if (evt.type === "message_delta" && evt.usage) {
-      acc.input_tokens += evt.usage.input_tokens ?? 0;
-      acc.output_tokens += evt.usage.output_tokens ?? 0;
+    // message_delta gives us the final, authoritative output_tokens count.
+    if (evt.type === "message_delta" && evt.usage?.output_tokens !== undefined) {
+      acc.output_tokens = evt.usage.output_tokens;
     }
   } catch {
     // Ignore malformed JSON in the stream

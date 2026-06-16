@@ -14,6 +14,15 @@
  * These live in their own router (`/v1/r`, not `/v1/rooms`) to keep the
  * member-gated routes in `rooms.ts` cleanly separated. The aggregates are
  * the only room routes that bypass the membership check by design.
+ *
+ * SCHEMA LIMITATION: `daily_rollup` has no room dimension — it's keyed by
+ * (user_id, day) over a user's ENTIRE activity. Every aggregate below joins
+ * `room_members` only to pick WHICH users to sum; the tokens/sessions/streak
+ * values are each member's account-wide totals, not activity scoped to this
+ * room. A member who burns tokens in solo work (no room) still moves these
+ * numbers. Honest fix only: the API responses and web copy label these as
+ * account-wide. A genuinely room-scoped aggregate needs a room dimension on the
+ * rollup (or sessions) — deliberately NOT attempted here.
  */
 import { Hono } from "hono";
 import type { Env } from "../env.js";
