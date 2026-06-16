@@ -370,7 +370,9 @@ export async function recordSessionsBatch(
 
   // Step 1: INSERT new sessions.
   if (toInsert.length > 0) {
-    const insertStmts = toInsert.map(({ record }) => buildInsertStmt(env, userId, record, deviceId));
+    const insertStmts = toInsert.map(({ record }) =>
+      buildInsertStmt(env, userId, record, deviceId),
+    );
     let cursor = 0;
     for (const group of chunk(insertStmts, D1_BATCH_LIMIT)) {
       const results = await env.DB.batch(group);
