@@ -167,6 +167,7 @@ const EN = {
   "onb.quickStart": "Quick start",
   "onb.gotoDash": "Go to dashboard",
   "onb.refresh": "Refresh",
+  "onb.waiting": "Watching for your first sync…",
 
   /* InstallBlock */
   "install.runsLocally":
@@ -308,6 +309,7 @@ const PT_BR: Record<keyof typeof EN, string> = {
   "onb.quickStart": "Início rápido",
   "onb.gotoDash": "Ir para o dashboard",
   "onb.refresh": "Atualizar",
+  "onb.waiting": "Aguardando sua primeira sincronização…",
 
   /* InstallBlock */
   "install.runsLocally":

@@ -14,9 +14,84 @@ import { deleteToken, ensureDeviceId, loadToken, markDisconnected } from "../lib
 import { CLI_VERSION } from "../lib/cli-version.js";
 import { extractCursorGenerations } from "../lib/cursor-extract.js";
 import { discoverClaudeCodeFiles, discoverCodexFiles } from "../lib/discover.js";
-import { dim, error, info, spinner, success, warn } from "../lib/log.js";
+import { bold, c, dim, error, info, spinner, success, warn } from "../lib/log.js";
 
 const BATCH_SIZE = 500;
+
+const WEB_ORIGIN = "https://tokenrats.com";
+
+/** Compute the trailing current streak (consecutive UTC days ending today or
+ *  yesterday) from a list of YYYY-MM-DD days that had ≥1 session. Mirrors the
+ *  server's room-streak definition in apps/api/src/routes/streaks.ts. */
+function currentStreakFromDays(days: string[], todayUtc: string): number {
+  const active = days.slice().sort();
+  if (active.length === 0) return 0;
+  const last = active[active.length - 1]!;
+  const yesterday = (() => {
+    const d = new Date(`${todayUtc}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return d.toISOString().slice(0, 10);
+  })();
+  if (last !== todayUtc && last !== yesterday) return 0;
+  let streak = 1;
+  for (let i = active.length - 1; i >= 1; i--) {
+    const prev = new Date(`${active[i - 1]}T00:00:00Z`).getTime();
+    const curr = new Date(`${active[i]}T00:00:00Z`).getTime();
+    if (Math.round((curr - prev) / 86_400_000) === 1) streak++;
+    else break;
+  }
+  return streak;
+}
+
+/**
+ * Post-sync "hero moment": fetch the user's global rank, current streak and
+ * profile URL, then print them with a ready-to-paste "Post to X" line.
+ *
+ * Every fetch is best-effort — any network or parse failure is swallowed so a
+ * flaky connection never turns a successful sync into a crash.
+ */
+async function printSyncHero(client: ApiClient): Promise<void> {
+  let handle: string;
+  try {
+    const me = await client.getMe();
+    handle = me.user.handle;
+  } catch {
+    return; // can't identify the user — skip the hero block entirely
+  }
+
+  const todayUtc = new Date().toISOString().slice(0, 10);
+
+  const [trending, heatmap] = await Promise.all([
+    client.getTrending("30d").catch(() => null),
+    client.getHeatmap(handle).catch(() => null),
+  ]);
+
+  const rank = trending?.rows.find((r) => r.handle === handle)?.rank ?? null;
+  const streak =
+    heatmap === null
+      ? 0
+      : currentStreakFromDays(
+          heatmap.heatmap.days.filter((d) => d.sessions > 0).map((d) => d.day),
+          todayUtc,
+        );
+
+  const profileUrl = `${WEB_ORIGIN}/u/${handle}`;
+
+  console.log("");
+  bold("🐀 Your Token Rats standing");
+  if (rank !== null) info(`Global rank: #${rank}`);
+  if (streak > 0) info(`Current streak: ${streak} day${streak === 1 ? "" : "s"} 🔥`);
+  info(`Profile: ${profileUrl}`);
+
+  const rankPart = rank !== null ? `ranked #${rank} globally` : "on the board";
+  const streakPart = streak > 0 ? ` on a ${streak}-day streak` : "";
+  const tweet = `I'm ${rankPart}${streakPart} on @tokenrats — tracking my AI coding tokens. 🐀`;
+  const intent = `https://x.com/intent/tweet?text=${encodeURIComponent(tweet)}&url=${encodeURIComponent(profileUrl)}`;
+
+  console.log("");
+  dim("Brag about it — Post to X:");
+  console.log(`  ${process.stdout.isTTY ? `${c.cyan}${intent}${c.reset}` : intent}`);
+}
 
 export interface SyncOptions {
   apiUrl?: string;
@@ -258,4 +333,11 @@ export async function syncCommand(opts: SyncOptions): Promise<void> {
   success(
     `Synced ${allSessions.length} sessions (${totalAccepted} new, ${totalDuplicates} already on server) from ${sourceStr}`,
   );
+
+  // Hero moment — best-effort, never blocks or fails the sync.
+  try {
+    await printSyncHero(client!);
+  } catch {
+    // ignore: the sync already succeeded
+  }
 }

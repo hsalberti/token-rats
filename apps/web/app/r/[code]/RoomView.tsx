@@ -110,6 +110,34 @@ function buildShareText(opts: {
 }
 
 /**
+ * "Post to X" intent for the room recap. X appends the room URL from the `url`
+ * param, so the tweet text omits the trailing link the copy-recap text carries.
+ */
+function buildRecapXIntent(opts: {
+  roomName: string;
+  roomCode: string;
+  range: LeaderboardRange;
+  rows: Leaderboard["rows"];
+  totalTokens: number;
+}): string {
+  const { roomName, roomCode, range, rows, totalTokens } = opts;
+  const joinUrl = `https://tokenrats.com/join/${roomCode}`;
+  const top = rows.slice(0, 3);
+
+  const lines =
+    top.length === 0
+      ? [`${roomName} on @tokenrats 🐀`]
+      : [
+          `${roomName} — ${SHARE_RANGE_LABELS[range]} 🐀`,
+          ...top.map((r, i) => `${MEDALS[i]} @${r.handle} ${fmtTokens(r.tokens)}`),
+          "",
+          `${fmtTokens(totalTokens)} tokens burned. Join the rats:`,
+        ];
+  const text = lines.join("\n");
+  return `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(joinUrl)}`;
+}
+
+/**
  * Invite-link copy. Same `[TR🔶🐭]` brand mark + URL-on-its-own-line layout as
  * the share-recap text so the two messages read like they came out of the same
  * mouth. The URL stays as the last token so X / iMessage previews lock onto it.
@@ -439,6 +467,20 @@ export function RoomView({
             <Button variant="secondary" size="sm" onClick={handleShare}>
               {shareCopied ? "Copied!" : "Share recap"}
             </Button>
+            <a
+              href={buildRecapXIntent({
+                roomName: room.name,
+                roomCode: room.code,
+                range,
+                rows: leaderboard.rows,
+                totalTokens,
+              })}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-black transition-colors duration-150 hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 focus-visible:ring-zinc-500"
+            >
+              Post to X
+            </a>
             <Button variant="secondary" size="sm" onClick={handleInvite}>
               {inviteCopied ? "Copied!" : "Copy invite link"}
             </Button>

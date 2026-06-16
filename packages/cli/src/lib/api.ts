@@ -10,8 +10,11 @@
 import type { SessionRecord } from "@token-rats/contracts";
 import type {
   DeviceHeartbeatResponse,
+  GetHeatmapResponse,
   GetMeDevicesResponse,
   GetMeResponse,
+  GetProfileResponse,
+  GetTrendingResponse,
   UploadSessionsResponse,
 } from "@token-rats/contracts";
 import { ENDPOINTS } from "@token-rats/contracts";
@@ -159,6 +162,21 @@ export class ApiClient {
   /** Upload sessions in one batch (≤500). */
   async uploadSessions(sessions: SessionRecord[]): Promise<UploadSessionsResponse> {
     return this.post<UploadSessionsResponse>(ENDPOINTS.sessions, { sessions });
+  }
+
+  /** GET /v1/u/:handle */
+  async getProfile(handle: string): Promise<GetProfileResponse> {
+    return this.get<GetProfileResponse>(ENDPOINTS.profile(handle));
+  }
+
+  /** GET /v1/u/:handle/heatmap?range=30d — used to derive the current streak. */
+  async getHeatmap(handle: string): Promise<GetHeatmapResponse> {
+    return this.get<GetHeatmapResponse>(ENDPOINTS.profileHeatmap(handle));
+  }
+
+  /** GET /v1/trending?range — global public leaderboard, used to derive rank. */
+  async getTrending(range: "today" | "7d" | "30d" = "30d"): Promise<GetTrendingResponse> {
+    return this.get<GetTrendingResponse>(`${ENDPOINTS.trending}?range=${range}`);
   }
 
   /** GET /v1/me/devices */
