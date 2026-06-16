@@ -130,6 +130,12 @@ export function AutobiographyReveal({ stats, handle }: Props) {
   const steps = buildSteps(stats);
   const [visibleCount, setVisibleCount] = useState(0);
   const [done, setDone] = useState(false);
+  // Absolute origin for the X intent URL — resolved after mount to avoid a
+  // hydration mismatch against the SSR fallback.
+  const [origin, setOrigin] = useState("");
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
 
   // Reveal one step at a time, 600ms apart after initial 200ms delay.
   useEffect(() => {
@@ -151,6 +157,13 @@ export function AutobiographyReveal({ stats, handle }: Props) {
     const url = `${window.location.origin}/u/${handle}?og=autobiography`;
     navigator.clipboard.writeText(url).catch(() => {});
   }
+
+  // Pre-filled "Post to X" intent. The URL is appended by X from the `url`
+  // param, so the tweet text stays clean. Disabled until origin resolves.
+  const tweetText = `My Token Autobiography: ${fmtTokens(stats.totalTokens)} tokens burned across ${stats.totalSessions.toLocaleString("en-US")} AI coding sessions 🐀🔥 via @tokenrats`;
+  const xIntentUrl = origin
+    ? `https://x.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(`${origin}/u/${handle}?og=autobiography`)}`
+    : "";
 
   return (
     <div className="mx-auto max-w-xl w-full">
@@ -196,6 +209,20 @@ export function AutobiographyReveal({ stats, handle }: Props) {
             Copy link
           </button>
         </div>
+
+        <a
+          href={xIntentUrl || undefined}
+          target="_blank"
+          rel="noreferrer"
+          aria-disabled={xIntentUrl === ""}
+          className={[
+            "inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-colors",
+            "bg-white text-black hover:bg-zinc-200",
+            xIntentUrl === "" ? "pointer-events-none opacity-50" : "",
+          ].join(" ")}
+        >
+          Post to X
+        </a>
 
         <div className="text-center">
           <a

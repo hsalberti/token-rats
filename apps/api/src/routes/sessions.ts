@@ -21,6 +21,7 @@ import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { rateLimited, validationError } from "../lib/errors.js";
 import { recordSessionsBatch, toUtcDay, upsertDeviceForIngest } from "../lib/ingest.js";
+import { maybeNotifyMilestone } from "../lib/milestone-notify.js";
 import { loadPriceIndex, priceWithIndex } from "../lib/pricing.js";
 import { rateLimit } from "../lib/rate-limit.js";
 import type { AuthVariables } from "../middleware/auth.js";
@@ -197,6 +198,11 @@ sessions.post("/", requireAuth, async (c) => {
     const totalTokens = newRecords.reduce((s, r) => s + r.inTokens + r.outTokens, 0);
     const totalCostUsdCents = newRecords.reduce((s, r) => s + r.costUsdCents, 0);
     c.executionCtx.waitUntil(fanoutToRooms(c.env, userId, totalTokens, totalCostUsdCents));
+    // Best-effort lifetime-token milestone push. Self-contained + idempotent;
+    // swallows its own errors so it can never affect ingest.
+    c.executionCtx.waitUntil(
+      maybeNotifyMilestone(c.env, userId, totalTokens).catch(() => undefined),
+    );
   }
 
   return c.json({ accepted, duplicates });

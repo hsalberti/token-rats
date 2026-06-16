@@ -4,12 +4,9 @@
  * Auth-required server page. Fetches the user's autobiography stats from
  * GET /v1/u/:handle/autobiography and renders the animated reveal client
  * component. Users who have zero sessions see a "go run npx token-rats sync"
- * nudge instead of an empty autobiography.
- *
- * TODO (CLI wire-up): After `npx token-rats sync` succeeds for the first time,
- * print a line like:
- *   "  🐀  Your Token Autobiography is ready: https://tokenrats.com/onboarding"
- * This will make /onboarding discoverable from the CLI.
+ * nudge instead of an empty autobiography. When the user has no sessions yet,
+ * FirstSyncWatcher polls their profile and auto-reloads the moment the first
+ * synced session lands, so the autobiography reveals itself hands-free.
  */
 
 import type { AutobiographyStats } from "@token-rats/contracts";
@@ -19,6 +16,7 @@ import { InstallBlock } from "../../components/InstallBlock";
 import { NodeInstallHint } from "../../components/NodeInstallHint";
 import { PrivacyFooter } from "../../components/PrivacyFooter";
 import { AutobiographyReveal } from "../../components/onboarding/AutobiographyReveal";
+import { FirstSyncWatcher } from "../../components/onboarding/FirstSyncWatcher";
 import { Wordmark } from "../../components/ui/Wordmark.js";
 import { ApiError, api } from "../../lib/api";
 import { getCookieHeader, requireSession } from "../../lib/auth";
@@ -152,19 +150,16 @@ function NoSessionsView({ handle, locale }: { handle: string; locale: Locale }) 
           <NodeInstallHint locale={locale} />
         </div>
 
-        <div className="flex gap-4">
+        <div className="flex flex-col items-center gap-4">
           <a
             href="/app"
             className="inline-flex items-center gap-2 rounded-lg bg-rat-500 px-5 py-2.5 text-sm font-bold text-white hover:bg-rat-600 transition-colors"
           >
             {t(locale, "onb.gotoDash")}
           </a>
-          <a
-            href="/onboarding"
-            className="inline-flex items-center gap-2 rounded-lg bg-zinc-800 px-5 py-2.5 text-sm font-semibold text-zinc-100 hover:bg-zinc-700 transition-colors"
-          >
-            {t(locale, "onb.refresh")}
-          </a>
+          {/* Auto-detects the first sync and reveals the autobiography — no
+              manual refresh needed. */}
+          <FirstSyncWatcher handle={handle} waitingLabel={t(locale, "onb.waiting")} />
         </div>
       </main>
       <PrivacyFooter />
