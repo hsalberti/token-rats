@@ -16,7 +16,7 @@ import { extractCursorGenerations } from "../lib/cursor-extract.js";
 import { discoverClaudeCodeFiles, discoverCodexFiles } from "../lib/discover.js";
 import { dim, error, info, spinner, success, warn } from "../lib/log.js";
 
-const BATCH_SIZE = 500;
+const BATCH_SIZE = 150;
 
 export interface SyncOptions {
   apiUrl?: string;

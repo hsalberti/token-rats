@@ -20,8 +20,8 @@ import { UploadSessionsRequest } from "@token-rats/contracts";
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { rateLimited, validationError } from "../lib/errors.js";
-import { recordSession, toUtcDay, upsertDeviceForIngest } from "../lib/ingest.js";
-import { priceOf } from "../lib/pricing.js";
+import { recordSessionsBatch, toUtcDay, upsertDeviceForIngest } from "../lib/ingest.js";
+import { loadPriceIndex, priceWithIndex } from "../lib/pricing.js";
 import { rateLimit } from "../lib/rate-limit.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -166,29 +166,34 @@ sessions.post("/", requireAuth, async (c) => {
     }
   }
 
-  const pricedRecords = await Promise.all(
-    records.map(async (r) => {
-      if (r.inTokens + r.outTokens === 0) return { ...r, costUsdCents: 0 };
-      const { costUsdCents } = await priceOf(
-        c.env,
-        r.model,
-        toUtcDay(r.startedAt),
-        r.inTokens,
-        r.outTokens,
-      );
-      return { ...r, costUsdCents };
-    }),
+  // Price the whole batch in-memory off a single index load. priceOf() does a
+  // KV/D1 round-trip per call, which blows the Worker subrequest budget on a
+  // large multi-record ingest; loadPriceIndex pulls the (small) price tables
+  // once and priceWithIndex resolves each record with zero I/O.
+  const priceIndex = await loadPriceIndex(c.env);
+  const pricedRecords = records.map((r) => {
+    if (r.inTokens + r.outTokens === 0) return { ...r, costUsdCents: 0 };
+    const { costUsdCents } = priceWithIndex(
+      priceIndex,
+      r.model,
+      toUtcDay(r.startedAt),
+      r.inTokens,
+      r.outTokens,
+    );
+    return { ...r, costUsdCents };
+  });
+
+  const { inserted, acceptedCount: accepted } = await recordSessionsBatch(
+    c.env,
+    userId,
+    pricedRecords,
+    { deviceId },
   );
 
-  const results = await Promise.all(
-    pricedRecords.map((r) => recordSession(c.env, userId, r, { deviceId })),
-  );
-
-  const accepted = results.filter((r) => r.inserted).length;
   const duplicates = records.length - accepted;
 
   if (accepted > 0) {
-    const newRecords = pricedRecords.filter((_, i) => results[i]?.inserted);
+    const newRecords = pricedRecords.filter((_, i) => inserted[i]);
     const totalTokens = newRecords.reduce((s, r) => s + r.inTokens + r.outTokens, 0);
     const totalCostUsdCents = newRecords.reduce((s, r) => s + r.costUsdCents, 0);
     c.executionCtx.waitUntil(fanoutToRooms(c.env, userId, totalTokens, totalCostUsdCents));
