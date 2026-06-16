@@ -5,7 +5,7 @@
  * D1/KV so no real database is needed:
  *   - A revoked device short-circuits with 401 BEFORE any priced upsert runs.
  *   - A malformed X-Device-Id is dropped (treated as no device), not trusted in SQL.
- *   - The zero-token bypass never reaches the pricing catalog.
+ *   - A multi-record batch prices off a single price-index load (no per-session N+1).
  *   - An empty `sessions` array is a heartbeat (accepted: 0) and bumps the device.
  */
 
@@ -204,8 +204,8 @@ describe("POST /v1/sessions — malformed device id", () => {
   });
 });
 
-describe("POST /v1/sessions — zero-token bypass", () => {
-  it("does not consult the pricing catalog for a zero-token session", async () => {
+describe("POST /v1/sessions — batched pricing (no per-session N+1)", () => {
+  it("loads the price catalog once for a multi-record batch, not once per session", async () => {
     const plan: D1Plan = {
       firstFor: [{ match: (s) => s.includes("FROM users WHERE id"), value: { handle: "alice" } }],
       preparedSql: [],
@@ -216,17 +216,28 @@ describe("POST /v1/sessions — zero-token bypass", () => {
 
     const res = await app.fetch(
       makeUploadRequest(
-        { sessions: [record({ inTokens: 0, outTokens: 0 })] },
+        {
+          sessions: [
+            record({ id: "sess-a", dedupeKey: "hash-a", inTokens: 100, outTokens: 50 }),
+            record({ id: "sess-b", dedupeKey: "hash-b", inTokens: 200, outTokens: 80 }),
+            // a zero-token record still rides along in the same batch
+            record({ id: "sess-c", dedupeKey: "hash-c", inTokens: 0, outTokens: 0 }),
+          ],
+        },
         await authHeader("user-1"),
       ),
     );
 
     expect(res.status).toBe(200);
     const body = (await res.json()) as { accepted: number; duplicates: number };
-    expect(body.accepted).toBe(1);
-    // Zero-token records skip priceOf entirely.
-    expect(plan.preparedSql.some((s) => s.includes("models_catalog"))).toBe(false);
-    expect(plan.preparedSql.some((s) => s.includes("FROM model_price_snapshots"))).toBe(false);
+    expect(body.accepted).toBe(3);
+    // The price index is loaded exactly ONCE per request via loadPriceIndex, then
+    // every record is priced in-memory — not a per-session priceOf round-trip.
+    // With the old code, models_catalog would be queried once per priced record.
+    expect(plan.preparedSql.filter((s) => s.includes("FROM models_catalog"))).toHaveLength(1);
+    expect(plan.preparedSql.filter((s) => s.includes("FROM model_price_snapshots"))).toHaveLength(
+      1,
+    );
   });
 });
 
