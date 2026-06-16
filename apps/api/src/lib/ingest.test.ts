@@ -78,9 +78,9 @@ describe("recordSession", () => {
     const result = await recordSession(env, "user-1", record);
 
     expect(result.inserted).toBe(true);
-    // prepare is called 3 times: INSERT, legacy daily_rollup, granular
-    // daily_rollup_by_model.
-    expect((d1.prepare as Mock).mock.calls.length).toBe(3);
+    // prepare is called 4 times: SELECT (existing check), INSERT, legacy
+    // daily_rollup, granular daily_rollup_by_model.
+    expect((d1.prepare as Mock).mock.calls.length).toBe(4);
   });
 
   it("returns { inserted: false } for a duplicate session and skips the rollup", async () => {
@@ -91,8 +91,8 @@ describe("recordSession", () => {
     const result = await recordSession(env, "user-1", record);
 
     expect(result.inserted).toBe(false);
-    // Only the INSERT should be prepared; rollup upsert must NOT run
-    expect((d1.prepare as Mock).mock.calls.length).toBe(1);
+    // SELECT + INSERT should be prepared; rollup upsert must NOT run
+    expect((d1.prepare as Mock).mock.calls.length).toBe(2);
   });
 
   it("uses the session's startedAt timestamp to derive the rollup day", async () => {
@@ -103,16 +103,17 @@ describe("recordSession", () => {
 
     await recordSession(env, "user-1", record);
 
-    // prepare() is called 3 times: INSERT, legacy rollup, granular rollup.
-    expect((d1.prepare as Mock).mock.calls.length).toBe(3);
+    // prepare() is called 4 times: SELECT (existing check), INSERT, legacy
+    // rollup, granular rollup.
+    expect((d1.prepare as Mock).mock.calls.length).toBe(4);
 
     // All prepare() calls return the same stmtMock (mockReturnValue), so
-    // bind() is recorded on the same object. bind[0] = INSERT, bind[1] =
-    // legacy daily_rollup, bind[2] = daily_rollup_by_model.
+    // bind() is recorded on the same object. bind[0] = SELECT, bind[1] =
+    // INSERT, bind[2] = legacy daily_rollup, bind[3] = daily_rollup_by_model.
     const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as {
       bind: Mock;
     };
-    const legacyRollupBind = stmtResult?.bind?.mock.calls[1] as unknown[];
+    const legacyRollupBind = stmtResult?.bind?.mock.calls[2] as unknown[];
     expect(legacyRollupBind).toBeDefined();
     // legacyRollupBind = [userId, day, tokens, costUsdCents, sessionCount]
     expect(legacyRollupBind[0]).toBe("user-1");
@@ -127,15 +128,16 @@ describe("recordSession", () => {
 
     await recordSession(env, "user-1", record);
 
+    // bind[0] = SELECT, bind[1] = INSERT, bind[2] = legacy rollup, bind[3] = granular rollup
     const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
-    const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
+    const insertBind = stmtResult?.bind?.mock.calls[1] as unknown[];
     // INSERT bind order: id, userId, source, provider, client, channel, model, ...
     expect(insertBind[2]).toBe("codex");
     expect(insertBind[3]).toBe("openai");
     expect(insertBind[4]).toBe("codex-cli");
     expect(insertBind[5]).toBe("cli");
 
-    const granularBind = stmtResult?.bind?.mock.calls[2] as unknown[];
+    const granularBind = stmtResult?.bind?.mock.calls[3] as unknown[];
     // granular bind order: userId, day, source, provider, model, ...
     expect(granularBind[2]).toBe("codex");
     expect(granularBind[3]).toBe("openai");
@@ -149,8 +151,9 @@ describe("recordSession", () => {
 
     await recordSession(env, "user-1", record, { deviceId: "device-aaa" });
 
+    // bind[0] = SELECT, bind[1] = INSERT
     const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
-    const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
+    const insertBind = stmtResult?.bind?.mock.calls[1] as unknown[];
     // device_id is the LAST bind argument (column #17 in the INSERT).
     expect(insertBind[insertBind.length - 1]).toBe("device-aaa");
   });
@@ -185,8 +188,8 @@ describe("recordSession", () => {
 
     expect(r1.inserted).toBe(true);
     expect(r2.inserted).toBe(true);
-    // Two records × (INSERT + 2 rollup upserts) = 6 prepare() calls.
-    expect((d1.prepare as Mock).mock.calls.length).toBe(6);
+    // Two records × (SELECT + INSERT + 2 rollup upserts) = 8 prepare() calls.
+    expect((d1.prepare as Mock).mock.calls.length).toBe(8);
   });
 
   it("forwards granular cache + reasoning fields when provided", async () => {
@@ -202,15 +205,16 @@ describe("recordSession", () => {
 
     await recordSession(env, "user-1", record);
 
+    // bind[0] = SELECT, bind[1] = INSERT, bind[2] = legacy rollup, bind[3] = granular rollup
     const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
-    const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
+    const insertBind = stmtResult?.bind?.mock.calls[1] as unknown[];
     // INSERT bind order continues:
     //   ..., model, in_tokens, out_tokens, cache_read, cache_write, reasoning, ...
     expect(insertBind[9]).toBe(12_000);
     expect(insertBind[10]).toBe(800);
     expect(insertBind[11]).toBe(0);
 
-    const granularBind = stmtResult?.bind?.mock.calls[2] as unknown[];
+    const granularBind = stmtResult?.bind?.mock.calls[3] as unknown[];
     // granular bind order continues:
     //   ..., in_tokens, out_tokens, cache_read, cache_write, reasoning, cost, 1
     expect(granularBind[7]).toBe(12_000);
@@ -230,8 +234,9 @@ describe("recordSession", () => {
 
     await recordSession(env, "user-1", record);
 
+    // bind[0] = SELECT, bind[1] = INSERT
     const stmtResult = (d1.prepare as Mock).mock.results[0]?.value as { bind: Mock };
-    const insertBind = stmtResult?.bind?.mock.calls[0] as unknown[];
+    const insertBind = stmtResult?.bind?.mock.calls[1] as unknown[];
     expect(insertBind[3]).toBe("openrouter");
     expect(insertBind[4]).toBe("openclaw");
     expect(insertBind[5]).toBe("api");
@@ -272,6 +277,10 @@ function makeBatchD1Mock(insertedFor: (sessionId: string) => boolean): {
           stmt.binds = args;
           calls.push({ sql, binds: args });
           return stmt;
+        },
+        // The SELECT for existing sessions uses .all() (not batch).
+        all() {
+          return Promise.resolve({ results: [] });
         },
       };
       return stmt;
@@ -368,6 +377,74 @@ describe("recordSessionsBatch", () => {
     const legacyRollupCalls = calls.filter((c) => c.sql.includes("INSERT INTO daily_rollup ("));
     // Only the 5 inserted rows get a rollup upsert.
     expect(legacyRollupCalls.length).toBe(5);
+  });
+
+  it("updates token count and applies a delta rollup when a session re-syncs with more tokens", async () => {
+    // Regression: the watch daemon uploads a session the moment the JSONL file
+    // is created (0 tokens, only user turns). Subsequent uploads of the same
+    // session id with assistant tokens must increase the rollup, not be ignored.
+    const calls: BatchCall[] = [];
+    const batchSizes: number[] = [];
+
+    const existingSession = {
+      id: "sess-001",
+      in_tokens: 0,
+      out_tokens: 0,
+      cache_read_tokens: 0,
+      cache_write_tokens: 0,
+      reasoning_tokens: 0,
+      cost_usd_cents: 0,
+    };
+
+    const db = {
+      prepare: (sql: string) => {
+        const stmt = {
+          sql,
+          binds: [] as unknown[],
+          bind(...args: unknown[]) {
+            stmt.binds = args;
+            calls.push({ sql, binds: args });
+            return stmt;
+          },
+          all() {
+            // Simulate the session already existing in DB with 0 tokens.
+            return Promise.resolve({ results: [existingSession] });
+          },
+        };
+        return stmt;
+      },
+      batch: async (stmts: Array<{ sql: string; binds: unknown[] }>) => {
+        batchSizes.push(stmts.length);
+        return stmts.map(() => ({ meta: { changes: 1 } }));
+      },
+    } as unknown as Pick<D1Database, "prepare">;
+
+    const env = makeEnv(db);
+    const record = makeRecord({ id: "sess-001", inTokens: 100, outTokens: 50, costUsdCents: 5 });
+
+    const result = await recordSessionsBatch(env, "user-1", [record]);
+
+    // Should be reported as accepted (token growth = update).
+    expect(result.acceptedCount).toBe(1);
+    expect(result.inserted[0]).toBe(true);
+
+    // Must NOT attempt an INSERT — session already exists.
+    const insertCalls = calls.filter((c) => c.sql.includes("INSERT OR IGNORE INTO sessions"));
+    expect(insertCalls.length).toBe(0);
+
+    // Must attempt an UPDATE.
+    const updateCalls = calls.filter((c) => c.sql.includes("UPDATE sessions SET"));
+    expect(updateCalls.length).toBe(1);
+
+    // Rollup must use delta (150 - 0 = 150), not the full new amount.
+    const legacyRollup = calls.find((c) => c.sql.includes("INSERT INTO daily_rollup ("));
+    expect(legacyRollup).toBeDefined();
+    // bind: [userId, day, deltaTokens, deltaCost]
+    expect(legacyRollup?.binds[2]).toBe(150); // delta tokens
+    expect(legacyRollup?.binds[3]).toBe(5); // delta cost
+
+    // The legacy rollup INSERT must NOT include a sessions increment (no +1).
+    expect(legacyRollup?.sql).not.toContain("sessions       + excluded.sessions");
   });
 
   it("returns an empty result without touching the DB for zero records", async () => {

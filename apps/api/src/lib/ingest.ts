@@ -6,8 +6,17 @@
  * a single `SessionRecord` into `sessions` + `daily_rollup` +
  * `daily_rollup_by_model`.
  *
- * Idempotency is guaranteed via the `dedupe_key` column:
- *   INSERT OR IGNORE → if rows == 0, it was already there.
+ * Idempotency / growing-session semantics:
+ *   - If the session `id` is not in the DB → INSERT + full rollup.
+ *   - If the session `id` already exists AND the incoming record has MORE
+ *     tokens (in + out) than the stored row → UPDATE the session row and
+ *     apply the DELTA to the rollups. This handles the common case where the
+ *     watch daemon uploads a session the moment a file is created (0 tokens,
+ *     only user turns so far) and then re-uploads once assistant turns
+ *     accumulate tokens. The first INSERT stored 0 tokens; without the delta
+ *     path the `INSERT OR IGNORE` on the `id` PK would silently discard every
+ *     subsequent re-upload and leave the leaderboard frozen at 0.
+ *   - If the session already exists with the same or more tokens → true no-op.
  *
  * Multi-device (migration 0017): when the caller provides a `deviceId`, the
  * sessions row is stamped with it and the `devices` table is upserted via
@@ -37,6 +46,16 @@ export interface RecordSessionOptions {
   deviceId?: string | null;
 }
 
+/** Snapshot of the token columns we need to compute rollup deltas. */
+interface ExistingTokens {
+  in_tokens: number;
+  out_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
+  reasoning_tokens: number;
+  cost_usd_cents: number;
+}
+
 export async function recordSession(
   env: Env,
   userId: string,
@@ -45,15 +64,35 @@ export async function recordSession(
 ): Promise<RecordSessionResult> {
   const deviceId = opts.deviceId ?? null;
 
-  const insertStmt = buildInsertStmt(env, userId, record, deviceId);
-  const [insertResult] = await env.DB.batch([insertStmt]);
-  const inserted = (insertResult?.meta?.changes ?? 0) > 0;
+  const existing = await env.DB.prepare(
+    `SELECT in_tokens, out_tokens, cache_read_tokens, cache_write_tokens,
+            reasoning_tokens, cost_usd_cents
+       FROM sessions WHERE id = ?`,
+  )
+    .bind(record.id)
+    .first<ExistingTokens>();
 
-  if (inserted) {
-    await env.DB.batch(buildRollupStmts(env, userId, record));
+  if (!existing) {
+    const insertStmt = buildInsertStmt(env, userId, record, deviceId);
+    const [insertResult] = await env.DB.batch([insertStmt]);
+    const inserted = (insertResult?.meta?.changes ?? 0) > 0;
+    if (inserted) {
+      await env.DB.batch(buildRollupStmts(env, userId, record));
+    }
+    return { inserted };
   }
 
-  return { inserted };
+  if (record.inTokens + record.outTokens > existing.in_tokens + existing.out_tokens) {
+    const updateStmt = buildUpdateTokensStmt(env, userId, record);
+    const [updateResult] = await env.DB.batch([updateStmt]);
+    const updated = (updateResult?.meta?.changes ?? 0) > 0;
+    if (updated) {
+      await env.DB.batch(buildRollupDeltaStmts(env, userId, record, existing));
+    }
+    return { inserted: updated };
+  }
+
+  return { inserted: false };
 }
 
 /** Max statements per D1 `batch()` call (D1 caps a batch at 100 statements). */
@@ -106,6 +145,47 @@ function buildInsertStmt(
     record.endedAt,
     record.dedupeKey,
     deviceId,
+  );
+}
+
+/**
+ * UPDATE an existing session row when re-syncing produces a higher token count.
+ * Takes the MAX of ended_at so the session window can grow; always uses the
+ * latest model slug (last-seen-wins, same as the parser).
+ */
+function buildUpdateTokensStmt(
+  env: Env,
+  userId: string,
+  record: SessionRecord,
+): D1PreparedStatement {
+  const cacheReadTokens = record.cacheReadTokens ?? 0;
+  const cacheWriteTokens = record.cacheWriteTokens ?? 0;
+  const reasoningTokens = record.reasoningTokens ?? 0;
+
+  return env.DB.prepare(
+    `UPDATE sessions SET
+       in_tokens          = ?,
+       out_tokens         = ?,
+       cache_read_tokens  = ?,
+       cache_write_tokens = ?,
+       reasoning_tokens   = ?,
+       cost_usd_cents     = ?,
+       ended_at           = MAX(ended_at, ?),
+       model              = ?,
+       dedupe_key         = ?
+     WHERE id = ? AND user_id = ?`,
+  ).bind(
+    record.inTokens,
+    record.outTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+    reasoningTokens,
+    record.costUsdCents,
+    record.endedAt,
+    record.model,
+    record.dedupeKey,
+    record.id,
+    userId,
   );
 }
 
@@ -163,8 +243,71 @@ function buildRollupStmts(
   ];
 }
 
+/**
+ * Build rollup UPDATE statements that apply only the TOKEN DELTA for a session
+ * whose row already existed in `sessions`. Does NOT increment session counts
+ * since the session was already counted on its first insertion.
+ */
+function buildRollupDeltaStmts(
+  env: Env,
+  userId: string,
+  record: SessionRecord,
+  old: ExistingTokens,
+): [D1PreparedStatement, D1PreparedStatement] {
+  const provider = record.provider ?? defaultProviderForSource(record.source);
+  const cacheReadTokens = record.cacheReadTokens ?? 0;
+  const cacheWriteTokens = record.cacheWriteTokens ?? 0;
+  const reasoningTokens = record.reasoningTokens ?? 0;
+  const day = toUtcDay(record.startedAt);
+
+  const deltaTokens = record.inTokens + record.outTokens - old.in_tokens - old.out_tokens;
+  const deltaCost = record.costUsdCents - old.cost_usd_cents;
+  const deltaIn = record.inTokens - old.in_tokens;
+  const deltaOut = record.outTokens - old.out_tokens;
+  const deltaCacheRead = cacheReadTokens - old.cache_read_tokens;
+  const deltaCacheWrite = cacheWriteTokens - old.cache_write_tokens;
+  const deltaReasoning = reasoningTokens - old.reasoning_tokens;
+
+  return [
+    env.DB.prepare(
+      `INSERT INTO daily_rollup (user_id, day, tokens, cost_usd_cents, sessions)
+         VALUES (?, ?, ?, ?, 0)
+         ON CONFLICT(user_id, day) DO UPDATE SET
+           tokens         = tokens         + excluded.tokens,
+           cost_usd_cents = cost_usd_cents + excluded.cost_usd_cents`,
+    ).bind(userId, day, deltaTokens, deltaCost),
+    env.DB.prepare(
+      `INSERT INTO daily_rollup_by_model
+         (user_id, day, source, provider, model,
+          in_tokens, out_tokens,
+          cache_read_tokens, cache_write_tokens, reasoning_tokens,
+          cost_usd_cents, sessions)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+       ON CONFLICT(user_id, day, source, provider, model) DO UPDATE SET
+         in_tokens          = in_tokens          + excluded.in_tokens,
+         out_tokens         = out_tokens         + excluded.out_tokens,
+         cache_read_tokens  = cache_read_tokens  + excluded.cache_read_tokens,
+         cache_write_tokens = cache_write_tokens + excluded.cache_write_tokens,
+         reasoning_tokens   = reasoning_tokens   + excluded.reasoning_tokens,
+         cost_usd_cents     = cost_usd_cents     + excluded.cost_usd_cents`,
+    ).bind(
+      userId,
+      day,
+      record.source,
+      provider,
+      record.model,
+      deltaIn,
+      deltaOut,
+      deltaCacheRead,
+      deltaCacheWrite,
+      deltaReasoning,
+      deltaCost,
+    ),
+  ];
+}
+
 export interface RecordSessionsBatchResult {
-  /** Parallel to the input array: `true` where the session was newly inserted. */
+  /** Parallel to the input array: `true` where the session was newly inserted or had its token count updated. */
   inserted: boolean[];
   /** Count of newly inserted (non-duplicate) sessions. */
   acceptedCount: number;
@@ -175,14 +318,14 @@ export interface RecordSessionsBatchResult {
  *
  * Collapses what used to be `O(records)` sequential `DB.batch` round-trips into
  * a handful of chunked batches (≤ `D1_BATCH_LIMIT` statements each):
- *   1. All `INSERT OR IGNORE` statements, in one set of chunks. The per-row
- *      `meta.changes` tells us which rows were genuinely new (PK dedupe).
- *   2. The two rollup upserts for every newly-inserted row, in another set of
- *      chunks — duplicates contribute nothing, exactly as before.
+ *   0. One SELECT to fetch existing token counts for all incoming session IDs.
+ *   1. All `INSERT OR IGNORE` statements for new sessions, in one set of chunks.
+ *   2. All `UPDATE` statements for sessions with token-count increases.
+ *   3. Full rollup upserts for new inserts + delta rollup updates for token growth.
  *
- * Behaviour is identical to calling `recordSession` once per record: same
- * dedupe-via-PK semantics, same rollup math, same device stamping. Records are
- * expected to already carry their server-priced `costUsdCents`.
+ * The `inserted` array is `true` for both genuinely new sessions AND for
+ * existing sessions whose token count grew — callers use it to fan out live
+ * events and check milestones, both of which are fine with over-reporting.
  */
 export async function recordSessionsBatch(
   env: Env,
@@ -197,24 +340,74 @@ export async function recordSessionsBatch(
     return { inserted, acceptedCount: 0 };
   }
 
-  const insertStmts = records.map((r) => buildInsertStmt(env, userId, r, deviceId));
+  // Step 0: Fetch existing token counts for all incoming session IDs so we can
+  // distinguish new records from sessions that already exist but have grown.
+  const placeholders = records.map(() => "?").join(",");
+  const existingRows = await env.DB.prepare(
+    `SELECT id, in_tokens, out_tokens, cache_read_tokens, cache_write_tokens,
+            reasoning_tokens, cost_usd_cents
+       FROM sessions WHERE user_id = ? AND id IN (${placeholders})`,
+  )
+    .bind(userId, ...records.map((r) => r.id))
+    .all<{ id: string } & ExistingTokens>();
 
-  // Track each statement's original index so we can map batched results back.
-  let cursor = 0;
-  for (const group of chunk(insertStmts, D1_BATCH_LIMIT)) {
-    const results = await env.DB.batch(group);
-    for (let i = 0; i < group.length; i++) {
-      inserted[cursor + i] = (results[i]?.meta?.changes ?? 0) > 0;
+  const existingById = new Map(existingRows.results.map((r) => [r.id, r]));
+
+  // Partition records into inserts vs token-growth updates.
+  const toInsert: Array<{ idx: number; record: SessionRecord }> = [];
+  const toUpdate: Array<{ idx: number; record: SessionRecord; old: ExistingTokens }> = [];
+
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i]!;
+    const existing = existingById.get(record.id);
+    if (!existing) {
+      toInsert.push({ idx: i, record });
+    } else if (record.inTokens + record.outTokens > existing.in_tokens + existing.out_tokens) {
+      toUpdate.push({ idx: i, record, old: existing });
     }
-    cursor += group.length;
+    // else: same or fewer tokens → true no-op, leave inserted[i] = false
   }
 
+  // Step 1: INSERT new sessions.
+  if (toInsert.length > 0) {
+    const insertStmts = toInsert.map(({ record }) =>
+      buildInsertStmt(env, userId, record, deviceId),
+    );
+    let cursor = 0;
+    for (const group of chunk(insertStmts, D1_BATCH_LIMIT)) {
+      const results = await env.DB.batch(group);
+      for (let i = 0; i < group.length; i++) {
+        inserted[toInsert[cursor + i]!.idx] = (results[i]?.meta?.changes ?? 0) > 0;
+      }
+      cursor += group.length;
+    }
+  }
+
+  // Step 2: UPDATE sessions whose token count grew.
+  if (toUpdate.length > 0) {
+    const updateStmts = toUpdate.map(({ record }) => buildUpdateTokensStmt(env, userId, record));
+    let cursor = 0;
+    for (const group of chunk(updateStmts, D1_BATCH_LIMIT)) {
+      const results = await env.DB.batch(group);
+      for (let i = 0; i < group.length; i++) {
+        inserted[toUpdate[cursor + i]!.idx] = (results[i]?.meta?.changes ?? 0) > 0;
+      }
+      cursor += group.length;
+    }
+  }
+
+  // Step 3: Full rollup for new inserts.
   const rollupStmts: D1PreparedStatement[] = [];
   for (let i = 0; i < records.length; i++) {
     if (!inserted[i]) continue;
-    const record = records[i];
-    if (!record) continue;
-    rollupStmts.push(...buildRollupStmts(env, userId, record));
+    const record = records[i]!;
+    const existing = existingById.get(record.id);
+    if (!existing) {
+      rollupStmts.push(...buildRollupStmts(env, userId, record));
+    } else {
+      // Step 3b: Delta rollup for token-growth updates.
+      rollupStmts.push(...buildRollupDeltaStmts(env, userId, record, existing));
+    }
   }
 
   for (const group of chunk(rollupStmts, D1_BATCH_LIMIT)) {
