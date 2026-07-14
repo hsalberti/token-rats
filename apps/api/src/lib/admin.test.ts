@@ -43,6 +43,15 @@ describe("isAdmin", () => {
     expect(await isAdmin(makeEnv("owner", "  owner  "), "u1")).toBe(true);
   });
 
+  it("allows every login in a comma-separated ADMIN_GITHUB_LOGIN allowlist", async () => {
+    expect(await isAdmin(makeEnv("owner", "owner, LuizPiccini"), "u1")).toBe(true);
+    expect(await isAdmin(makeEnv("luizpiccini", "owner, LuizPiccini"), "u1")).toBe(true);
+  });
+
+  it("ignores blank entries in ADMIN_GITHUB_LOGIN", async () => {
+    expect(await isAdmin(makeEnv("owner", " , owner, "), "u1")).toBe(true);
+  });
+
   it("returns false when handles differ", async () => {
     expect(await isAdmin(makeEnv("bystander", "owner"), "u1")).toBe(false);
   });

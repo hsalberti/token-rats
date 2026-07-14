@@ -20,7 +20,7 @@ export type Env = {
   /** Stripe webhook signing secret (whsec_*). Used to verify incoming webhook signatures. */
   STRIPE_WEBHOOK_SECRET: string;
   /**
-   * GitHub login (== `users.handle`) of the project owner allowed to access
+   * Comma-separated GitHub logins (== `users.handle`) allowed to access
    * the `/v1/admin/*` analytics dashboard. Optional — when unset, all admin
    * endpoints respond 403 (failure-closed). Set as a Worker secret via
    * `wrangler secret put ADMIN_GITHUB_LOGIN`.

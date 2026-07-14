@@ -50,6 +50,7 @@ MIN_SUPPORTED_CLI_VERSION = "0.1.0"
 #   SESSION_SIGNING_KEY
 #   VAPID_PRIVATE_KEY   (base64url-encoded raw 32-byte EC P-256 private key)
 #   VAPID_PUBLIC_KEY    (base64url-encoded uncompressed P-256 point, 65 bytes)
+#   ADMIN_GITHUB_LOGIN  (comma-separated GitHub login allowlist for /v1/admin)
 #   DISCORD_ALERT_WEBHOOK  (Discord webhook URL the canary cron posts to on a
 #                           failed probe; optional — canary no-ops the alert if unset)
 
