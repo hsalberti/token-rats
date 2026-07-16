@@ -28,6 +28,7 @@ import { Button } from "../../../components/ui/Button";
 import { RankBadge } from "../../../components/ui/RankBadge";
 import { Wordmark } from "../../../components/ui/Wordmark.js";
 import { ApiError, api } from "../../../lib/api";
+import { TWITTER_ENABLED } from "../../../lib/flags";
 import { useRoomLive } from "../../../lib/use-room-live";
 
 interface Props {
@@ -467,20 +468,22 @@ export function RoomView({
             <Button variant="secondary" size="sm" onClick={handleShare}>
               {shareCopied ? "Copied!" : "Share recap"}
             </Button>
-            <a
-              href={buildRecapXIntent({
-                roomName: room.name,
-                roomCode: room.code,
-                range,
-                rows: leaderboard.rows,
-                totalTokens,
-              })}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-black transition-colors duration-150 hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 focus-visible:ring-zinc-500"
-            >
-              Post to X
-            </a>
+            {TWITTER_ENABLED && (
+              <a
+                href={buildRecapXIntent({
+                  roomName: room.name,
+                  roomCode: room.code,
+                  range,
+                  rows: leaderboard.rows,
+                  totalTokens,
+                })}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-white px-3 py-1.5 text-sm font-semibold text-black transition-colors duration-150 hover:bg-zinc-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950 focus-visible:ring-zinc-500"
+              >
+                Post to X
+              </a>
+            )}
             <Button variant="secondary" size="sm" onClick={handleInvite}>
               {inviteCopied ? "Copied!" : "Copy invite link"}
             </Button>

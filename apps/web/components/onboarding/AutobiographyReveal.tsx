@@ -10,6 +10,7 @@
 
 import type { AutobiographyStats } from "@token-rats/contracts";
 import { useEffect, useState } from "react";
+import { TWITTER_ENABLED } from "../../lib/flags";
 
 const DAY_NAMES = [
   "Sundays",
@@ -210,19 +211,21 @@ export function AutobiographyReveal({ stats, handle }: Props) {
           </button>
         </div>
 
-        <a
-          href={xIntentUrl || undefined}
-          target="_blank"
-          rel="noreferrer"
-          aria-disabled={xIntentUrl === ""}
-          className={[
-            "inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-colors",
-            "bg-white text-black hover:bg-zinc-200",
-            xIntentUrl === "" ? "pointer-events-none opacity-50" : "",
-          ].join(" ")}
-        >
-          Post to X
-        </a>
+        {TWITTER_ENABLED && (
+          <a
+            href={xIntentUrl || undefined}
+            target="_blank"
+            rel="noreferrer"
+            aria-disabled={xIntentUrl === ""}
+            className={[
+              "inline-flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold transition-colors",
+              "bg-white text-black hover:bg-zinc-200",
+              xIntentUrl === "" ? "pointer-events-none opacity-50" : "",
+            ].join(" ")}
+          >
+            Post to X
+          </a>
+        )}
 
         <div className="text-center">
           <a

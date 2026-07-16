@@ -11,6 +11,7 @@
 import type { User } from "@token-rats/contracts";
 import { useEffect, useRef, useState } from "react";
 import { AUTH_LOGOUT } from "../lib/api";
+import { TWITTER_ENABLED } from "../lib/flags";
 import { type Locale, t } from "../lib/i18n";
 import { Avatar } from "./ui/Avatar";
 
@@ -122,15 +123,17 @@ export function UserMenu({ user, locale = "en" }: Props) {
           >
             {t(locale, "menu.settings")}
           </a>
-          <a
-            href="https://x.com/tokenratsx"
-            target="_blank"
-            rel="noopener noreferrer"
-            role="menuitem"
-            className="block px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-rat-400"
-          >
-            {t(locale, "menu.helpDm")}
-          </a>
+          {TWITTER_ENABLED && (
+            <a
+              href="https://x.com/tokenratsx"
+              target="_blank"
+              rel="noopener noreferrer"
+              role="menuitem"
+              className="block px-4 py-2.5 text-sm text-zinc-400 hover:bg-zinc-800 hover:text-rat-400"
+            >
+              {t(locale, "menu.helpDm")}
+            </a>
+          )}
 
           <form action={AUTH_LOGOUT} method="POST" className="border-t border-zinc-800">
             <button

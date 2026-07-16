@@ -18,6 +18,8 @@
  * routes/profiles.ts, routes/rooms.ts).
  */
 
+import { TWITTER_ENABLED } from "../lib/flags";
+
 interface Props {
   handle: string | null | undefined;
   /** Render as a styled anchor pointing at twitter.com/<handle>. Default true. */
@@ -25,6 +27,7 @@ interface Props {
 }
 
 export function TwitterHandlePill({ handle, asLink = true }: Props) {
+  if (!TWITTER_ENABLED) return null;
   if (!handle) return null;
 
   const inner = (

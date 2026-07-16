@@ -1,9 +1,7 @@
-import { t } from "../../lib/i18n";
-import { getServerLocale } from "../../lib/server-locale";
+import { TWITTER_ENABLED } from "../../lib/flags";
 import { Wordmark } from "./Wordmark.js";
 
-export async function Footer() {
-  const locale = await getServerLocale();
+export function Footer() {
   return (
     <footer className="border-t border-zinc-800 px-6 py-8">
       <div className="mx-auto flex max-w-5xl flex-col items-center gap-4 sm:flex-row sm:justify-between">
@@ -23,25 +21,16 @@ export async function Footer() {
           <a href="/changelog" className="hover:text-zinc-300">
             Changelog
           </a>
-          <a
-            href="https://twitter.com/tokenratsx"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="hover:text-zinc-300"
-          >
-            @tokenratsx
-          </a>
-          <span>
-            {t(locale, "footer.madeBy")}{" "}
+          {TWITTER_ENABLED && (
             <a
-              href="https://twitter.com/hsalberti"
+              href="https://twitter.com/tokenratsx"
               target="_blank"
               rel="noopener noreferrer"
               className="hover:text-zinc-300"
             >
-              @hsalberti
+              @tokenratsx
             </a>
-          </span>
+          )}
         </div>
       </div>
     </footer>

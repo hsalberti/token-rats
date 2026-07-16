@@ -13,6 +13,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { TWITTER_ENABLED } from "../lib/flags";
 import { type Locale, t } from "../lib/i18n";
 import { CopyButton } from "./CopyButton";
 
@@ -58,17 +59,19 @@ export function NodeInstallHint({ locale = "en" }: Props) {
         <p>
           {t(locale, "node.dontHaveNode")} <span className="text-zinc-500">{primary.label}:</span>
         </p>
-        <a
-          href="https://x.com/tokenratsx"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] font-semibold text-zinc-300 transition-colors hover:border-rat-700 hover:text-rat-400"
-          aria-label={t(locale, "node.helpDm")}
-          title={t(locale, "node.helpDm")}
-        >
-          <span aria-hidden>💬</span>
-          <span>{t(locale, "node.helpDm")}</span>
-        </a>
+        {TWITTER_ENABLED && (
+          <a
+            href="https://x.com/tokenratsx"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-zinc-700 bg-zinc-900 px-2 py-1 text-[11px] font-semibold text-zinc-300 transition-colors hover:border-rat-700 hover:text-rat-400"
+            aria-label={t(locale, "node.helpDm")}
+            title={t(locale, "node.helpDm")}
+          >
+            <span aria-hidden>💬</span>
+            <span>{t(locale, "node.helpDm")}</span>
+          </a>
+        )}
       </div>
       <div className="mt-1.5 flex items-center gap-2">
         <code className="select-all font-mono text-[12px] text-zinc-200">{primary.cmd}</code>

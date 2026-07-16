@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Wordmark } from "../../components/ui/Wordmark.js";
+import { TWITTER_ENABLED } from "../../lib/flags";
 
 export const runtime = "edge";
 
@@ -470,18 +471,20 @@ export default function ChangelogPage() {
           We don&apos;t list changes here that could compromise security. Hardening, owner-only
           tooling, and anything an attacker could use as a map ships quietly.
         </p>
-        <p className="mt-3 text-center text-sm text-zinc-600">
-          Spotted something we changed and didn&apos;t mention? Send us a message{" "}
-          <a
-            href="https://x.com/tokenratsx"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-zinc-400 hover:text-zinc-200"
-          >
-            @tokenratsx
-          </a>
-          .
-        </p>
+        {TWITTER_ENABLED && (
+          <p className="mt-3 text-center text-sm text-zinc-600">
+            Spotted something we changed and didn&apos;t mention? Send us a message{" "}
+            <a
+              href="https://x.com/tokenratsx"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-zinc-400 hover:text-zinc-200"
+            >
+              @tokenratsx
+            </a>
+            .
+          </p>
+        )}
       </main>
     </div>
   );
