@@ -7,6 +7,40 @@ const ProfileAttributionEntry = z.object({
   sessions: z.number().int().nonnegative(),
 });
 
+export const GithubProject = z
+  .object({
+    name: z.string().min(1).max(100),
+    fullName: z
+      .string()
+      .min(3)
+      .max(201)
+      .regex(/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/),
+    url: z.string().url().startsWith("https://github.com/"),
+    description: z.string().max(500).nullable(),
+  })
+  .superRefine((project, context) => {
+    const repositoryName = project.fullName.split("/")[1];
+    const canonicalUrl = `https://github.com/${project.fullName}`;
+    if (repositoryName?.toLowerCase() !== project.name.toLowerCase()) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "GitHub project name is invalid" });
+    }
+    if (project.url.toLowerCase() !== canonicalUrl.toLowerCase()) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "GitHub project URL is invalid" });
+    }
+  });
+export type GithubProject = z.infer<typeof GithubProject>;
+
+const GithubProjects = z
+  .array(GithubProject)
+  .max(3)
+  .refine(
+    (projects) =>
+      new Set(projects.map((project) => project.fullName.toLowerCase())).size === projects.length,
+    {
+      message: "GitHub projects must be unique",
+    },
+  );
+
 export const User = z.object({
   id: z.string(),
   handle: z.string(),
@@ -27,6 +61,9 @@ export const User = z.object({
    * verified email — the user sees a banner asking them to add one.
    */
   email: z.string().email().nullable().optional(),
+  /** Full text is self-only; public profiles receive agentInstructionsPreview instead. */
+  agentInstructions: z.string().max(20_000).nullable().optional(),
+  githubProjects: GithubProjects.optional(),
 });
 export type User = z.infer<typeof User>;
 
@@ -40,10 +77,14 @@ export type User = z.infer<typeof User>;
 export const PublicProfileSettings = z.object({
   publicProfile: z.boolean().optional(),
   bio: z.string().max(200).nullable().optional(),
+  agentInstructions: z.string().max(20_000).nullable().optional(),
+  githubProjects: GithubProjects.optional(),
 });
 export type PublicProfileSettings = z.infer<typeof PublicProfileSettings>;
 
 export const Profile = User.extend({
+  /** The first ten lines of the owner's saved agent instructions. */
+  agentInstructionsPreview: z.string().max(4_000).nullable().optional(),
   totals: z.object({
     today: z.object({ tokens: z.number().int(), costUsdCents: z.number().int() }),
     week: z.object({ tokens: z.number().int(), costUsdCents: z.number().int() }),

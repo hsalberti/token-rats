@@ -6,22 +6,26 @@
  * Lets the signed-in user:
  *   - Toggle their profile public/private
  *   - Edit their bio (max 200 chars)
+ *   - Import/paste agent instructions and feature up to three GitHub projects
  *   - Connect / disconnect their verified X/Twitter handle (OAuth only)
  *
- * Sends PATCH /v1/me on save for the toggle + bio. The X handle has its
+ * Sends PATCH /v1/me on save for profile fields. The X handle has its
  * own non-form actions (Connect button = navigate to OAuth start;
  * Disconnect = POST to /v1/me/twitter/disconnect).
  */
 
 import { TWITTER_CONNECT_URL, disconnectTwitter, patchMe } from "@/lib/api";
 import { TWITTER_ENABLED } from "@/lib/flags";
-import { useState } from "react";
+import type { GithubProject } from "@token-rats/contracts";
+import { useEffect, useRef, useState } from "react";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 
 interface Props {
   handle: string;
   initialPublicProfile: boolean;
   initialBio: string | null;
+  initialAgentInstructions: string | null;
+  initialGithubProjects: GithubProject[];
   initialTwitterHandle: string | null;
   initialTwitterVerified: boolean;
 }
@@ -68,16 +72,79 @@ export function ProfileSettingsClient({
   handle,
   initialPublicProfile,
   initialBio,
+  initialAgentInstructions,
+  initialGithubProjects,
   initialTwitterHandle,
   initialTwitterVerified,
 }: Props) {
   const [publicProfile, setPublicProfile] = useState(initialPublicProfile);
   const [bio, setBio] = useState(initialBio ?? "");
+  const [agentInstructions, setAgentInstructions] = useState(initialAgentInstructions ?? "");
+  const [githubProjects, setGithubProjects] = useState(initialGithubProjects);
+  const [availableProjects, setAvailableProjects] =
+    useState<GithubProject[]>(initialGithubProjects);
+  const initialGithubProjectsRef = useRef(initialGithubProjects);
+  const [projectsStatus, setProjectsStatus] = useState<"loading" | "ready" | "error">("loading");
   const [twitterHandle, setTwitterHandle] = useState(initialTwitterHandle);
   const [twitterVerified, setTwitterVerified] = useState(initialTwitterVerified);
   const [twitterBusy, setTwitterBusy] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">("idle");
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadRepositories() {
+      try {
+        const response = await fetch(
+          `https://api.github.com/users/${encodeURIComponent(handle)}/repos?sort=updated&per_page=100&type=owner`,
+          {
+            headers: {
+              Accept: "application/vnd.github+json",
+              "X-GitHub-Api-Version": "2022-11-28",
+            },
+          },
+        );
+        if (!response.ok) throw new Error("GitHub repositories could not be loaded");
+
+        const repositories = (await response.json()) as Array<{
+          name: string;
+          full_name: string;
+          html_url: string;
+          description: string | null;
+        }>;
+        if (cancelled) return;
+
+        const publicProjects = repositories.map((repository) => ({
+          name: repository.name,
+          fullName: repository.full_name,
+          url: repository.html_url,
+          description: repository.description,
+        }));
+        const byFullName = new Map(
+          publicProjects.map((project) => [project.fullName.toLowerCase(), project]),
+        );
+
+        // Refresh saved descriptions from GitHub, while keeping deleted/renamed
+        // selections visible so the user can still remove them.
+        setGithubProjects((current) =>
+          current.map((project) => byFullName.get(project.fullName.toLowerCase()) ?? project),
+        );
+        const unavailableSelections = initialGithubProjectsRef.current.filter(
+          (project) => !byFullName.has(project.fullName.toLowerCase()),
+        );
+        setAvailableProjects([...unavailableSelections, ...publicProjects]);
+        setProjectsStatus("ready");
+      } catch {
+        if (!cancelled) setProjectsStatus("error");
+      }
+    }
+
+    void loadRepositories();
+    return () => {
+      cancelled = true;
+    };
+  }, [handle]);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -88,6 +155,8 @@ export function ProfileSettingsClient({
       await patchMe({
         publicProfile,
         bio: bio.trim() || null,
+        agentInstructions: agentInstructions.trim() || null,
+        githubProjects,
       });
       setSaveStatus("saved");
     } catch {
@@ -95,6 +164,28 @@ export function ProfileSettingsClient({
     } finally {
       setSaving(false);
     }
+  }
+
+  async function handleInstructionsFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    setAgentInstructions(text.slice(0, 20_000));
+    event.target.value = "";
+  }
+
+  function toggleProject(project: GithubProject) {
+    setGithubProjects((current) => {
+      const selected = current.some(
+        (candidate) => candidate.fullName.toLowerCase() === project.fullName.toLowerCase(),
+      );
+      if (selected) {
+        return current.filter(
+          (candidate) => candidate.fullName.toLowerCase() !== project.fullName.toLowerCase(),
+        );
+      }
+      return current.length < 3 ? [...current, project] : current;
+    });
   }
 
   async function handleDisconnect() {
@@ -167,6 +258,111 @@ export function ProfileSettingsClient({
           className="w-full rounded-lg bg-zinc-900 border border-zinc-800 px-4 py-3 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none disabled:opacity-50"
         />
         <p className="text-xs text-zinc-600 text-right">{bio.length}/200</p>
+      </section>
+
+      {/* Agent instructions */}
+      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <label htmlFor="agent-instructions" className="font-semibold text-zinc-100">
+              Favorite agent instructions
+            </label>
+            <p className="mt-1 text-sm text-zinc-400">
+              Share how you like coding agents to communicate and work. Your profile shows the first
+              10 lines.
+            </p>
+          </div>
+          <label className="cursor-pointer rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700">
+            Import .md file
+            <input
+              type="file"
+              accept=".md,.txt,text/markdown,text/plain"
+              className="sr-only"
+              onChange={(event) => void handleInstructionsFile(event)}
+              disabled={saving}
+            />
+          </label>
+        </div>
+        <textarea
+          id="agent-instructions"
+          value={agentInstructions}
+          onChange={(event) => setAgentInstructions(event.target.value.slice(0, 20_000))}
+          disabled={saving}
+          placeholder={"# How I like agents to work\n\nBe concise and lead with the outcome..."}
+          rows={10}
+          maxLength={20_000}
+          spellCheck={false}
+          className="w-full resize-y rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-sm leading-6 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50"
+        />
+        <p className="text-right text-xs text-zinc-600">
+          {agentInstructions.length.toLocaleString()}/20,000
+        </p>
+      </section>
+
+      {/* Featured GitHub projects */}
+      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <div>
+          <p className="font-semibold text-zinc-100">Featured GitHub projects</p>
+          <p className="mt-1 text-sm text-zinc-400">
+            Select up to three public repositories. Their GitHub descriptions appear on your
+            profile.
+          </p>
+        </div>
+
+        {projectsStatus === "loading" && (
+          <p className="text-sm text-zinc-500">Loading your public repositories from GitHub…</p>
+        )}
+        {projectsStatus === "error" && (
+          <p className="text-sm text-amber-400">
+            GitHub is unavailable right now. Your existing selections are still safe to save.
+          </p>
+        )}
+        {projectsStatus === "ready" && availableProjects.length === 0 && (
+          <p className="text-sm text-zinc-500">No public repositories found for @{handle}.</p>
+        )}
+
+        {availableProjects.length > 0 && (
+          <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+            {availableProjects.map((project) => {
+              const selected = githubProjects.some(
+                (candidate) => candidate.fullName.toLowerCase() === project.fullName.toLowerCase(),
+              );
+              const disabled = !selected && githubProjects.length >= 3;
+
+              return (
+                <label
+                  key={project.fullName}
+                  className={[
+                    "flex gap-3 rounded-lg border px-3 py-3 transition-colors",
+                    selected
+                      ? "border-orange-500/70 bg-orange-500/10"
+                      : "border-zinc-800 bg-zinc-950/60",
+                    disabled
+                      ? "cursor-not-allowed opacity-50"
+                      : "cursor-pointer hover:border-zinc-700",
+                  ].join(" ")}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected}
+                    disabled={disabled || saving}
+                    onChange={() => toggleProject(project)}
+                    className="mt-1 h-4 w-4 accent-orange-500"
+                  />
+                  <span className="min-w-0">
+                    <span className="block truncate font-mono text-sm font-semibold text-zinc-100">
+                      {project.name}
+                    </span>
+                    <span className="mt-0.5 block text-xs leading-relaxed text-zinc-500">
+                      {project.description || "No description on GitHub."}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+        <p className="text-right text-xs text-zinc-600">{githubProjects.length}/3 selected</p>
       </section>
 
       {/* X / Twitter — OAuth only. */}

@@ -8,6 +8,7 @@
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { notFound } from "../lib/errors.js";
+import { agentInstructionsPreview, parseGithubProjects } from "../lib/profile-social.js";
 import { ensureReferralCode } from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
@@ -20,7 +21,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
   const handle = c.req.param("handle");
 
   const user = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle FROM users WHERE handle = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, agent_instructions, github_projects FROM users WHERE handle = ?",
   )
     .bind(handle)
     .first<{
@@ -30,6 +31,8 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       public_profile: number;
       bio: string | null;
       twitter_handle: string | null;
+      agent_instructions: string | null;
+      github_projects: string | null;
     }>();
 
   if (!user) {
@@ -151,7 +154,14 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       id: user.id,
       handle: user.handle,
       avatarUrl: user.avatar_url,
-      ...(isPublic || isOwner ? { bio: user.bio, twitterHandle: user.twitter_handle } : {}),
+      ...(isPublic || isOwner
+        ? {
+            bio: user.bio,
+            twitterHandle: user.twitter_handle,
+            agentInstructionsPreview: agentInstructionsPreview(user.agent_instructions),
+            githubProjects: parseGithubProjects(user.github_projects),
+          }
+        : {}),
       ...(isOwner ? { publicProfile: user.public_profile === 1 } : {}),
       referredCount,
       ...(referralCode ? { referralCode } : {}),

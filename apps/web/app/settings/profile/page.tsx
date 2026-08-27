@@ -29,6 +29,8 @@ export default async function ProfileSettingsPage() {
   const twitterHandle = data.user.twitterHandle ?? null;
   const twitterVerified = data.user.twitterVerified ?? false;
   const email = data.user.email ?? null;
+  const agentInstructions = data.user.agentInstructions ?? null;
+  const githubProjects = data.user.githubProjects ?? [];
 
   return (
     <main className="text-zinc-100 px-6 py-8">
@@ -72,6 +74,8 @@ export default async function ProfileSettingsPage() {
           handle={currentUser.handle}
           initialPublicProfile={publicProfile}
           initialBio={bio}
+          initialAgentInstructions={agentInstructions}
+          initialGithubProjects={githubProjects}
           initialTwitterHandle={twitterHandle}
           initialTwitterVerified={twitterVerified}
         />
