@@ -52,12 +52,57 @@ describe("PatchMeRequest validation", () => {
     }
   });
 
-  it("accepts the two valid fields together", () => {
+  it("accepts all public profile fields together", () => {
     const result = PatchMeRequest.safeParse({
       publicProfile: true,
       bio: "Shipping fast",
+      agentInstructions: "# AGENTS.md\n\nLead with the outcome.",
+      githubProjects: [
+        {
+          name: "token-rats",
+          fullName: "hsalberti/token-rats",
+          url: "https://github.com/hsalberti/token-rats",
+          description: "Social token tracking for coding agents.",
+        },
+      ],
     });
     expect(result.success).toBe(true);
+  });
+
+  it("rejects agent instructions longer than 20,000 characters", () => {
+    expect(PatchMeRequest.safeParse({ agentInstructions: "x".repeat(20_001) }).success).toBe(false);
+  });
+
+  it("rejects more than three GitHub projects", () => {
+    const githubProjects = Array.from({ length: 4 }, (_, index) => ({
+      name: `repo-${index}`,
+      fullName: `octocat/repo-${index}`,
+      url: `https://github.com/octocat/repo-${index}`,
+      description: null,
+    }));
+    expect(PatchMeRequest.safeParse({ githubProjects }).success).toBe(false);
+  });
+
+  it("rejects duplicate GitHub projects", () => {
+    const project = {
+      name: "hello-world",
+      fullName: "octocat/hello-world",
+      url: "https://github.com/octocat/hello-world",
+      description: null,
+    };
+    expect(PatchMeRequest.safeParse({ githubProjects: [project, project] }).success).toBe(false);
+  });
+
+  it("rejects a GitHub project whose URL does not match its repository", () => {
+    const githubProjects = [
+      {
+        name: "hello-world",
+        fullName: "octocat/hello-world",
+        url: "https://github.com/octocat/a-different-repository",
+        description: null,
+      },
+    ];
+    expect(PatchMeRequest.safeParse({ githubProjects }).success).toBe(false);
   });
 
   it("rejects non-boolean publicProfile", () => {

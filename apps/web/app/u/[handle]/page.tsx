@@ -1,4 +1,4 @@
-import type { Heatmap, HeatmapRange } from "@token-rats/contracts";
+import type { Heatmap, HeatmapRange, Profile } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
@@ -78,23 +78,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   const cookieHeader = await getCookieHeader();
   const currentUser = await getSession();
 
-  let profile: {
-    id: string;
-    handle: string;
-    avatarUrl: string | null;
-    bio?: string | null;
-    twitterHandle?: string | null;
-    publicProfile?: boolean;
-    referredCount?: number;
-    referralCode?: string;
-    totals: {
-      today: { tokens: number; costUsdCents: number };
-      week: { tokens: number; costUsdCents: number };
-      allTime: { tokens: number; costUsdCents: number };
-    };
-    sources?: { source: string; tokens: number; costUsdCents: number; sessions: number }[];
-    channels?: { source: string; tokens: number; costUsdCents: number; sessions: number }[];
-  } | null = null;
+  let profile: Profile | null = null;
 
   let isPrivate = false;
   let heatmap: Heatmap | null = null;
@@ -197,6 +181,57 @@ export default async function ProfilePage({ params, searchParams }: Props) {
             )}
           </div>
         </div>
+
+        {/* Social profile details */}
+        {profile.agentInstructionsPreview && (
+          <Card className="overflow-hidden p-0">
+            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3 sm:px-6">
+              <div>
+                <h2 className="font-mono text-sm font-bold text-zinc-100">AGENTS.md</h2>
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  How @{profile.handle} likes agents to work
+                </p>
+              </div>
+              <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
+                First 10 lines
+              </span>
+            </div>
+            <pre className="overflow-x-auto whitespace-pre-wrap break-words bg-zinc-950/60 px-4 py-4 font-mono text-sm leading-6 text-zinc-300 sm:px-6">
+              {profile.agentInstructionsPreview}
+            </pre>
+          </Card>
+        )}
+
+        {profile.githubProjects && profile.githubProjects.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
+              Featured projects
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {profile.githubProjects.map((project) => (
+                <a
+                  key={project.fullName}
+                  href={project.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="group rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-800/80"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="min-w-0 truncate font-mono text-sm font-bold text-zinc-100 group-hover:text-orange-400">
+                      {project.name}
+                    </p>
+                    <span aria-hidden="true" className="text-zinc-600 group-hover:text-zinc-400">
+                      ↗
+                    </span>
+                  </div>
+                  <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-zinc-400">
+                    {project.description || "No description on GitHub."}
+                  </p>
+                </a>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Stats grid */}
         <div className="grid gap-4 sm:grid-cols-3">

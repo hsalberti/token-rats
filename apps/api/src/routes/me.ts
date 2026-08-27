@@ -1,7 +1,7 @@
 import { PatchMeRequest } from "@token-rats/contracts";
 /**
  * GET   /v1/me           — returns the authenticated user's profile.
- * PATCH /v1/me           — update publicProfile, bio, twitterHandle.
+ * PATCH /v1/me           — update public profile settings and social fields.
  * GET   /v1/me/rooms     — returns all rooms the authenticated user is a member of.
  * GET   /v1/me/referral  — returns the user's referral code + referred users.
  */
@@ -9,6 +9,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
 import { notFound, validationError } from "../lib/errors.js";
+import { parseGithubProjects } from "../lib/profile-social.js";
 import { ensureReferralCode } from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -21,7 +22,7 @@ me.get("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
   const row = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, github_projects FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -33,6 +34,8 @@ me.get("/", requireAuth, async (c) => {
       twitter_handle: string | null;
       twitter_user_id: string | null;
       email: string | null;
+      agent_instructions: string | null;
+      github_projects: string | null;
     }>();
 
   if (!row) {
@@ -49,6 +52,8 @@ me.get("/", requireAuth, async (c) => {
       twitterHandle: row.twitter_handle,
       twitterVerified: row.twitter_user_id !== null,
       email: row.email,
+      agentInstructions: row.agent_instructions,
+      githubProjects: parseGithubProjects(row.github_projects),
     },
   });
 });
@@ -71,9 +76,14 @@ me.patch("/", requireAuth, async (c) => {
   // Nothing to update — return current user unchanged.
   // twitterHandle was removed from PatchMeRequest in v1.2 — manual writes
   // are gone, OAuth + disconnect are the only mutation paths.
-  if (body.publicProfile === undefined && body.bio === undefined) {
+  if (
+    body.publicProfile === undefined &&
+    body.bio === undefined &&
+    body.agentInstructions === undefined &&
+    body.githubProjects === undefined
+  ) {
     const row = await c.env.DB.prepare(
-      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email FROM users WHERE id = ?",
+      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, github_projects FROM users WHERE id = ?",
     )
       .bind(userId)
       .first<{
@@ -85,6 +95,8 @@ me.patch("/", requireAuth, async (c) => {
         twitter_handle: string | null;
         twitter_user_id: string | null;
         email: string | null;
+        agent_instructions: string | null;
+        github_projects: string | null;
       }>();
     if (!row) return notFound(c, "User not found");
     return c.json({
@@ -97,6 +109,8 @@ me.patch("/", requireAuth, async (c) => {
         twitterHandle: row.twitter_handle,
         twitterVerified: row.twitter_user_id !== null,
         email: row.email,
+        agentInstructions: row.agent_instructions,
+        githubProjects: parseGithubProjects(row.github_projects),
       },
     });
   }
@@ -113,6 +127,14 @@ me.patch("/", requireAuth, async (c) => {
     setClauses.push("bio = ?");
     binds.push(body.bio ?? null);
   }
+  if (body.agentInstructions !== undefined) {
+    setClauses.push("agent_instructions = ?");
+    binds.push(body.agentInstructions ?? null);
+  }
+  if (body.githubProjects !== undefined) {
+    setClauses.push("github_projects = ?");
+    binds.push(JSON.stringify(body.githubProjects));
+  }
 
   binds.push(userId);
 
@@ -121,7 +143,7 @@ me.patch("/", requireAuth, async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, github_projects FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -133,6 +155,8 @@ me.patch("/", requireAuth, async (c) => {
       twitter_handle: string | null;
       twitter_user_id: string | null;
       email: string | null;
+      agent_instructions: string | null;
+      github_projects: string | null;
     }>();
 
   if (!updated) return notFound(c, "User not found");
@@ -147,6 +171,8 @@ me.patch("/", requireAuth, async (c) => {
       twitterHandle: updated.twitter_handle,
       twitterVerified: updated.twitter_user_id !== null,
       email: updated.email,
+      agentInstructions: updated.agent_instructions,
+      githubProjects: parseGithubProjects(updated.github_projects),
     },
   });
 });
