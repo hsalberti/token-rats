@@ -51,8 +51,9 @@ This plan replaces the enterprise-first direction in older roadmaps.
 - Price refresh completed: 447 catalog entries and snapshots, no errors.
 - [Source and documents](https://github.com/hsalberti/token-rats) are public
   under the MIT license.
-- npm accepted CLI 0.3.1. Registry availability is being verified before the
-  upgrade notice changes.
+- [CLI 0.3.1](https://www.npmjs.com/package/token-rats/v/0.3.1) is published
+  with the `latest` tag. Its registry checksum matches the tested archive,
+  and installation from the public registry passed.
 - Hacker News and Reddit posts remain drafts. No Reddit community was created.
 
 ## Validation
