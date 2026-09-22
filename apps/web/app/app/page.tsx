@@ -58,6 +58,15 @@ export default async function AppPage() {
       <AuthedTopBar user={user} locale={locale} />
 
       <main className="mx-auto max-w-4xl px-6 py-8">
+        <nav
+          aria-label="Explore Token Rats"
+          className="mb-6 flex flex-wrap gap-4 text-sm font-semibold text-rat-400"
+        >
+          <a href="/app/compare">Compare subscriptions</a>
+          <a href="/community">Community</a>
+          <a href="/app/friends">Friends</a>
+          <a href="/proxy">API tracking</a>
+        </nav>
         <DashboardClient
           user={user}
           cookieHeader={cookieHeader}

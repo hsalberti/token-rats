@@ -27,6 +27,7 @@ function findJsonlFiles(dir: string): string[] {
 /** Returns the Claude Code projects directory for the current platform. */
 export function claudeCodeProjectsDir(): string {
   const home = os.homedir();
+  if (process.env.CLAUDE_CONFIG_DIR) return path.join(process.env.CLAUDE_CONFIG_DIR, "projects");
   if (process.platform === "win32") {
     const profile = process.env.USERPROFILE ?? home;
     return path.join(profile, ".claude", "projects");
@@ -51,14 +52,20 @@ export function discoverClaudeCodeFiles(): string[] {
 export function codexSessionsDirs(): string[] {
   const home = os.homedir();
   const candidates: string[] = [];
+  if (process.env.CODEX_HOME) {
+    candidates.push(path.join(process.env.CODEX_HOME, "sessions"));
+    candidates.push(path.join(process.env.CODEX_HOME, "archived_sessions"));
+  }
 
   if (process.platform === "win32") {
     const profile = process.env.USERPROFILE ?? home;
     candidates.push(path.join(profile, ".codex", "sessions"));
+    candidates.push(path.join(profile, ".codex", "archived_sessions"));
     const appData = process.env.APPDATA ?? path.join(profile, "AppData", "Roaming");
     candidates.push(path.join(appData, "Codex", "sessions"));
   } else {
     candidates.push(path.join(home, ".codex", "sessions"));
+    candidates.push(path.join(home, ".codex", "archived_sessions"));
     // Snap (Linux): sessions live under a versioned `current` symlink as well
     // as the active version directory. Walk the snap root and pick up any
     // `sessions/` we find.

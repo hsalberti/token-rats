@@ -11,11 +11,11 @@ export const metadata: Metadata = {
     template: "%s | Token Rats",
   },
   description:
-    "Strava for AI token burn. Auto-sync your Claude Code, Codex, and Cursor usage to a leaderboard with your crew.",
+    "Track AI usage, compare subscriptions, and share agent workflows with an open source community.",
   metadataBase: new URL("https://tokenrats.com"),
   openGraph: {
     title: "Token Rats",
-    description: "Gym rats for token tracking with friends.",
+    description: "Track AI usage. Compare subscriptions. Share what works.",
     url: "https://tokenrats.com",
     siteName: "Token Rats",
     type: "website",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Token Rats",
-    description: "Gym rats for token tracking with friends.",
+    description: "Track AI usage. Compare subscriptions. Share what works.",
   },
   manifest: "/manifest.webmanifest",
   icons: {

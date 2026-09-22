@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const Source = z.enum(["claude-code", "cursor", "codex"]);
+export const Source = z.enum(["claude-code", "cursor", "codex", "openrouter", "openai"]);
 export type Source = z.infer<typeof Source>;
 
 /**
@@ -29,9 +29,9 @@ export type SessionChannel = z.infer<typeof SessionChannel>;
  * A single AI coding session reported by the CLI. Counts only — no prompt or
  * completion content is ever included in this record.
  *
- * `dedupeKey` is computed by the parser as a stable hash of
- * `(source, startedAt, model, inTokens, outTokens)` so re-syncing the same
- * logs is idempotent at the API layer.
+ * The CLI computes `dedupeKey` with SHA-256 over the record identity, model,
+ * timestamp, and token counts. Repeated uploads are idempotent. Pure parser
+ * callers receive a provisional count hash.
  *
  * `provider` and the cache/reasoning token fields are optional for
  * backwards-compat: older CLI versions don't send them, and the API will
@@ -56,6 +56,7 @@ const DEDUPE_KEY_RE = /^[A-Za-z0-9._:-]+$/;
 const CLIENT_RE = /^[A-Za-z0-9._-]+$/;
 
 export const SessionRecord = z.object({
+  accountingVersion: z.literal(2).optional(),
   id: z.string().min(1).max(256).regex(ID_RE),
   source: Source,
   provider: Provider.optional(),
@@ -83,6 +84,10 @@ export type SessionRecord = z.infer<typeof SessionRecord>;
  */
 export function defaultProviderForSource(source: Source): Provider {
   switch (source) {
+    case "openrouter":
+      return "openrouter";
+    case "openai":
+      return "openai";
     case "claude-code":
       return "anthropic";
     case "codex":
@@ -94,6 +99,10 @@ export function defaultProviderForSource(source: Source): Provider {
 
 export function defaultClientForSource(source: Source): string {
   switch (source) {
+    case "openrouter":
+      return "openrouter";
+    case "openai":
+      return "openai";
     case "claude-code":
       return "claude-code";
     case "codex":
@@ -105,6 +114,9 @@ export function defaultClientForSource(source: Source): string {
 
 export function defaultChannelForSource(source: Source): SessionChannel {
   switch (source) {
+    case "openrouter":
+    case "openai":
+      return "api";
     case "claude-code":
       return "cli";
     case "codex":

@@ -52,7 +52,7 @@ const EN = {
   "common.cancel": "Cancel",
 
   /* Privacy line — repeated on every authed surface */
-  "privacy.short": "Counts only — we literally can’t read your prompts.",
+  "privacy.short": "Local tracker: usage metadata only.",
   "privacy.verifyCli": "Verify the CLI on npm",
   "privacy.verifyShort": "Verify the CLI →",
 
@@ -195,7 +195,7 @@ const PT_BR: Record<keyof typeof EN, string> = {
   "common.cancel": "Cancelar",
 
   /* Privacy */
-  "privacy.short": "Só contagens — literalmente não conseguimos ler seus prompts.",
+  "privacy.short": "Rastreador local: apenas metadados de uso.",
   "privacy.verifyCli": "Verifique a CLI no npm",
   "privacy.verifyShort": "Verifique a CLI →",
 

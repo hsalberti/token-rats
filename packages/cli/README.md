@@ -86,3 +86,19 @@ Authentication uses a device-code flow:
 Token Rats is open source. The CLI source is in [`packages/cli/`](.) and the parsers are in [`packages/parsers/`](../parsers/). You can inspect exactly what is read from your disk and what is sent to the server.
 
 **Privacy posture:** Token Rats reads usage counts only — never prompts or completions. The parser source is in `packages/parsers/`. We literally can't read what you typed.
+
+
+## Automatic tracking
+
+`token-rats login` installs the background tracker. It reads Claude Code,
+Codex, and Cursor records on startup, then checks for changes every 30 seconds.
+Failed uploads are retried. Use `login --no-daemon` to use manual sync only.
+Use `daemon-status` and `uninstall-daemon` to manage automatic tracking.
+After an upgrade, run `install-daemon` to copy the new runtime into place.
+Custom `--api-url` settings are passed to the installed tracker.
+
+Open `/app/compare` on your Token Rats server to enter a subscription amount
+for a month. Cursor counts are estimates. API estimates are not provider bills.
+See the [counting method](https://github.com/hsalberti/token-rats/blob/main/docs/counting.md).
+
+The CLI and its documentation are MIT licensed. The npm package includes LICENSE.

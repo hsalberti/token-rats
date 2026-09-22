@@ -38,6 +38,8 @@ interface OpenRouterModel {
     completion?: string;
     image?: string;
     request?: string;
+    input_cache_read?: string;
+    input_cache_write?: string;
   };
 }
 
@@ -59,6 +61,8 @@ interface SnapshotRow {
   model_id: string;
   input_per_mtok: number;
   output_per_mtok: number | null;
+  cache_read_per_mtok: number | null;
+  cache_write_per_mtok: number | null;
 }
 
 export interface RefreshResult {
@@ -145,6 +149,8 @@ export function normalizeOpenRouterModel(
     model_id: idParts.bareId,
     input_per_mtok: input,
     output_per_mtok: output,
+    cache_read_per_mtok: perMtok(m.pricing?.input_cache_read),
+    cache_write_per_mtok: perMtok(m.pricing?.input_cache_write),
   };
 
   return { catalog, snapshot };
@@ -237,14 +243,24 @@ export async function refreshPrices(env: Env): Promise<RefreshResult> {
     const stmts = slice.map((r) =>
       env.DB.prepare(
         `INSERT INTO model_price_snapshots
-           (day, model_id, input_per_mtok, output_per_mtok, source, fetched_at)
-         VALUES (?, ?, ?, ?, 'openrouter', ?)
+           (day, model_id, input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok, source, fetched_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'openrouter', ?)
          ON CONFLICT(day, model_id) DO UPDATE SET
            input_per_mtok  = excluded.input_per_mtok,
            output_per_mtok = excluded.output_per_mtok,
+           cache_read_per_mtok = excluded.cache_read_per_mtok,
+           cache_write_per_mtok = excluded.cache_write_per_mtok,
            source          = 'openrouter',
            fetched_at      = excluded.fetched_at`,
-      ).bind(today, r.model_id, r.input_per_mtok, r.output_per_mtok, fetchedAt),
+      ).bind(
+        today,
+        r.model_id,
+        r.input_per_mtok,
+        r.output_per_mtok,
+        r.cache_read_per_mtok,
+        r.cache_write_per_mtok,
+        fetchedAt,
+      ),
     );
     try {
       await env.DB.batch(stmts);

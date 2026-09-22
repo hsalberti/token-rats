@@ -633,3 +633,44 @@ export async function getAdminActivity(cookieHeader?: string): Promise<AdminActi
 export async function getAdminReferrers(cookieHeader?: string): Promise<AdminReferrersResponse> {
   return request<AdminReferrersResponse>(ENDPOINTS.adminReferrers, { cookieHeader });
 }
+
+export function getCommunity(kind = "", offset = 0) {
+  return request<import("@token-rats/contracts").CommunityList>(
+    `/v1/community?offset=${offset}${kind ? `&kind=${encodeURIComponent(kind)}` : ""}`,
+  );
+}
+export function getCommunityThread(id: string, offset = 0) {
+  return request<import("@token-rats/contracts").CommunityThread>(
+    `/v1/community/${encodeURIComponent(id)}?offset=${offset}`,
+  );
+}
+export function createCommunityPost(body: import("@token-rats/contracts").CreatePostRequest) {
+  return request<{ id: string }>("/v1/community", { method: "POST", body: JSON.stringify(body) });
+}
+export function replyToCommunityPost(id: string, body: string) {
+  return request<{ id: string }>(`/v1/community/${encodeURIComponent(id)}/replies`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+}
+export function deleteCommunityItem(id: string, reply = false) {
+  return request(`/v1/community/${reply ? "replies/" : ""}${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+export function getComparison(month: string, cookieHeader?: string) {
+  return request<import("@token-rats/contracts").ComparisonResponse>(
+    `/v1/me/comparison?month=${encodeURIComponent(month)}`,
+    { cookieHeader },
+  );
+}
+export function saveSubscription(body: import("@token-rats/contracts").SubscriptionSpendRequest) {
+  return request("/v1/me/comparison/subscriptions", { method: "PUT", body: JSON.stringify(body) });
+}
+export function proxyKey(provider: string, method = "GET", apiKey?: string, cookieHeader?: string) {
+  return request<{ stored: boolean }>(`/v1/proxy/keys/${provider}`, {
+    method,
+    cookieHeader,
+    ...(apiKey ? { body: JSON.stringify({ apiKey }) } : {}),
+  });
+}

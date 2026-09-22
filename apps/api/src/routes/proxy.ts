@@ -54,7 +54,7 @@ function b64toBuf(b64: string): Uint8Array {
 }
 
 /** Encrypt a plaintext string. Returns { ciphertext, iv } both base64. */
-async function encryptKey(
+export async function encryptKey(
   plaintext: string,
   signingKey: string,
 ): Promise<{ ciphertext: string; iv: string }> {
@@ -69,7 +69,11 @@ async function encryptKey(
 }
 
 /** Decrypt a base64 ciphertext with base64 IV. Returns plaintext string. */
-async function decryptKey(ciphertext: string, iv: string, signingKey: string): Promise<string> {
+export async function decryptKey(
+  ciphertext: string,
+  iv: string,
+  signingKey: string,
+): Promise<string> {
   const aesKey = await deriveAesKey(signingKey);
   const plainBuf = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv: b64toBuf(iv) },

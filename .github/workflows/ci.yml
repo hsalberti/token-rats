@@ -1,8 +1,7 @@
 name: ci
 
 # Deploy gate. deploy.yml keys on this workflow's success, so it holds only the
-# checks that must block a release: typecheck + test + build. Biome lint runs in
-# the separate lint.yml workflow and does NOT gate deploy.
+# checks that must block a release: lint + typecheck + test + build.
 
 on:
   push:
@@ -20,6 +19,7 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build

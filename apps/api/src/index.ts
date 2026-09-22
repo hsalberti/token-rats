@@ -28,6 +28,10 @@ import stripeWebhookRoutes from "./routes/stripe-webhook.js";
 import trendingRoutes from "./routes/trending.js";
 import { runScheduled } from "./scheduled.js";
 
+import chatProxyRoutes from "./routes/chat-proxy.js";
+import communityRoutes from "./routes/community.js";
+import comparisonRoutes from "./routes/comparison.js";
+
 const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 // CORS — credentials required for cookie-based auth.
@@ -83,6 +87,8 @@ app.route("/v1", twitterAuthRoutes);
 /* Identity                                                                    */
 /* -------------------------------------------------------------------------- */
 
+app.route("/v1/community", communityRoutes);
+app.route("/v1/me/comparison", comparisonRoutes);
 app.route("/v1/me", meRoutes);
 // v1.2 Track AD — friends derived from shared private rooms.
 // Mounted on the me namespace so the path is `/v1/me/friends`.
@@ -145,6 +151,13 @@ app.route("/v1/notifications", notificationsRoutes);
 app.route("/v1/trending", trendingRoutes);
 app.route("/v1/abuse", abuseRoutes);
 app.route("/v1/proxy", proxyRoutes);
+app.route("/v1/proxy", chatProxyRoutes);
+app.post("/v1/orgs", (c) =>
+  c.json(
+    { error: "org_creation_paused", message: "Organization plans are paused. Join the community." },
+    503,
+  ),
+);
 app.route("/v1/orgs", orgsRoutes);
 app.route("/webhooks/stripe", stripeWebhookRoutes);
 

@@ -85,7 +85,7 @@ export class ApiClient {
     let lastErr: unknown;
     while (attempt <= maxRetries) {
       try {
-        const res = await fetch(url, init);
+        const res = await fetch(url, { ...init, signal: AbortSignal.timeout(30_000) });
         if (res.ok || !isTransient(res.status)) return res;
         lastErr = new ApiError(res.status, await res.text());
       } catch (err) {

@@ -35,6 +35,8 @@ export interface PriceResult {
   resolvedModelId: string;
   /** Day of the snapshot used. Useful for audit/recompute. Null on miss. */
   sourceDay: string | null;
+  /** Unrounded estimate for comparisons; undefined when the rate is incomplete. */
+  costUsd?: number;
 }
 
 interface CachedPrice {
@@ -42,6 +44,8 @@ interface CachedPrice {
   inputPerMTok: number;
   outputPerMTok: number;
   sourceDay: string;
+  cacheReadPerMTok?: number | null;
+  cacheWritePerMTok?: number | null;
 }
 
 interface CachedMiss {
@@ -51,7 +55,7 @@ interface CachedMiss {
 type CacheEntry = CachedPrice | CachedMiss;
 
 function cacheKey(model: string, day: string): string {
-  return `price:v1:${day}:${model}`;
+  return `price:v2:${day}:${model}`;
 }
 
 /** Resolve a raw model string to a `models_catalog.id`. Exact PK first, then longest-prefix. */
@@ -79,16 +83,28 @@ async function fetchSnapshot(
   env: Env,
   modelId: string,
   sessionDay: string,
-): Promise<{ input_per_mtok: number; output_per_mtok: number | null; day: string } | null> {
+): Promise<{
+  input_per_mtok: number;
+  output_per_mtok: number | null;
+  cache_read_per_mtok: number | null;
+  cache_write_per_mtok: number | null;
+  day: string;
+} | null> {
   return await env.DB.prepare(
-    `SELECT input_per_mtok, output_per_mtok, day
+    `SELECT input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok, day
        FROM model_price_snapshots
       WHERE model_id = ? AND day <= ?
       ORDER BY day DESC
       LIMIT 1`,
   )
     .bind(modelId, sessionDay)
-    .first<{ input_per_mtok: number; output_per_mtok: number | null; day: string }>();
+    .first<{
+      input_per_mtok: number;
+      output_per_mtok: number | null;
+      cache_read_per_mtok: number | null;
+      cache_write_per_mtok: number | null;
+      day: string;
+    }>();
 }
 
 /** Record an unknown model so the roadmap dashboard can surface "needs source" rows. */
@@ -126,6 +142,8 @@ export async function priceOf(
   dayIso: string,
   inTokens: number,
   outTokens: number,
+  cacheReadTokens = 0,
+  cacheWriteTokens = 0,
 ): Promise<PriceResult> {
   // ── 1. Cache lookup ────────────────────────────────────────────────────────
   const key = cacheKey(model, dayIso);
@@ -135,17 +153,24 @@ export async function priceOf(
     return { costUsdCents: 0, known: false, resolvedModelId: model, sourceDay: null };
   }
   if (cached) {
-    const dollars = (inTokens * cached.inputPerMTok + outTokens * cached.outputPerMTok) / 1_000_000;
-    return {
-      costUsdCents: Math.round(dollars * 100),
-      known: true,
-      resolvedModelId: cached.resolvedModelId,
-      sourceDay: cached.sourceDay,
-    };
+    return calculatePrice(
+      cached.resolvedModelId,
+      cached.sourceDay,
+      cached.inputPerMTok,
+      cached.outputPerMTok,
+      cached.cacheReadPerMTok,
+      cached.cacheWritePerMTok,
+      inTokens,
+      outTokens,
+      cacheReadTokens,
+      cacheWriteTokens,
+    );
   }
 
   // ── 2. Resolve canonical model_id ──────────────────────────────────────────
-  const resolvedId = await resolveCatalogId(env, model);
+  const resolvedId =
+    (await resolveCatalogId(env, model)) ??
+    (await resolveCatalogId(env, normalizePriceModel(model)));
   if (!resolvedId) {
     // Cache the miss so a repeated unknown model doesn't hammer D1.
     await env.CACHE.put(key, JSON.stringify({ miss: true } satisfies CachedMiss), {
@@ -179,17 +204,24 @@ export async function priceOf(
       inputPerMTok,
       outputPerMTok,
       sourceDay: snap.day,
+      cacheReadPerMTok: snap.cache_read_per_mtok,
+      cacheWritePerMTok: snap.cache_write_per_mtok,
     } satisfies CachedPrice),
     { expirationTtl: CACHE_TTL_SECONDS },
   ).catch(() => undefined);
 
-  const dollars = (inTokens * inputPerMTok + outTokens * outputPerMTok) / 1_000_000;
-  return {
-    costUsdCents: Math.round(dollars * 100),
-    known: true,
-    resolvedModelId: resolvedId,
-    sourceDay: snap.day,
-  };
+  return calculatePrice(
+    resolvedId,
+    snap.day,
+    inputPerMTok,
+    outputPerMTok,
+    snap.cache_read_per_mtok,
+    snap.cache_write_per_mtok,
+    inTokens,
+    outTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+  );
 }
 
 /**
@@ -207,7 +239,16 @@ export interface PriceIndex {
   catalogIdsByLenDesc: string[];
   catalogIdSet: Set<string>;
   /** model_id → snapshots sorted by day ASC (ISO strings sort chronologically). */
-  snapshotsByModel: Map<string, Array<{ day: string; input: number; output: number }>>;
+  snapshotsByModel: Map<
+    string,
+    Array<{
+      day: string;
+      input: number;
+      output: number;
+      cacheRead?: number | null;
+      cacheWrite?: number | null;
+    }>
+  >;
 }
 
 export async function loadPriceIndex(env: Env): Promise<PriceIndex> {
@@ -215,18 +256,35 @@ export async function loadPriceIndex(env: Env): Promise<PriceIndex> {
   const ids = (cat.results ?? []).map((r) => r.id);
 
   const snaps = await env.DB.prepare(
-    "SELECT model_id, day, input_per_mtok, output_per_mtok FROM model_price_snapshots ORDER BY day ASC",
+    "SELECT model_id, day, input_per_mtok, output_per_mtok, cache_read_per_mtok, cache_write_per_mtok FROM model_price_snapshots ORDER BY day ASC",
   ).all<{
     model_id: string;
     day: string;
     input_per_mtok: number;
     output_per_mtok: number | null;
+    cache_read_per_mtok: number | null;
+    cache_write_per_mtok: number | null;
   }>();
 
-  const snapshotsByModel = new Map<string, Array<{ day: string; input: number; output: number }>>();
+  const snapshotsByModel = new Map<
+    string,
+    Array<{
+      day: string;
+      input: number;
+      output: number;
+      cacheRead?: number | null;
+      cacheWrite?: number | null;
+    }>
+  >();
   for (const s of snaps.results ?? []) {
     const arr = snapshotsByModel.get(s.model_id) ?? [];
-    arr.push({ day: s.day, input: s.input_per_mtok, output: s.output_per_mtok ?? 0 });
+    arr.push({
+      day: s.day,
+      input: s.input_per_mtok,
+      output: s.output_per_mtok ?? 0,
+      cacheRead: s.cache_read_per_mtok,
+      cacheWrite: s.cache_write_per_mtok,
+    });
     snapshotsByModel.set(s.model_id, arr);
   }
 
@@ -240,11 +298,14 @@ export async function loadPriceIndex(env: Env): Promise<PriceIndex> {
 /** Pure, I/O-free equivalent of `priceOf` backed by a preloaded `PriceIndex`. */
 export function priceWithIndex(
   index: PriceIndex,
-  model: string,
+  rawModel: string,
   dayIso: string,
   inTokens: number,
   outTokens: number,
+  cacheReadTokens = 0,
+  cacheWriteTokens = 0,
 ): PriceResult {
+  const model = index.catalogIdSet.has(rawModel) ? rawModel : normalizePriceModel(rawModel);
   let resolvedId: string | null = null;
   if (index.catalogIdSet.has(model)) {
     resolvedId = model;
@@ -264,7 +325,13 @@ export function priceWithIndex(
   }
 
   // Carry-forward: latest snapshot with day <= dayIso (snapshots are day-ASC).
-  let chosen: { day: string; input: number; output: number } | null = null;
+  let chosen: {
+    day: string;
+    input: number;
+    output: number;
+    cacheRead?: number | null;
+    cacheWrite?: number | null;
+  } | null = null;
   for (const s of index.snapshotsByModel.get(resolvedId) ?? []) {
     if (s.day <= dayIso) chosen = s;
     else break;
@@ -273,13 +340,18 @@ export function priceWithIndex(
     return { costUsdCents: 0, known: false, resolvedModelId: resolvedId, sourceDay: null };
   }
 
-  const dollars = (inTokens * chosen.input + outTokens * chosen.output) / 1_000_000;
-  return {
-    costUsdCents: Math.round(dollars * 100),
-    known: true,
-    resolvedModelId: resolvedId,
-    sourceDay: chosen.day,
-  };
+  return calculatePrice(
+    resolvedId,
+    chosen.day,
+    chosen.input,
+    chosen.output,
+    chosen.cacheRead,
+    chosen.cacheWrite,
+    inTokens,
+    outTokens,
+    cacheReadTokens,
+    cacheWriteTokens,
+  );
 }
 
 /** Convenience wrapper for callers that have a millisecond timestamp. */
@@ -291,4 +363,38 @@ export async function priceOfAtMs(
   outTokens: number,
 ): Promise<PriceResult> {
   return priceOf(env, model, toUtcDay(tsMs), inTokens, outTokens);
+}
+
+/** Model catalog uses bare, hyphenated names from the price refresh. */
+export function normalizePriceModel(model: string): string {
+  return model.slice(model.indexOf("/") + 1).replace(/\./g, "-");
+}
+
+function calculatePrice(
+  resolvedModelId: string,
+  sourceDay: string,
+  input: number,
+  output: number,
+  cacheRead: number | null | undefined,
+  cacheWrite: number | null | undefined,
+  inTokens: number,
+  outTokens: number,
+  cacheReadTokens: number,
+  cacheWriteTokens: number,
+): PriceResult {
+  const known =
+    !(cacheReadTokens > 0 && cacheRead == null) && !(cacheWriteTokens > 0 && cacheWrite == null);
+  const costUsd =
+    (inTokens * input +
+      outTokens * output +
+      cacheReadTokens * (cacheRead ?? 0) +
+      cacheWriteTokens * (cacheWrite ?? 0)) /
+    1_000_000;
+  return {
+    costUsdCents: Math.round(costUsd * 100),
+    known,
+    resolvedModelId,
+    sourceDay,
+    ...(known ? { costUsd } : {}),
+  };
 }

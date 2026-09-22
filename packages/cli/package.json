@@ -1,13 +1,13 @@
 {
   "name": "token-rats",
-  "version": "0.2.0",
-  "description": "Sync your Claude Code + Cursor token usage to your Token Rats leaderboard.",
-  "license": "UNLICENSED",
+  "version": "0.3.0",
+  "description": "Track Claude Code, Codex, and Cursor usage and compare AI subscriptions.",
+  "license": "MIT",
   "type": "module",
   "bin": {
     "token-rats": "./dist/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": ["dist", "README.md", "LICENSE"],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hsalberti/token-rats.git",
@@ -26,7 +26,6 @@
     "prepublishOnly": "node build.mjs"
   },
   "optionalDependencies": {
-    "chokidar": "^3.6.0",
     "clipboardy": "^4.0.0",
     "open": "^10.1.0"
   },

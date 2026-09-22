@@ -1,2 +1,4 @@
-/** Single source of truth for the CLI version sent in `X-Cli-Version`. */
-export const CLI_VERSION = "0.2.0";
+import manifest from "../../package.json" with { type: "json" };
+
+/** Bundled from the package manifest; also sent in X-Cli-Version. */
+export const CLI_VERSION = manifest.version;

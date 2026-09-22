@@ -51,25 +51,25 @@ function buildStartUrl(params: {
 }
 
 export const metadata: Metadata = {
-  title: "Token Rats — Global Token Consumption Leaderboard",
+  title: "Token Rats — AI usage and community",
   description:
-    "Live global leaderboard of public Claude Code, Codex, and Cursor token burn. Auto-sync, then token-maxx.",
+    "Track Claude Code, Codex, and Cursor usage, compare subscriptions, and share agent workflows.",
   openGraph: {
-    title: "Token Rats — Global Token Consumption Leaderboard",
-    description: "Live global leaderboard of who's burning the most AI tokens.",
+    title: "Token Rats — AI usage and community",
+    description: "Compare AI usage and share what works.",
     images: [
       {
         url: "/cards/trending/7d",
         width: 1200,
         height: 630,
-        alt: "Token Rats — Global Token Consumption Leaderboard",
+        alt: "Token Rats — AI usage and community",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Token Rats — Global Token Consumption Leaderboard",
-    description: "Live global leaderboard of who's burning the most AI tokens.",
+    title: "Token Rats — AI usage and community",
+    description: "Compare AI usage and share what works.",
     images: ["/cards/trending/7d"],
   },
 };
@@ -125,7 +125,7 @@ export default async function HomePage({
         <div className="mx-auto max-w-3xl px-6 py-14 flex flex-col items-center text-center gap-6">
           <Wordmark size="xl" />
           <p className="max-w-md text-base text-zinc-300 sm:text-lg">
-            {t(locale, "landing.tagline")}
+            Track your AI usage. Compare subscriptions. Share what works.
           </p>
           <a
             href={startUrl}
@@ -147,10 +147,10 @@ export default async function HomePage({
             </a>
           </p>
           <a
-            href="/teams"
+            href="/community"
             className="text-sm font-semibold text-zinc-400 hover:text-rat-400 transition-colors"
           >
-            {t(locale, "landing.forTeams")}
+            Share ideas and AGENTS.md files
           </a>
         </div>
       </section>

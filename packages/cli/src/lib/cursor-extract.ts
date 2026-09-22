@@ -54,7 +54,7 @@ export function cursorWorkspaceStorageDir(): string {
 }
 
 /** Lists every state.vscdb file under the workspace storage dir. */
-function discoverWorkspaceDbs(): string[] {
+export function discoverWorkspaceDbs(): string[] {
   const root = cursorWorkspaceStorageDir();
   if (!existsSync(root)) return [];
 

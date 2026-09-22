@@ -9,7 +9,7 @@
  * - Preserves the #!/usr/bin/env node shebang and sets chmod +x.
  */
 
-import { chmodSync, mkdirSync } from "node:fs";
+import { chmodSync, copyFileSync, mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { build } from "esbuild";
@@ -57,4 +57,5 @@ await build({
 // Make the output executable
 chmodSync(outfile, 0o755);
 
+copyFileSync(resolve(__dirname, "../../LICENSE"), resolve(__dirname, "LICENSE"));
 console.log("Built dist/index.js");

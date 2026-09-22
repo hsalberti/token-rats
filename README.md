@@ -1,21 +1,29 @@
 # Token Rats
 
-**Strava for AI token burn.** Auto-syncs your Claude Code + Cursor token usage to a leaderboard with your friends, your room, and the world.
+**An open source community for AI builders.** Track Claude Code, Codex, and Cursor usage, compare your subscriptions, and share ideas and AGENTS.md files.
 
-> Gym rats, for token tracking.
+> Track usage. Share what works. Build in public.
 
 - Live at **[tokenrats.com](https://tokenrats.com)** · API at `api.tokenrats.com`
 - CLI on npm: `npx token-rats login && npx token-rats sync`
 - Built on Cloudflare end-to-end (Pages + Workers + D1 + R2 + KV + Durable Objects)
 
+## Open source direction
+
+The application, CLI, parsers, and project documents use the MIT license. Enterprise work is paused. Start with the [public documents](docs/README.md), [counting method](docs/counting.md), and [current release plan](docs/open-source-release.md).
+
+- `/community`: public posts, replies, and AGENTS.md downloads.
+- `/app/compare`: monthly local usage and user-entered subscription amounts.
+- `/proxy`: Anthropic Messages and OpenRouter/OpenAI Chat Completions tracking.
+
 ## How it works
 
 1. **Sign in with GitHub** on the web app, optionally connect X/Twitter for your public handle.
 2. **Install the CLI** (`npx token-rats login`) and run `token-rats sync` (one-shot) or `token-rats watch` (daemon).
-3. The CLI reads your local **Claude Code** and **Cursor** logs, parses them into typed `SessionRecord`s, and uploads **counts only** — never prompts, never completions.
+3. The CLI reads your local **Claude Code**, **Codex**, and **Cursor** logs, parses them into typed `SessionRecord`s, and uploads **counts only** — never prompts, never completions.
 4. The Worker dedupes, rolls into `daily_rollup`, and the web app draws leaderboards, streaks, challenges, share cards, and a live SSE feed.
 
-The hard rule (see [`mission.md`](./mission.md)): **prompt and completion text never leave your machine.** The CLI is open-source so you can read the parser before it touches your disk.
+The local CLI sends usage metadata only. Optional proxy requests pass through our server to your provider. Community posts store the text you choose to publish. See the [data boundaries](docs/counting.md#data-boundaries).
 
 ## Specs
 
@@ -76,9 +84,9 @@ token-rats whoami          # show the logged-in account
 ## Privacy
 
 - We store **token counts, model name, start/end timestamps, and computed cost** — nothing else from your sessions.
-- No prompt, completion, file path, or tool output is ever sent. Parsing happens fully on your machine.
+- The local tracker does not send prompts, completions, file paths, or tool output. Optional API proxy traffic passes through the server; only usage metadata is stored. Community posts store the content you publish.
 - Rooms are private by default. Public profiles and global trending are opt-in.
 
 ## License & notices
 
-Third-party notices live in [`NOTICES.md`](./NOTICES.md).
+Code and project documents are [MIT licensed](LICENSE). Third-party notices live in [`NOTICES.md`](./NOTICES.md).

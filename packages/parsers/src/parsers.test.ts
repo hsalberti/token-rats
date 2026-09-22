@@ -271,9 +271,9 @@ describe("parseCodex", () => {
       expect(rec.inTokens).toBe(5000);
     });
 
-    it("outTokens = output_tokens + reasoning_output_tokens (last cumulative)", () => {
-      // Final: output=500, reasoning=200 → 700.
-      expect(rec.outTokens).toBe(700);
+    it("outTokens includes reasoning once (last cumulative)", () => {
+      // Final output=500 already contains reasoning=200.
+      expect(rec.outTokens).toBe(500);
     });
 
     it("model is from turn_context", () => {
@@ -312,9 +312,9 @@ describe("parseCodex", () => {
     const rec = records.find((r) => r.id === "codex:019db2eb-b85f-7563-a7e8-dec676161620")!;
 
     it("uses cumulative totals from the final token_count", () => {
-      // Final: input=2500, cached=500 → 2000 uncached; output=400+50=450.
+      // Final: input=2500, cached=500 → 2000 uncached; output=400 (includes reasoning=50).
       expect(rec.inTokens).toBe(2000);
-      expect(rec.outTokens).toBe(450);
+      expect(rec.outTokens).toBe(400);
     });
 
     it("model is gpt-5-mini", () => {
@@ -421,5 +421,33 @@ describe("dedupeKey determinism", () => {
   it("fnv1aHex returns an 8-character lowercase hex string", () => {
     const h = fnv1aHex("hello world");
     expect(h).toMatch(/^[0-9a-f]{8}$/);
+  });
+});
+
+describe("Claude repeated message usage", () => {
+  it("counts duplicate messages once and keeps the largest streamed usage", () => {
+    const message = (output: number) =>
+      JSON.stringify({
+        type: "assistant",
+        sessionId: "shared",
+        timestamp: "2026-09-01T10:00:00Z",
+        message: {
+          id: "message-1",
+          model: "claude-sonnet-4-6",
+          usage: {
+            input_tokens: 10,
+            output_tokens: output,
+            cache_read_input_tokens: 200,
+            cache_creation_input_tokens: 30,
+          },
+        },
+      });
+    const [record] = parseClaudeCode([message(1), message(5), message(1), message(5)].join("\n"));
+    expect(record).toMatchObject({
+      inTokens: 10,
+      outTokens: 5,
+      cacheReadTokens: 200,
+      cacheWriteTokens: 30,
+    });
   });
 });

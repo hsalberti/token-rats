@@ -1,4 +1,4 @@
-import { getProxyAnthropicKeyStatus } from "@/lib/api";
+import { getProxyAnthropicKeyStatus, proxyKey } from "@/lib/api";
 /**
  * /proxy — trust + setup page for the Anthropic API proxy mode.
  *
@@ -7,6 +7,7 @@ import { getProxyAnthropicKeyStatus } from "@/lib/api";
  * their per-user Anthropic API key.
  */
 import { getCookieHeader, getSession } from "@/lib/auth";
+import { ChatKey } from "./ChatKeys";
 import { ProxyKeyClient } from "./Client";
 
 export const runtime = "edge";
@@ -31,6 +32,16 @@ export default async function ProxyPage() {
     }
   }
 
+  const chatKeys = user
+    ? await Promise.all(
+        ["openrouter", "openai"].map(async (provider) =>
+          proxyKey(provider, "GET", undefined, await getCookieHeader()).catch(() => ({
+            stored: false,
+          })),
+        ),
+      )
+    : [];
+
   return (
     <main className="min-h-screen bg-zinc-950 text-zinc-100 p-6">
       <div className="max-w-2xl mx-auto space-y-10">
@@ -46,6 +57,23 @@ export default async function ProxyPage() {
           </p>
         </div>
 
+        <p className="text-sm text-zinc-400">
+          Proxy requests send prompts and responses through this server to your provider. Token Rats
+          stores usage metadata only. Cost values are API estimates, not invoices.
+        </p>
+        {user ? (
+          <>
+            {(["openrouter", "openai"] as const).map((provider, i) => (
+              <ChatKey
+                key={provider}
+                provider={provider}
+                initialStored={chatKeys[i]?.stored ?? false}
+              />
+            ))}
+          </>
+        ) : (
+          <a href="/signin">Sign in to set up OpenRouter or OpenAI</a>
+        )}
         {/* Trust section */}
         <section>
           <h2 className="text-lg font-semibold mb-3">What we do</h2>
@@ -88,7 +116,7 @@ export default async function ProxyPage() {
           <ul className="space-y-2 text-sm text-zinc-300">
             <li className="flex gap-2">
               <span className="text-red-400 mt-0.5 shrink-0">✗</span>
-              <span>Read, log, or store any prompt or completion content.</span>
+              <span>Log or store prompt or completion content.</span>
             </li>
             <li className="flex gap-2">
               <span className="text-red-400 mt-0.5 shrink-0">✗</span>

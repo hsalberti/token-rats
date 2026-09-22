@@ -1,0 +1,5 @@
+WEB_ORIGIN=http://localhost:3000
+GITHUB_CLIENT_ID=replace-with-development-oauth-client-id
+GITHUB_CLIENT_SECRET=replace-with-development-oauth-client-secret
+SESSION_SIGNING_KEY=replace-with-a-random-local-signing-key
+ADMIN_GITHUB_LOGIN=your-github-login

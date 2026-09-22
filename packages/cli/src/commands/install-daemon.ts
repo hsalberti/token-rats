@@ -13,6 +13,7 @@
 
 import { execFile } from "node:child_process";
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import { promisify } from "node:util";
@@ -27,11 +28,45 @@ const WINDOWS_TASK = "TokenRatsWatch";
 
 /** Best-effort lookup of the on-disk `token-rats` executable. */
 function resolveCliPath(): { node: string; script: string } {
-  // `process.argv[1]` is the absolute path to the entrypoint script when run
-  // via node, or the binary path when run as a packaged install. Either way,
-  // re-launching the same string with the same node works.
-  const script = process.argv[1] ?? "token-rats";
-  return { node: process.execPath, script };
+  const entry = path.resolve(process.argv[1] ?? "");
+  if (!entry.endsWith(".js")) throw new Error("Build the CLI before installing the daemon.");
+  const config = process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), ".config");
+  const runtime = path.join(config, "token-rats", "runtime");
+  fs.mkdirSync(runtime, { recursive: true });
+  const script = path.join(runtime, "index.js");
+  if (entry !== script) fs.copyFileSync(entry, script);
+  fs.writeFileSync(path.join(runtime, "package.json"), '{"type":"module"}\n');
+  const require = createRequire(import.meta.url);
+  const sqlPackage = path.dirname(require.resolve("sql.js/package.json"));
+  const destination = path.join(runtime, "node_modules", "sql.js");
+  if (sqlPackage !== destination) fs.cpSync(sqlPackage, destination, { recursive: true });
+  const runner = path.join(runtime, "runner.mjs");
+  const settings = Object.fromEntries(
+    ["XDG_CONFIG_HOME", "CLAUDE_CONFIG_DIR", "CODEX_HOME", "APPDATA"].flatMap((key) =>
+      process.env[key] ? [[key, process.env[key]]] : [],
+    ),
+  );
+  fs.writeFileSync(
+    runner,
+    `Object.assign(process.env, ${JSON.stringify(settings)});\nawait import("./index.js");\n`,
+  );
+  return { node: process.execPath, script: runner };
+}
+
+function xml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+}
+function systemdArg(value: string): string {
+  const escaped = value
+    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\"')
+    .replaceAll("%", "%%")
+    .replaceAll("$", "$$");
+  return `"${escaped}"`;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -46,7 +81,7 @@ function darwinLogDir(): string {
   return path.join(os.homedir(), "Library", "Logs", "token-rats");
 }
 
-function darwinPlist(node: string, script: string): string {
+function darwinPlist(node: string, script: string, apiUrl?: string): string {
   const logDir = darwinLogDir();
   const stdout = path.join(logDir, "watch.out.log");
   const stderr = path.join(logDir, "watch.err.log");
@@ -58,30 +93,34 @@ function darwinPlist(node: string, script: string): string {
   <string>${LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${node}</string>
-    <string>${script}</string>
+    <string>${xml(node)}</string>
+    <string>${xml(script)}</string>
     <string>watch</string>
+    ${apiUrl ? `<string>--api-url</string><string>${xml(apiUrl)}</string>` : ""}
   </array>
   <key>RunAtLoad</key>
   <true/>
   <key>KeepAlive</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>${stdout}</string>
+  <string>${xml(stdout)}</string>
   <key>StandardErrorPath</key>
-  <string>${stderr}</string>
+  <string>${xml(stderr)}</string>
 </dict>
 </plist>
 `;
 }
 
-async function darwinInstall(): Promise<void> {
+async function darwinInstall(apiUrl?: string): Promise<void> {
   const { node, script } = resolveCliPath();
   fs.mkdirSync(darwinLogDir(), { recursive: true });
   const plistPath = darwinPlistPath();
   fs.mkdirSync(path.dirname(plistPath), { recursive: true });
-  fs.writeFileSync(plistPath, darwinPlist(node, script), { mode: 0o644 });
-  // `launchctl bootstrap` is the modern verb; fall back to `load` on older OS.
+  fs.writeFileSync(plistPath, darwinPlist(node, script, apiUrl), { mode: 0o644 });
+  await exec("launchctl", ["bootout", `gui/${process.getuid?.() ?? 0}/${LABEL}`]).catch(
+    () => undefined,
+  );
+  // Load the current runtime after installation.
   try {
     await exec("launchctl", ["bootstrap", `gui/${process.getuid?.() ?? 0}`, plistPath]);
   } catch {
@@ -117,7 +156,8 @@ async function darwinStatus(): Promise<"running" | "stopped" | "not-installed"> 
   if (!fs.existsSync(darwinPlistPath())) return "not-installed";
   try {
     const { stdout } = await exec("launchctl", ["list"]);
-    if (stdout.split("\n").some((line) => line.endsWith(LABEL))) return "running";
+    if (stdout.split("\n").some((line) => line.endsWith(LABEL) && /^\d+\s/.test(line)))
+      return "running";
     return "stopped";
   } catch {
     return "stopped";
@@ -133,7 +173,7 @@ function linuxUnitPath(): string {
   return path.join(xdgConfig, "systemd", "user", LINUX_UNIT);
 }
 
-function linuxUnit(node: string, script: string): string {
+function linuxUnit(node: string, script: string, apiUrl?: string): string {
   return `[Unit]
 Description=Token Rats watcher — live AI usage sync
 After=network-online.target
@@ -141,7 +181,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=${node} ${script} watch
+ExecStart=${systemdArg(node)} ${systemdArg(script)} watch${apiUrl ? ` --api-url ${systemdArg(apiUrl)}` : ""}
 Restart=on-failure
 RestartSec=10s
 Environment=NODE_ENV=production
@@ -151,14 +191,15 @@ WantedBy=default.target
 `;
 }
 
-async function linuxInstall(): Promise<void> {
+async function linuxInstall(apiUrl?: string): Promise<void> {
   const { node, script } = resolveCliPath();
   const unitPath = linuxUnitPath();
   fs.mkdirSync(path.dirname(unitPath), { recursive: true });
-  fs.writeFileSync(unitPath, linuxUnit(node, script), { mode: 0o644 });
+  fs.writeFileSync(unitPath, linuxUnit(node, script, apiUrl), { mode: 0o644 });
   try {
     await exec("systemctl", ["--user", "daemon-reload"]);
     await exec("systemctl", ["--user", "enable", "--now", LINUX_UNIT]);
+    await exec("systemctl", ["--user", "restart", LINUX_UNIT]);
   } catch (err) {
     throw new Error(
       `Wrote ${unitPath} but failed to enable+start it: ${err instanceof Error ? err.message : String(err)}`,
@@ -198,7 +239,7 @@ async function linuxStatus(): Promise<"running" | "stopped" | "not-installed"> {
 /* Windows — Scheduled Task                                                    */
 /* -------------------------------------------------------------------------- */
 
-async function windowsInstall(): Promise<void> {
+async function windowsInstall(apiUrl?: string): Promise<void> {
   const { node, script } = resolveCliPath();
   // /SC ONLOGON triggers at user logon; /RL LIMITED runs as the current user;
   // /F overwrites if the task already exists.
@@ -209,7 +250,7 @@ async function windowsInstall(): Promise<void> {
     "/TN",
     WINDOWS_TASK,
     "/TR",
-    `"${node}" "${script}" watch`,
+    `"${node}" "${script}" watch${apiUrl ? ` --api-url "${apiUrl}"` : ""}`,
     "/RL",
     "LIMITED",
     "/F",
@@ -249,21 +290,21 @@ async function windowsStatus(): Promise<"running" | "stopped" | "not-installed">
 /* Dispatchers                                                                 */
 /* -------------------------------------------------------------------------- */
 
-export async function installDaemonCommand(): Promise<void> {
+export async function installDaemonCommand(apiUrl?: string): Promise<void> {
   clearDisconnected();
   try {
     if (process.platform === "darwin") {
-      await darwinInstall();
+      await darwinInstall(apiUrl);
     } else if (process.platform === "linux") {
-      await linuxInstall();
+      await linuxInstall(apiUrl);
     } else if (process.platform === "win32") {
-      await windowsInstall();
+      await windowsInstall(apiUrl);
     } else {
       warn(`No daemon installer for platform ${process.platform}; skipping.`);
       return;
     }
     success("Background watcher installed and running.");
-    dim("It will pick up new sessions from Claude Code logs in real time.");
+    dim("It will pick up sessions from Claude Code, Codex, and Cursor every 30 seconds.");
     dim("Manage it with `token-rats daemon-status` and `token-rats uninstall-daemon`.");
   } catch (err) {
     error(`Failed to install daemon: ${err instanceof Error ? err.message : String(err)}`);

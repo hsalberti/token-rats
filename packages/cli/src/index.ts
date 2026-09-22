@@ -1,14 +1,14 @@
 #!/usr/bin/env node
 /**
- * token-rats — Strava for AI token burn.
+ * token-rats — AI usage tracker and community.
  *
  * Reads usage counts only — never prompts or completions.
  * Parser source: packages/parsers/ — we literally can't read what you typed.
  *
  * Commands:
  *   token-rats login     Authenticate (device-code flow)
- *   token-rats sync      Discover + upload Claude Code & Cursor usage
- *   token-rats watch     Watch logs in real-time and upload new sessions
+ *   token-rats sync      Discover + upload Claude Code, Codex, and Cursor usage
+ *   token-rats watch     Run the autorunner and upload changed sessions
  *   token-rats whoami    Show the signed-in account
  *   token-rats logout    Clear credentials
  *   token-rats --version Show version
@@ -37,7 +37,7 @@ function getVersion(): string {
 
 function printHelp(): void {
   console.log(`
-\x1b[1mtoken-rats\x1b[0m — Strava for AI token burn  \x1b[2mv${getVersion()}\x1b[0m
+\x1b[1mtoken-rats\x1b[0m — AI usage tracker and community  \x1b[2mv${getVersion()}\x1b[0m
 
 \x1b[1mUsage:\x1b[0m
   token-rats <command> [flags]
@@ -63,7 +63,7 @@ function printHelp(): void {
   --verbose         Print discovered files and per-file record counts
 
 \x1b[1mFlags (watch only):\x1b[0m
-  --interval <ms>   Debounce window in ms before uploading (default: 2000)
+  --interval <ms>   Scan interval in ms (default: 30000, minimum: 1000)
   --verbose         Print file change events and upload detail
 
 \x1b[1mPrivacy:\x1b[0m
@@ -177,7 +177,7 @@ async function main(): Promise<void> {
       break;
 
     case "install-daemon":
-      await installDaemonCommand();
+      await installDaemonCommand(apiUrl);
       break;
 
     case "uninstall-daemon":

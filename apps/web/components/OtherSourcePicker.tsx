@@ -178,16 +178,28 @@ export function OtherSourcePicker() {
       {/* Selected provider detail */}
       {active && (
         <div className="rounded-xl border border-dashed border-zinc-700 bg-zinc-900/50 px-5 py-4">
-          <p className="text-sm font-semibold text-zinc-200">{active.label} — coming soon</p>
+          <p className="text-sm font-semibold text-zinc-200">
+            {active.label} —{" "}
+            {["openrouter", "openai", "anthropic", "cursor"].includes(active.id)
+              ? "available"
+              : "planned"}
+          </p>
           <p className="mt-1 text-xs text-zinc-500">
             Usage source: <span className="font-mono">{active.auth}</span>.
             {active.costMode === "free"
               ? " Self-hosted, so cost is $0 by default. A future per-room toggle will let you estimate spend at a chosen provider's rates."
               : " Cost will be computed from the provider's published $/MTok rates."}
           </p>
-          <p className="mt-2 text-[11px] text-zinc-600">
-            Track P in <span className="font-mono">roadmap-providers.md</span>.
-          </p>
+          {["openrouter", "openai", "anthropic"].includes(active.id) && (
+            <a href="/proxy" className="mt-3 block text-sm text-rat-400">
+              Set up API tracking →
+            </a>
+          )}
+          {active.id === "cursor" && (
+            <p className="mt-3 text-sm text-rat-400">
+              Run token-rats sync or token-rats watch. Cursor token counts are estimates.
+            </p>
+          )}
         </div>
       )}
 

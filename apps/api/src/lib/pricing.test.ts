@@ -333,3 +333,39 @@ describe("priceWithIndex", () => {
     expect(priceWithIndex(index, "known-model", "2026-05-19", 100, 200).known).toBe(false);
   });
 });
+
+describe("cache-aware estimates", () => {
+  const index: PriceIndex = {
+    catalogIdsByLenDesc: ["test-model-1"],
+    catalogIdSet: new Set(["test-model-1"]),
+    snapshotsByModel: new Map([
+      [
+        "test-model-1",
+        [{ day: "2026-09-01", input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 }],
+      ],
+    ]),
+  };
+  it("normalizes namespaced models and includes cache rates", () => {
+    const price = priceWithIndex(
+      index,
+      "vendor/test-model.1",
+      "2026-09-22",
+      1000000,
+      1000000,
+      1000000,
+      1000000,
+    );
+    expect(price.known).toBe(true);
+    expect(price.costUsd).toBeCloseTo(22.05);
+  });
+  it("marks missing cache rates unknown, and retains sub-cent precision", () => {
+    const missing = {
+      ...index,
+      snapshotsByModel: new Map([["test-model-1", [{ day: "2026-09-01", input: 3, output: 15 }]]]),
+    };
+    expect(priceWithIndex(missing, "test-model-1", "2026-09-22", 1, 1, 500).known).toBe(false);
+    const small = priceWithIndex(index, "test-model-1", "2026-09-22", 1, 1);
+    expect(small.costUsdCents).toBe(0);
+    expect(small.costUsd).toBeCloseTo(0.000018, 8);
+  });
+});

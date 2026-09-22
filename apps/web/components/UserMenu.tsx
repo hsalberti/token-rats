@@ -89,11 +89,11 @@ export function UserMenu({ user, locale = "en" }: Props) {
             {t(locale, "menu.publicProfile")}
           </a>
           <a
-            href="/app/friends"
+            href="/app/compare"
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
-            {t(locale, "menu.friends")}
+            Compare subscriptions
           </a>
           <a
             href="/onboarding"
@@ -110,11 +110,18 @@ export function UserMenu({ user, locale = "en" }: Props) {
             Your devices
           </a>
           <a
-            href="/o/new"
+            href="/app/friends"
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >
-            {t(locale, "menu.requestOrg")}
+            {t(locale, "menu.friends")}
+          </a>
+          <a
+            href="/community"
+            role="menuitem"
+            className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
+          >
+            Community
           </a>
           <a
             href="/settings"

@@ -143,5 +143,5 @@ export async function loginCommand(opts: LoginOptions): Promise<void> {
   }
 
   info("Installing background watcher so usage uploads automatically…");
-  await installDaemonCommand();
+  await installDaemonCommand(opts.apiUrl);
 }

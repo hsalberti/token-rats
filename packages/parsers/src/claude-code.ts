@@ -65,6 +65,7 @@ interface SessionAcc {
   cacheReadTokens: number;
   cacheWriteTokens: number;
   model: string;
+  modelAt: number;
 }
 
 export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): SessionRecord[] {
@@ -77,6 +78,10 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
   }
 
   const sessions = new Map<string, SessionAcc>();
+  const messages = new Map<
+    string,
+    { input: number; output: number; read: number; write: number }
+  >();
 
   for (const rawLine of text.split("\n")) {
     const line = rawLine.trim();
@@ -124,6 +129,7 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
         cacheReadTokens: 0,
         cacheWriteTokens: 0,
         model: "",
+        modelAt: 0,
       };
       sessions.set(sessionId, acc);
     }
@@ -142,18 +148,35 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     const msg = message as Record<string, unknown>;
 
     // Model: last one seen per session wins
-    if (typeof msg.model === "string" && msg.model.length > 0) {
+    if (typeof msg.model === "string" && msg.model.length > 0 && timestamp >= acc.modelAt) {
       acc.model = msg.model;
+      acc.modelAt = timestamp;
     }
 
     // Token counts — all optional
     const usage = msg.usage;
     if (typeof usage === "object" && usage !== null) {
       const u = usage as Record<string, unknown>;
-      acc.inTokens += toNonNegInt(u.input_tokens);
-      acc.outTokens += toNonNegInt(u.output_tokens);
-      acc.cacheReadTokens += toNonNegInt(u.cache_read_input_tokens);
-      acc.cacheWriteTokens += toNonNegInt(u.cache_creation_input_tokens);
+      const counts = {
+        input: toNonNegInt(u.input_tokens),
+        output: toNonNegInt(u.output_tokens),
+        read: toNonNegInt(u.cache_read_input_tokens),
+        write: toNonNegInt(u.cache_creation_input_tokens),
+      };
+      const key = typeof msg.id === "string" ? `${sessionId}:${msg.id}` : null;
+      const old = key ? messages.get(key) : undefined;
+      // Repeated stream chunks carry cumulative usage for the same message.
+      const next = {
+        input: Math.max(old?.input ?? 0, counts.input),
+        output: Math.max(old?.output ?? 0, counts.output),
+        read: Math.max(old?.read ?? 0, counts.read),
+        write: Math.max(old?.write ?? 0, counts.write),
+      };
+      acc.inTokens += next.input - (old?.input ?? 0);
+      acc.outTokens += next.output - (old?.output ?? 0);
+      acc.cacheReadTokens += next.read - (old?.read ?? 0);
+      acc.cacheWriteTokens += next.write - (old?.write ?? 0);
+      if (key) messages.set(key, next);
     }
   }
 

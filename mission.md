@@ -1,55 +1,41 @@
-# Token Rats — Mission
+# Token Rats
 
-## What we're building
+Token Rats is an open source community for people who build with AI. Track the
+usage you get from your tools, compare your subscriptions, and share what helps
+you do better work.
 
-**Token Rats is Strava for AI token burn.** A social leaderboard that auto-syncs your Claude Code and Cursor token usage and ranks you against your friends, your room, and — eventually — the world.
+The primary question is: **What do I get from the subscriptions I pay for?**
+The social part adds context: share an idea, an AGENTS.md file, or a project;
+explain the workflow; compare results with other builders.
 
-One line: *gym rats for token tracking with friends*.
+## Current direction
 
-## Why now
+1. Make token counts reliable. Keep input, cache reads, cache writes, output,
+   and reasoning visible. Do not count reasoning twice.
+2. Make the tracker automatic. Read local logs and retry failed uploads.
+3. Compare the same period. Separate recorded usage, API estimates, and the
+   subscription amount that the user entered.
+4. Build in public. Release the application, CLI, parsers, plans, and documents
+   under MIT. Keep third-party notices.
+5. Give people a place to share and discuss useful work.
 
-"Tokenmaxxing" is already a meme:
+Enterprise sales, new organization plans, SSO, and paid organization features
+are paused. The community and individual tracking experience take priority.
 
-- **Meta's "Claudeonomics" board** ranked 85k employees by token consumption. Leadership took it down because people were deliberately burning compute to climb it.
-- **Shopify and Microsoft** run internal leaderboards to celebrate top token spenders as a cultural ritual.
-- **Tokscale.ai, `ccusage`, Claude-Code-Usage-Monitor** all let you stare at your own number — none of them have a social graph.
+## Product rules
 
-There is no consumer product that turns this behavior into a friend graph. The wedge is open while the meme is hot.
+- More tokens do not prove better work. Do not present usage as productivity.
+- Estimated values must have an estimate label. Missing prices are unknown.
+- The local tracker uploads usage metadata, never conversation content.
+- Optional API proxy requests pass through our server. Explain that clearly.
+- Community content is public because the author chose to publish it. Never
+  upload a local AGENTS.md file automatically.
+- Do not claim that we can read subscription quotas or provider invoices.
+- Keep public discussions useful: evidence, reproducible examples, and respect.
 
-## Who it's for
+## Launch measures
 
-**Primary persona — Vibe Coder.** Builds in Cursor and/or Claude Code. Lives in dev Twitter and a couple of Discords (Cursor, Claude, indie hackers). Ships fast, brags about tooling, sees token burn as flex not cost.
-
-**Secondary persona (post-v1) — Engineering orgs.** Want a sanctioned, internal Claudeonomics for their teams. Pay for SSO, private orgs, and spend analytics.
-
-## Success criteria for v1
-
-| Metric | Target (first 30 days post-launch) |
-|---|---|
-| Sign-ups | 1,000 |
-| % of signed-up users in a room with ≥1 friend | ≥40% (friend-graph activation) |
-| D7 leaderboard retention | ≥20% |
-| Share cards posted publicly | ≥1 per active user per week |
-| Sync sources working in the wild | Claude Code + Cursor |
-
-If we hit these, we earn the right to build orgs, public profiles, and real-time mode. If we don't, we go back to the loop.
-
-## Principles
-
-1. **Counts only.** We never see prompts or completions. "We literally can't read what you typed" is the privacy posture, baked into the schema from day one.
-2. **CLI is open-source.** Devs need to be able to read the parser before they let it touch their disk. The CLI is the trust anchor.
-3. **Private rooms by default.** v1 is a friend-graph product. Public profiles and global trending come *after* we earn the network.
-4. **Every screen is screenshot-worthy.** If a user wouldn't post it to X, we built the wrong screen. Share cards are first-class, not an afterthought.
-5. **Boring, fast stack.** Cloudflare-native end-to-end, Next.js, TypeScript everywhere. We win on the social loop, not on infra taste.
-6. **Architect for orgs, ship for individuals.** Schema, auth, and IDs allow an org plan to bolt on without a migration.
-7. **Solo + agents friendly.** Every subsystem has a hard interface so multiple agents can work on tracks in parallel without colliding.
-
-## Non-goals for v1
-
-- Native iOS / Android apps (PWA is enough)
-- API-proxy mode for raw-API users (Phase 3)
-- Real-time streaming (daily sync is fine to start)
-- Anti-cheat (the meme self-polices; fakers out themselves)
-- Storing any prompt or completion content
-- Anything that requires Anthropic or OpenAI to ship a feature for us
-- Paid features (architected for, not built)
+Measure successful first syncs, active trackers after seven days, failed-upload
+recovery, price coverage, monthly comparisons, and useful community replies.
+Track parser defects as launch defects. A larger leaderboard is not a reason
+to accept incorrect counts.

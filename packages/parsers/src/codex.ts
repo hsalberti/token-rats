@@ -43,8 +43,7 @@
  *                 non-null `total_token_usage`. The subtraction normalises
  *                 the metric to "uncached billable input", matching the
  *                 Claude Code parser's definition.
- * - `outTokens` = output_tokens + reasoning_output_tokens (both are billed
- *                 at the output rate by OpenAI).
+ * - `outTokens` = output_tokens, which already includes reasoning output.
  * - `cacheReadTokens` = cached_input_tokens (subtracted out of `inTokens` above,
  *                       reported here so analytics can show what fraction of
  *                       input was cache-served).
@@ -71,6 +70,8 @@ interface SessionAcc {
   cacheReadTokens: number;
   reasoningTokens: number;
   model: string;
+  usageAt: number;
+  modelAt: number;
   client: string;
   channel: "cli" | "api" | "unknown";
 }
@@ -110,12 +111,15 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
 
     if (type === "session_meta" && payload) {
       const id = typeof payload.id === "string" ? payload.id : null;
-      if (!id) continue;
+      if (!id) {
+        currentSessionId = null;
+        continue;
+      }
       currentSessionId = id;
       const metaTs = parseTimestamp(payload.timestamp) || ts;
       const acc = upsert(sessions, id);
       const metaSource = typeof payload.source === "string" ? payload.source : null;
-      acc.channel = metaSource === "cli" ? "cli" : metaSource === "api" ? "api" : "unknown";
+      acc.channel = metaSource === "api" ? "api" : metaSource ? "cli" : "unknown";
       acc.client = acc.channel === "cli" ? "codex-cli" : "codex";
       if (metaTs > 0 && (acc.startedAt === 0 || metaTs < acc.startedAt)) {
         acc.startedAt = metaTs;
@@ -133,7 +137,10 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
     }
 
     if (type === "turn_context" && payload && typeof payload.model === "string") {
-      acc.model = payload.model;
+      if (ts >= acc.modelAt) {
+        acc.model = payload.model;
+        acc.modelAt = ts;
+      }
       continue;
     }
 
@@ -147,9 +154,12 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
       const cachedInput = toNonNegInt(t.cached_input_tokens);
       const output = toNonNegInt(t.output_tokens);
       const reasoning = toNonNegInt(t.reasoning_output_tokens);
+      // Ignore older snapshots when the same rollout is present in multiple roots.
+      if (ts < acc.usageAt) continue;
+      acc.usageAt = ts;
       // `total_token_usage` is cumulative — replace, don't add.
       acc.inTokens = Math.max(0, inputTotal - cachedInput);
-      acc.outTokens = output + reasoning;
+      acc.outTokens = output;
       acc.cacheReadTokens = cachedInput;
       acc.reasoningTokens = reasoning;
     }
@@ -200,6 +210,8 @@ function upsert(map: Map<string, SessionAcc>, sessionId: string): SessionAcc {
       cacheReadTokens: 0,
       reasoningTokens: 0,
       model: "",
+      usageAt: 0,
+      modelAt: 0,
       client: "codex-cli",
       channel: "unknown",
     };

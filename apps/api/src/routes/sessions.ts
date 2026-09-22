@@ -173,13 +173,14 @@ sessions.post("/", requireAuth, async (c) => {
   // once and priceWithIndex resolves each record with zero I/O.
   const priceIndex = await loadPriceIndex(c.env);
   const pricedRecords = records.map((r) => {
-    if (r.inTokens + r.outTokens === 0) return { ...r, costUsdCents: 0 };
     const { costUsdCents } = priceWithIndex(
       priceIndex,
       r.model,
       toUtcDay(r.startedAt),
       r.inTokens,
       r.outTokens,
+      r.cacheReadTokens ?? 0,
+      r.cacheWriteTokens ?? 0,
     );
     return { ...r, costUsdCents };
   });

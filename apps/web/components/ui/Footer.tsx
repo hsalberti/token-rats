@@ -15,8 +15,11 @@ export function Footer() {
           >
             npm
           </a>
-          <a href="/teams" className="hover:text-zinc-300">
-            Mission
+          <a href="/community" className="hover:text-zinc-300">
+            Community
+          </a>
+          <a href="https://github.com/hsalberti/token-rats" className="hover:text-zinc-300">
+            Source and docs
           </a>
           <a href="/changelog" className="hover:text-zinc-300">
             Changelog

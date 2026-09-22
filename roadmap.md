@@ -1,3 +1,7 @@
+# Current direction
+
+Enterprise work is paused. The [open source release plan](docs/open-source-release.md) takes priority over the historical tracks below.
+
 # Token Rats — Roadmap v1.2
 
 > **Created: 2026-05-19.** Sister doc to `apps/web/app/changelog/_archive/v1.0-launch-build.md` (shipped) and `apps/web/app/changelog/_archive/v1.1-sharpen-the-edge.md` (closed; partial ship, see header). The provider-expansion sub-effort lives in `notes/provider-expansion.md`.

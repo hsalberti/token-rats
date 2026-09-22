@@ -436,6 +436,8 @@ interface SessionToRestamp {
   model: string;
   in_tokens: number;
   out_tokens: number;
+  cache_read_tokens: number;
+  cache_write_tokens: number;
   started_at: number;
   cost_usd_cents: number;
 }
@@ -463,7 +465,7 @@ admin.post("/prices/recompute", async (c) => {
 
   while (offset < total) {
     const page = await c.env.DB.prepare(
-      `SELECT id, user_id, model, in_tokens, out_tokens, started_at, cost_usd_cents
+      `SELECT id, user_id, model, in_tokens, out_tokens, cache_read_tokens, cache_write_tokens, started_at, cost_usd_cents
          FROM sessions
         ORDER BY started_at ASC
         LIMIT ? OFFSET ?`,
@@ -482,6 +484,8 @@ admin.post("/prices/recompute", async (c) => {
         toUtcDay(r.started_at),
         r.in_tokens,
         r.out_tokens,
+        r.cache_read_tokens,
+        r.cache_write_tokens,
       );
       if (costUsdCents !== r.cost_usd_cents) {
         updates.push({ id: r.id, newCost: costUsdCents, oldCost: r.cost_usd_cents });
