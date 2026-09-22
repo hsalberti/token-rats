@@ -9,7 +9,7 @@ export type { SessionRecord, Source };
  */
 export type Parser = (input: string | ArrayBuffer | Uint8Array) => SessionRecord[];
 
-export { parseClaudeCode } from "./claude-code.js";
-export { parseCodex } from "./codex.js";
+export { createClaudeCodeParser, parseClaudeCode } from "./claude-code.js";
+export { createCodexParser, parseCodex } from "./codex.js";
 export { parseCursor } from "./cursor.js";
 export { computeDedupeKey, fnv1aHex } from "./hash.js";

@@ -2,8 +2,8 @@
 /**
  * token-rats — AI usage tracker and community.
  *
- * Reads usage counts only — never prompts or completions.
- * Parser source: packages/parsers/ — we literally can't read what you typed.
+ * Reads local logs and uploads usage metadata, without prompts or completions.
+ * Parser source: packages/parsers/.
  *
  * Commands:
  *   token-rats login     Authenticate (device-code flow)
@@ -67,9 +67,9 @@ function printHelp(): void {
   --verbose         Print file change events and upload detail
 
 \x1b[1mPrivacy:\x1b[0m
-  Token Rats reads usage counts only — never prompts or completions.
-  The parser source is in packages/parsers/. We literally can't read
-  what you typed.
+  Token Rats reads local logs and uploads usage metadata only.
+  It does not upload prompts or completions.
+  The parser source is in packages/parsers/.
 
 \x1b[1mCursor notes:\x1b[0m
   Cursor doesn't store token counts locally, so per-request tokens

@@ -26,7 +26,7 @@
  * ```
  * User-role lines are used only for their `session_id` and `timestamp` (to
  * capture the earliest timestamp of the session). Their `message.content` is
- * never read.
+ * not included in the returned records.
  *
  * ## Aggregation
  * - One SessionRecord per distinct `session_id`.
@@ -49,7 +49,8 @@
  * - `provider` = "anthropic"
  *
  * ## Privacy
- * No prompt or completion text is ever read, stored, or returned.
+ * Log lines are parsed in memory. Prompt and completion text is not retained
+ * in the accumulator or included in the returned records.
  */
 
 import type { SessionRecord } from "@token-rats/contracts";
@@ -77,25 +78,32 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     text = new TextDecoder().decode(input instanceof ArrayBuffer ? new Uint8Array(input) : input);
   }
 
+  const parser = createClaudeCodeParser();
+  for (const line of text.split("\n")) parser.push(line);
+  return parser.finish();
+}
+
+/** Accumulate usage one line at a time without retaining log contents. */
+export function createClaudeCodeParser() {
   const sessions = new Map<string, SessionAcc>();
   const messages = new Map<
     string,
     { input: number; output: number; read: number; write: number }
   >();
 
-  for (const rawLine of text.split("\n")) {
+  function push(rawLine: string) {
     const line = rawLine.trim();
-    if (line.length === 0) continue;
+    if (line.length === 0) return;
 
     // Parse defensively — skip any malformed line
     let event: unknown;
     try {
       event = JSON.parse(line);
     } catch {
-      continue;
+      return;
     }
 
-    if (typeof event !== "object" || event === null) continue;
+    if (typeof event !== "object" || event === null) return;
 
     const ev = event as Record<string, unknown>;
 
@@ -105,7 +113,7 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     const sidSnake = ev.session_id;
     const sessionId =
       typeof sidCamel === "string" ? sidCamel : typeof sidSnake === "string" ? sidSnake : null;
-    if (!sessionId) continue;
+    if (!sessionId) return;
 
     // Timestamp: real logs are ISO-8601 strings, fixtures are ms-epoch numbers.
     const rawTs = ev.timestamp;
@@ -141,10 +149,10 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     }
 
     // Only assistant messages carry usage + model info
-    if (ev.type !== "assistant") continue;
+    if (ev.type !== "assistant") return;
 
     const message = ev.message;
-    if (typeof message !== "object" || message === null) continue;
+    if (typeof message !== "object" || message === null) return;
     const msg = message as Record<string, unknown>;
 
     // Model: last one seen per session wins
@@ -180,49 +188,53 @@ export function parseClaudeCode(input: string | ArrayBuffer | Uint8Array): Sessi
     }
   }
 
-  // Emit one SessionRecord per session
-  const results: SessionRecord[] = [];
-  for (const acc of sessions.values()) {
-    // Skip sessions with no usable timestamps
-    const startedAt = acc.startedAt > 0 ? acc.startedAt : acc.endedAt;
-    const endedAt = acc.endedAt > 0 ? acc.endedAt : acc.startedAt;
-    if (startedAt <= 0 || endedAt <= 0) continue;
+  function finish(): SessionRecord[] {
+    // Emit one SessionRecord per session
+    const results: SessionRecord[] = [];
+    for (const acc of sessions.values()) {
+      // Skip sessions with no usable timestamps
+      const startedAt = acc.startedAt > 0 ? acc.startedAt : acc.endedAt;
+      const endedAt = acc.endedAt > 0 ? acc.endedAt : acc.startedAt;
+      if (startedAt <= 0 || endedAt <= 0) continue;
 
-    const model = acc.model.length > 0 ? acc.model : "unknown";
+      const model = acc.model.length > 0 ? acc.model : "unknown";
 
-    // costUsdCents is intentionally 0 — the server is authoritative for cost
-    // (see apps/api/src/lib/pricing.ts). Sending 0 keeps the wire format
-    // compatible with the SessionRecord schema; the server overwrites at
-    // ingest time using the D1 price catalog.
-    const costUsdCents = 0;
+      // costUsdCents is intentionally 0 — the server is authoritative for cost
+      // (see apps/api/src/lib/pricing.ts). Sending 0 keeps the wire format
+      // compatible with the SessionRecord schema; the server overwrites at
+      // ingest time using the D1 price catalog.
+      const costUsdCents = 0;
 
-    const dedupeKey = computeDedupeKey(
-      "claude-code",
-      model,
-      startedAt,
-      acc.inTokens,
-      acc.outTokens,
-    );
+      const dedupeKey = computeDedupeKey(
+        "claude-code",
+        model,
+        startedAt,
+        acc.inTokens,
+        acc.outTokens,
+      );
 
-    results.push({
-      id: `claude-code:${acc.sessionId}`,
-      source: "claude-code",
-      provider: "anthropic",
-      client: "claude-code",
-      channel: "cli",
-      model,
-      inTokens: acc.inTokens,
-      outTokens: acc.outTokens,
-      cacheReadTokens: acc.cacheReadTokens,
-      cacheWriteTokens: acc.cacheWriteTokens,
-      costUsdCents,
-      startedAt,
-      endedAt,
-      dedupeKey,
-    });
+      results.push({
+        id: `claude-code:${acc.sessionId}`,
+        source: "claude-code",
+        provider: "anthropic",
+        client: "claude-code",
+        channel: "cli",
+        model,
+        inTokens: acc.inTokens,
+        outTokens: acc.outTokens,
+        cacheReadTokens: acc.cacheReadTokens,
+        cacheWriteTokens: acc.cacheWriteTokens,
+        costUsdCents,
+        startedAt,
+        endedAt,
+        dedupeKey,
+      });
+    }
+
+    return results;
   }
 
-  return results;
+  return { push, finish };
 }
 
 /** Coerce an unknown value to a non-negative integer, defaulting to 0. */

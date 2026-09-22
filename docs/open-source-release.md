@@ -51,7 +51,8 @@ This plan replaces the enterprise-first direction in older roadmaps.
 - Price refresh completed: 447 catalog entries and snapshots, no errors.
 - [Source and documents](https://github.com/hsalberti/token-rats) are public
   under the MIT license.
-- CLI npm publication is awaiting the owner's npm browser authentication.
+- npm accepted CLI 0.3.1. Registry availability is being verified before the
+  upgrade notice changes.
 - Hacker News and Reddit posts remain drafts. No Reddit community was created.
 
 ## Validation
@@ -66,6 +67,19 @@ were not run.
 Live checks passed for API health, community reads, authenticated comparison,
 and authentication on private endpoints. The community, comparison, and proxy
 pages loaded without browser errors in Chromium and WebKit.
+
+## CLI 0.3.1 validation
+
+Testing the installed 0.3.0 archive against a large local history found an
+`Invalid string length` failure. Version 0.3.1 reads Claude Code and Codex logs
+one line at a time and keeps usage accumulators across files. This preserves
+duplicate detection without joining the full history into one string.
+
+All 289 unit/integration tests, lint, type checks, and the CLI build passed.
+The installed patch archive parsed 405 local sessions in a dry run. A separate
+autorunner check against a local HTTP server recovered after four simulated
+server failures, uploaded usage metadata in batches, sent two heartbeats, and
+stopped cleanly on SIGTERM. These checks did not upload usage to production.
 
 Run lint, typecheck, test, and build from the repository root. Unit and API
 integration tests cover parser counting, retry queues, cache estimates,

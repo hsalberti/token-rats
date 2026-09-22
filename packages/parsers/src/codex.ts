@@ -55,7 +55,8 @@
  * latest non-null `total_token_usage` per session — no per-turn summing.
  *
  * ## Privacy
- * Prompts, completions, tool I/O, and instructions are never read.
+ * Log lines are parsed in memory. Prompts, completions, tool I/O, and
+ * instructions are not retained in the accumulator or returned records.
  */
 
 import type { SessionRecord } from "@token-rats/contracts";
@@ -84,22 +85,29 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
     text = new TextDecoder().decode(input instanceof ArrayBuffer ? new Uint8Array(input) : input);
   }
 
+  const parser = createCodexParser();
+  for (const line of text.split("\n")) parser.push(line);
+  return parser.finish();
+}
+
+/** Accumulate usage one line at a time without retaining log contents. */
+export function createCodexParser() {
   const sessions = new Map<string, SessionAcc>();
   // Codex rollouts are one-session-per-file, but we still key by sessionId
   // (taken from session_meta) so we can be tolerant of concatenated input.
   let currentSessionId: string | null = null;
 
-  for (const rawLine of text.split("\n")) {
+  function push(rawLine: string) {
     const line = rawLine.trim();
-    if (line.length === 0) continue;
+    if (line.length === 0) return;
 
     let event: unknown;
     try {
       event = JSON.parse(line);
     } catch {
-      continue;
+      return;
     }
-    if (typeof event !== "object" || event === null) continue;
+    if (typeof event !== "object" || event === null) return;
     const ev = event as Record<string, unknown>;
 
     const ts = parseTimestamp(ev.timestamp);
@@ -113,7 +121,7 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
       const id = typeof payload.id === "string" ? payload.id : null;
       if (!id) {
         currentSessionId = null;
-        continue;
+        return;
       }
       currentSessionId = id;
       const metaTs = parseTimestamp(payload.timestamp) || ts;
@@ -125,10 +133,10 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
         acc.startedAt = metaTs;
       }
       if (metaTs > acc.endedAt) acc.endedAt = metaTs;
-      continue;
+      return;
     }
 
-    if (!currentSessionId) continue;
+    if (!currentSessionId) return;
     const acc = upsert(sessions, currentSessionId);
 
     if (ts > 0) {
@@ -141,21 +149,21 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
         acc.model = payload.model;
         acc.modelAt = ts;
       }
-      continue;
+      return;
     }
 
     if (type === "event_msg" && payload && payload.type === "token_count") {
       const info = payload.info;
-      if (typeof info !== "object" || info === null) continue;
+      if (typeof info !== "object" || info === null) return;
       const total = (info as Record<string, unknown>).total_token_usage;
-      if (typeof total !== "object" || total === null) continue;
+      if (typeof total !== "object" || total === null) return;
       const t = total as Record<string, unknown>;
       const inputTotal = toNonNegInt(t.input_tokens);
       const cachedInput = toNonNegInt(t.cached_input_tokens);
       const output = toNonNegInt(t.output_tokens);
       const reasoning = toNonNegInt(t.reasoning_output_tokens);
       // Ignore older snapshots when the same rollout is present in multiple roots.
-      if (ts < acc.usageAt) continue;
+      if (ts < acc.usageAt) return;
       acc.usageAt = ts;
       // `total_token_usage` is cumulative — replace, don't add.
       acc.inTokens = Math.max(0, inputTotal - cachedInput);
@@ -165,37 +173,47 @@ export function parseCodex(input: string | ArrayBuffer | Uint8Array): SessionRec
     }
   }
 
-  const results: SessionRecord[] = [];
-  for (const acc of sessions.values()) {
-    const startedAt = acc.startedAt > 0 ? acc.startedAt : acc.endedAt;
-    const endedAt = acc.endedAt > 0 ? acc.endedAt : acc.startedAt;
-    if (startedAt <= 0 || endedAt <= 0) continue;
+  function finish(): SessionRecord[] {
+    const results: SessionRecord[] = [];
+    for (const acc of sessions.values()) {
+      const startedAt = acc.startedAt > 0 ? acc.startedAt : acc.endedAt;
+      const endedAt = acc.endedAt > 0 ? acc.endedAt : acc.startedAt;
+      if (startedAt <= 0 || endedAt <= 0) continue;
 
-    const model = acc.model.length > 0 ? acc.model : "unknown";
+      const model = acc.model.length > 0 ? acc.model : "unknown";
 
-    // costUsdCents is intentionally 0 — the server is authoritative for cost
-    // (see apps/api/src/lib/pricing.ts). The server overwrites at ingest.
-    const costUsdCents = 0;
-    const dedupeKey = computeDedupeKey("codex", model, startedAt, acc.inTokens, acc.outTokens);
+      // costUsdCents is intentionally 0 — the server is authoritative for cost
+      // (see apps/api/src/lib/pricing.ts). The server overwrites at ingest.
+      const costUsdCents = 0;
+      const dedupeKey = computeDedupeKey("codex", model, startedAt, acc.inTokens, acc.outTokens);
 
-    results.push({
-      id: `codex:${acc.sessionId}`,
-      source: "codex",
-      provider: "openai",
-      client: acc.client || "codex-cli",
-      channel: acc.channel,
-      model,
-      inTokens: acc.inTokens,
-      outTokens: acc.outTokens,
-      cacheReadTokens: acc.cacheReadTokens,
-      reasoningTokens: acc.reasoningTokens,
-      costUsdCents,
-      startedAt,
-      endedAt,
-      dedupeKey,
-    });
+      results.push({
+        id: `codex:${acc.sessionId}`,
+        source: "codex",
+        provider: "openai",
+        client: acc.client || "codex-cli",
+        channel: acc.channel,
+        model,
+        inTokens: acc.inTokens,
+        outTokens: acc.outTokens,
+        cacheReadTokens: acc.cacheReadTokens,
+        reasoningTokens: acc.reasoningTokens,
+        costUsdCents,
+        startedAt,
+        endedAt,
+        dedupeKey,
+      });
+    }
+    return results;
   }
-  return results;
+
+  return {
+    push,
+    finish,
+    startFile() {
+      currentSessionId = null;
+    },
+  };
 }
 
 function upsert(map: Map<string, SessionAcc>, sessionId: string): SessionAcc {

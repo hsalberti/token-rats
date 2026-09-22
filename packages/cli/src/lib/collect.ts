@@ -1,17 +1,34 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
+import { createInterface } from "node:readline";
 import type { SessionRecord } from "@token-rats/contracts";
-import { parseClaudeCode, parseCodex, parseCursor } from "@token-rats/parsers";
+import { createClaudeCodeParser, createCodexParser, parseCursor } from "@token-rats/parsers";
 import { discoverWorkspaceDbs, extractCursorGenerations } from "./cursor-extract.js";
 import { discoverClaudeCodeFiles, discoverCodexFiles } from "./discover.js";
 
-/** Parse a complete snapshot. Joining Claude logs deduplicates shared message IDs. */
-export async function collectSessions(): Promise<SessionRecord[]> {
-  function read(files: string[]): string {
-    return files.map((file) => fs.readFileSync(file, "utf8")).join("\n");
+/** Keep one accumulator across files so copied messages and rollouts deduplicate. */
+export async function parseSessionFiles(
+  files: string[],
+  parser: { push(line: string): void; finish(): SessionRecord[]; startFile?(): void },
+): Promise<SessionRecord[]> {
+  for (const file of files) {
+    parser.startFile?.();
+    const input = fs.createReadStream(file, { encoding: "utf8" });
+    const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
+    try {
+      for await (const line of lines) parser.push(line);
+    } finally {
+      lines.close();
+      input.destroy();
+    }
   }
-  const claude = parseClaudeCode(read(discoverClaudeCodeFiles()));
-  const codex = parseCodex(read(discoverCodexFiles()));
+  return parser.finish();
+}
+
+/** Parse a complete snapshot without loading the full log history into memory. */
+export async function collectSessions(): Promise<SessionRecord[]> {
+  const claude = await parseSessionFiles(discoverClaudeCodeFiles(), createClaudeCodeParser());
+  const codex = await parseSessionFiles(discoverCodexFiles(), createCodexParser());
   const { rows } = await extractCursorGenerations();
   const cursor = parseCursor(JSON.stringify(rows));
   return [...claude, ...codex, ...cursor].map((record) => ({
