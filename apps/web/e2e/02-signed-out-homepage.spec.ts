@@ -13,7 +13,7 @@ test("/ as signed-out renders the trending board with the hero strip", async ({ 
 
   // Hero: wordmark + tagline + install snippet + sign-in CTA.
   await expect(page.getByText(/Token\s+Rats/i).first()).toBeVisible();
-  await expect(page.getByText(/Strava for AI token burn/i)).toBeVisible();
+  await expect(page.getByText(/Track your AI usage\. Compare subscriptions\./i)).toBeVisible();
   await expect(page.getByText(/token-rats login/i).first()).toBeVisible();
   await expect(page.getByRole("link", { name: /Sign in with GitHub/i }).first()).toBeVisible();
 
@@ -25,9 +25,7 @@ test("/ as signed-out renders the trending board with the hero strip", async ({ 
   // How-it-works moved below the board.
   await expect(page.getByRole("heading", { name: /How it works/i })).toBeVisible();
 
-  // Privacy strip. The production copy uses a curly apostrophe (’), so match
-  // either form so the test doesn't break when designers tweak punctuation.
-  await expect(page.getByText(/we literally can['’]t read your prompts/i)).toBeVisible();
+  await expect(page.getByText("Local tracker: usage metadata only.").first()).toBeVisible();
 });
 
 test("/trending permanently redirects to /", async ({ request }) => {
