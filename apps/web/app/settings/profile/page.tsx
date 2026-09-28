@@ -75,6 +75,8 @@ export default async function ProfileSettingsPage() {
           initialPublicProfile={publicProfile}
           initialBio={bio}
           initialAgentInstructions={agentInstructions}
+          initialPublishAgentInstructions={data.user.publishAgentInstructions ?? false}
+          initialAgentWorkflow={data.user.agentWorkflow ?? null}
           initialGithubProjects={githubProjects}
           initialTwitterHandle={twitterHandle}
           initialTwitterVerified={twitterVerified}

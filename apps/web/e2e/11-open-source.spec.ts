@@ -2,31 +2,28 @@ import { expect, test } from "@playwright/test";
 
 // Use an isolated local Worker seeded with the account for this token.
 const token = process.env.TOKEN_RATS_TEST_TOKEN;
-test.describe("open source community and comparison", () => {
+test.describe("profile sharing and comparison", () => {
   test.skip(!token, "Set TOKEN_RATS_TEST_TOKEN for the isolated local test account.");
   test.beforeEach(async ({ context, baseURL }) => {
     await context.addCookies([{ name: "tr_session", value: token!, url: baseURL! }]);
   });
-  test("publish instructions, download, reply, and remove the post", async ({ page }) => {
-    await page.goto("/community");
-    await page.getByText("Share a post", { exact: true }).click();
-    await page.getByLabel("Category", { exact: true }).selectOption("agents-md");
-    await page.getByLabel("Title", { exact: true }).fill("A tested set of agent instructions");
+  test("publish an instructions excerpt and workflow on the profile", async ({ page }) => {
+    await page.goto("/settings/profile");
     await page
-      .getByLabel("Post or AGENTS.md content")
-      .fill("# AGENTS.md\nRun tests before a release.\n<script>bad()</script>");
-    await page.getByRole("button", { name: "Publish post", exact: true }).click();
-    await expect(
-      page.getByRole("heading", { name: "A tested set of agent instructions" }),
-    ).toBeVisible();
+      .getByLabel("Favorite agent instructions")
+      .fill("# AGENTS.md\nRun tests before a release.");
+    await page.getByLabel("Publish all the text above", { exact: false }).check();
+    await page
+      .getByLabel("How my agents and apps work together")
+      .fill("Codex plans and OpenCode implements, with a review before release.");
+    await page.getByRole("button", { name: "Save changes", exact: true }).click();
+    await expect(page.getByText("Saved", { exact: false }).first()).toBeVisible();
+    await page.getByRole("link", { name: "View profile", exact: true }).click();
+    await expect(page.getByText("Run tests before a release.", { exact: false })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "My agent workflow" })).toBeVisible();
     const download = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download AGENTS.md" }).click();
+    await page.getByRole("link", { name: "Download AGENTS.md" }).click();
     expect((await download).suggestedFilename()).toBe("AGENTS.md");
-    await page.getByLabel("Your reply").fill("This is a browser test reply.");
-    await page.getByRole("button", { name: "Post reply", exact: true }).click();
-    await expect(page.getByText("This is a browser test reply.", { exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Delete post", exact: true }).click();
-    await expect(page).toHaveURL(/\/community$/);
   });
   test("save a subscription amount and reload the comparison", async ({ page }) => {
     await page.goto("/app/compare");

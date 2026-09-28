@@ -427,6 +427,19 @@ export default function ChangelogPage() {
           </p>
         </section>
 
+        <p className="mb-12 rounded-xl border border-rat-800 bg-rat-900/20 p-4 text-sm text-zinc-300">
+          Current tracking reads local Claude Code, Codex, OpenCode, and Cursor usage. The hosted
+          API proxy described in older notes has been retired. See{" "}
+          <a className="text-rat-400" href="/sources">
+            local sources
+          </a>{" "}
+          and the{" "}
+          <a className="text-rat-400" href="https://www.reddit.com/r/TokenRats/">
+            workflow community
+          </a>
+          .
+        </p>
+
         {/* Patches */}
         <div className="space-y-20">
           {PATCHES.map((patch) => (

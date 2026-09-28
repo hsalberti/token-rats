@@ -11,6 +11,7 @@ const ICONS: Record<string, string> = {
   codex: "codex",
   "codex-cli": "codex",
   cursor: "cursor",
+  opencode: "opencode",
   "token-rats-proxy": "claude",
 };
 
@@ -19,6 +20,7 @@ const DISPLAY_NAMES: Record<string, string> = {
   codex: "Codex",
   "codex-cli": "Codex CLI",
   cursor: "Cursor",
+  opencode: "OpenCode",
   "token-rats-proxy": "TR Proxy",
 };
 

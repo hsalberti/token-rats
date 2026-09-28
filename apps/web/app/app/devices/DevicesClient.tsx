@@ -66,6 +66,8 @@ function labelForProvider(value: string): string {
       return "OpenAI";
     case "cursor":
       return "Cursor";
+    case "opencode":
+      return "OpenCode";
     case "unknown":
       return "Unknown";
     default:
@@ -81,6 +83,8 @@ function labelForSource(value: string): string {
       return "Codex";
     case "cursor":
       return "Cursor";
+    case "opencode":
+      return "OpenCode";
     default:
       return value;
   }
@@ -94,6 +98,8 @@ function labelForClient(value: string): string {
       return "Codex CLI";
     case "cursor":
       return "Cursor";
+    case "opencode":
+      return "OpenCode";
     case "token-rats-proxy":
       return "Token Rats Proxy";
     case "unknown":

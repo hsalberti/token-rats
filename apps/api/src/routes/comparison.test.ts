@@ -5,11 +5,9 @@ import { signToken } from "../lib/auth.js";
 import { recordSession } from "../lib/ingest.js";
 import { testDatabase } from "../lib/test-db.js";
 import type { AuthVariables } from "../middleware/auth.js";
-import community from "./community.js";
 import comparison from "./comparison.js";
 let setup: ReturnType<typeof testDatabase>;
 const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
-app.route("/community", community);
 app.route("/compare", comparison);
 beforeEach(() => {
   setup = testDatabase();
@@ -25,54 +23,6 @@ async function request(path: string, method = "GET", body?: unknown, user?: stri
     setup.env,
   );
 }
-describe("community routes with production schema", () => {
-  it("requires login to publish and validates posts", async () => {
-    expect((await request("/community", "POST", {})).status).toBe(401);
-    expect(
-      (await request("/community", "POST", { kind: "idea", title: "a", body: "" }, "alice")).status,
-    ).toBe(400);
-  });
-  it("publishes AGENTS.md as literal text and supports public replies", async () => {
-    const body = "# Instructions\n<script>alert(1)</script>";
-    const created = await request(
-      "/community",
-      "POST",
-      { kind: "agents-md", title: "My agent instructions", body },
-      "alice",
-    );
-    const { id } = (await created.json()) as { id: string };
-    expect(created.status).toBe(201);
-    expect(
-      (await request(`/community/${id}/replies`, "POST", { body: "Thanks for the example" }, "bob"))
-        .status,
-    ).toBe(201);
-    const thread = await (await request(`/community/${id}`)).json();
-    expect(thread).toMatchObject({
-      post: { body, replies: 1, handle: "alice" },
-      replies: [{ handle: "bob" }],
-    });
-    expect((await request(`/community/${id}`, "DELETE", undefined, "bob")).status).toBe(403);
-    expect((await request(`/community/${id}`, "DELETE", undefined, "moderator")).status).toBe(200);
-    expect(setup.db.prepare("SELECT * FROM community_replies").all()).toEqual([]);
-  });
-  it("paginates and filters posts", async () => {
-    for (let i = 0; i < 22; i++) {
-      setup.db
-        .prepare("INSERT INTO community_posts VALUES (?, 'alice', 'idea', 'Title', 'Body', ?)")
-        .run(String(i), i);
-    }
-    const first = (await (await request("/community")).json()) as {
-      posts: unknown[];
-      nextOffset: number;
-    };
-    expect(first.posts).toHaveLength(20);
-    expect(first.nextOffset).toBe(20);
-    expect(await (await request("/community?offset=20")).json()).toMatchObject({
-      nextOffset: null,
-    });
-    expect(await (await request("/community?kind=agents-md")).json()).toMatchObject({ posts: [] });
-  });
-});
 describe("subscription comparison", () => {
   it("keeps month and user spending separate, including a zero-cost plan", async () => {
     expect((await request("/compare")).status).toBe(401);

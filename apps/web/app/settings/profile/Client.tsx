@@ -25,6 +25,8 @@ interface Props {
   initialPublicProfile: boolean;
   initialBio: string | null;
   initialAgentInstructions: string | null;
+  initialPublishAgentInstructions: boolean;
+  initialAgentWorkflow: string | null;
   initialGithubProjects: GithubProject[];
   initialTwitterHandle: string | null;
   initialTwitterVerified: boolean;
@@ -73,6 +75,8 @@ export function ProfileSettingsClient({
   initialPublicProfile,
   initialBio,
   initialAgentInstructions,
+  initialPublishAgentInstructions,
+  initialAgentWorkflow,
   initialGithubProjects,
   initialTwitterHandle,
   initialTwitterVerified,
@@ -80,6 +84,10 @@ export function ProfileSettingsClient({
   const [publicProfile, setPublicProfile] = useState(initialPublicProfile);
   const [bio, setBio] = useState(initialBio ?? "");
   const [agentInstructions, setAgentInstructions] = useState(initialAgentInstructions ?? "");
+  const [publishAgentInstructions, setPublishAgentInstructions] = useState(
+    initialPublishAgentInstructions,
+  );
+  const [agentWorkflow, setAgentWorkflow] = useState(initialAgentWorkflow ?? "");
   const [githubProjects, setGithubProjects] = useState(initialGithubProjects);
   const [availableProjects, setAvailableProjects] =
     useState<GithubProject[]>(initialGithubProjects);
@@ -156,6 +164,8 @@ export function ProfileSettingsClient({
         publicProfile,
         bio: bio.trim() || null,
         agentInstructions: agentInstructions.trim() || null,
+        publishAgentInstructions,
+        agentWorkflow: agentWorkflow.trim() || null,
         githubProjects,
       });
       setSaveStatus("saved");
@@ -268,8 +278,8 @@ export function ProfileSettingsClient({
               Favorite agent instructions
             </label>
             <p className="mt-1 text-sm text-zinc-400">
-              Share how you like coding agents to communicate and work. Your profile shows the first
-              10 lines.
+              Paste a full AGENTS.md or an edited excerpt. Your profile shows the first 10 lines
+              unless you choose to publish all the text.
             </p>
           </div>
           <label className="cursor-pointer rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700">
@@ -297,6 +307,36 @@ export function ProfileSettingsClient({
         <p className="text-right text-xs text-zinc-600">
           {agentInstructions.length.toLocaleString()}/20,000
         </p>
+        <label className="flex items-start gap-3 text-sm text-zinc-300">
+          <input
+            type="checkbox"
+            checked={publishAgentInstructions}
+            onChange={(event) => setPublishAgentInstructions(event.target.checked)}
+            disabled={saving}
+            className="mt-1"
+          />
+          Publish all the text above on my profile and allow it to be downloaded. Review the text
+          before saving.
+        </label>
+      </section>
+
+      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <label htmlFor="agent-workflow" className="font-semibold text-zinc-100">
+          How my agents and apps work together
+        </label>
+        <p className="text-sm text-zinc-400">
+          Describe the tools and model versions, who handles each task, and what changed when you
+          adjusted your setup. This text appears on your profile.
+        </p>
+        <textarea
+          id="agent-workflow"
+          value={agentWorkflow}
+          onChange={(event) => setAgentWorkflow(event.target.value)}
+          maxLength={5000}
+          rows={7}
+          disabled={saving}
+          className="w-full rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-100"
+        />
       </section>
 
       {/* Featured GitHub projects */}
@@ -424,6 +464,9 @@ export function ProfileSettingsClient({
         >
           {saving ? "Saving..." : "Save changes"}
         </button>
+        <a href={`/u/${handle}`} className="text-sm text-rat-400">
+          View profile
+        </a>
 
         {saveStatus === "saved" && <p className="text-sm text-green-400">Saved!</p>}
         {saveStatus === "error" && (

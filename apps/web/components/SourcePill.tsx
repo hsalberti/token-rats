@@ -18,6 +18,7 @@ const ICONS: Record<string, string> = {
   codex: "codex",
   "codex-cli": "codex",
   cursor: "cursor",
+  opencode: "opencode",
   "token-rats-proxy": "claude",
   // Track P "Other" branches will extend this map (openai, anthropic,
   // ollama, etc.) once they're wired up.
@@ -33,6 +34,7 @@ const PRIMARY_LABEL_ICONS: { prefix: string; icon: string }[] = [
   { prefix: "claude", icon: "claude" },
   { prefix: "cursor", icon: "cursor" },
   { prefix: "codex", icon: "codex" },
+  { prefix: "opencode", icon: "opencode" },
 ];
 
 function iconForPrimaryLabel(label: string): string | null {
@@ -91,6 +93,7 @@ const DISPLAY_NAMES: Record<string, string> = {
   codex: "Codex",
   "codex-cli": "Codex CLI",
   cursor: "Cursor",
+  opencode: "OpenCode",
   "token-rats-proxy": "Token Rats Proxy",
 };
 

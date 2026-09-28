@@ -11,7 +11,7 @@ The stack is chosen to (a) ship the fastest viral loop, (b) be cheap-to-free at 
 | **Database** | Cloudflare D1 (SQLite at the edge) | Cloudflare | Users, rooms, memberships, sessions, daily rollups |
 | **Object store** | Cloudflare R2 | Cloudflare | Pre-rendered share cards, future avatar uploads |
 | **Cache / counters** | Cloudflare KV + Durable Objects | Cloudflare | Live leaderboard counters (Phase 2), rate limits |
-| **CLI** | TypeScript, distributed via npm as `token-rats` | npm | Reads local Claude Code + Cursor logs, uploads counts |
+| **CLI** | TypeScript, distributed via npm as `token-rats` | npm | Reads local Claude Code, Codex, OpenCode, and Cursor usage fields; uploads counts |
 | **Auth** | GitHub OAuth (server-side, via Worker) | Cloudflare | Single auth provider in v1 |
 | **OG / share cards** | `@vercel/og` (Satori) in a Next.js route | Cloudflare Pages | Dynamic PNG cards for X / Discord embeds |
 

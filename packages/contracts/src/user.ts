@@ -61,8 +61,10 @@ export const User = z.object({
    * verified email — the user sees a banner asking them to add one.
    */
   email: z.string().email().nullable().optional(),
-  /** Full text is self-only; public profiles receive agentInstructionsPreview instead. */
+  /** Full text is public only after the owner explicitly enables publication. */
   agentInstructions: z.string().max(20_000).nullable().optional(),
+  publishAgentInstructions: z.boolean().optional(),
+  agentWorkflow: z.string().max(5_000).nullable().optional(),
   githubProjects: GithubProjects.optional(),
 });
 export type User = z.infer<typeof User>;
@@ -78,6 +80,8 @@ export const PublicProfileSettings = z.object({
   publicProfile: z.boolean().optional(),
   bio: z.string().max(200).nullable().optional(),
   agentInstructions: z.string().max(20_000).nullable().optional(),
+  publishAgentInstructions: z.boolean().optional(),
+  agentWorkflow: z.string().max(5_000).nullable().optional(),
   githubProjects: GithubProjects.optional(),
 });
 export type PublicProfileSettings = z.infer<typeof PublicProfileSettings>;

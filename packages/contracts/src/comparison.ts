@@ -3,7 +3,7 @@ import { z } from "zod";
 export const UsageMonth = z.string().regex(/^20\d{2}-(0[1-9]|1[0-2])$/);
 export const SubscriptionSpendRequest = z.object({
   month: UsageMonth,
-  source: z.enum(["claude-code", "codex", "cursor"]),
+  source: z.enum(["claude-code", "codex", "cursor", "opencode"]),
   label: z.string().trim().min(1).max(80),
   paidUsdCents: z.number().int().min(0).max(100_000_000),
 });

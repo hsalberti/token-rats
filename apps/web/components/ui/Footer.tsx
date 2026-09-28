@@ -15,7 +15,7 @@ export function Footer() {
           >
             npm
           </a>
-          <a href="/community" className="hover:text-zinc-300">
+          <a href="https://www.reddit.com/r/TokenRats/" className="hover:text-zinc-300">
             Community
           </a>
           <a href="https://github.com/hsalberti/token-rats" className="hover:text-zinc-300">

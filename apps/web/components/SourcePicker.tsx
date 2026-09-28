@@ -4,12 +4,9 @@
  * SourcePicker — three-option segmented control for the "Add a source"
  * surface on /app. Top-level choices:
  *
- *   Claude Code · Codex · Cursor · Other
+ *   Claude Code · Codex · Cursor · OpenCode
  *
- * Claude Code, Codex, and Cursor tiles each direct the user at the CLI
- * quick-start for that source. "Other" is a no-op in v1 — it surfaces a placeholder
- * explaining that the broader IDE / API / Open-Source picker is coming
- * (Track P in roadmap-providers.md).
+ * Every tile points to the same local CLI collector.
  *
  * Tile art is loaded from `/providers/<slug>.svg` (originally mirrored from
  * CodexBar, MIT — see NOTICES.md + assets/providers/README.md for the
@@ -20,9 +17,8 @@ import { useState } from "react";
 import { type Locale, t } from "../lib/i18n";
 import { InstallBlock } from "./InstallBlock";
 import { NodeInstallHint } from "./NodeInstallHint";
-import { OtherSourcePicker } from "./OtherSourcePicker";
 
-type SourceId = "claude-code" | "codex" | "cursor" | "other";
+type SourceId = "claude-code" | "codex" | "cursor" | "opencode";
 
 const OPTIONS: { id: SourceId; label: string; icon: string | null; subtitle: string }[] = [
   {
@@ -43,7 +39,12 @@ const OPTIONS: { id: SourceId; label: string; icon: string | null; subtitle: str
     icon: "/providers/cursor.svg",
     subtitle: "Cursor/User/globalStorage/state.vscdb",
   },
-  { id: "other", label: "Other", icon: null, subtitle: "IDE · API · Open Source" },
+  {
+    id: "opencode",
+    label: "OpenCode",
+    icon: "/providers/opencode.svg",
+    subtitle: "~/.local/share/opencode/opencode.db",
+  },
 ];
 
 interface SourcePickerProps {
@@ -106,11 +107,7 @@ export function SourcePicker({ locale = "en" }: SourcePickerProps) {
 }
 
 function SelectedDetail({ id, locale }: { id: SourceId; locale: Locale }) {
-  if (id === "other") {
-    return <OtherSourcePicker />;
-  }
-
-  const sourceName = id === "claude-code" ? "Claude Code" : id === "cursor" ? "Cursor" : "Codex";
+  const sourceName = OPTIONS.find((option) => option.id === id)?.label ?? id;
 
   return (
     <div className="space-y-3">

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
-Run from the repo root unless noted. Package manager is **pnpm 10**; Node ≥ 20.
+Run from the repo root unless noted. Package manager is **pnpm 10**; Node ≥ 22.13.
 
 ```
 pnpm install
@@ -33,7 +33,7 @@ CI runs `lint → typecheck → test → build` (`.github/workflows/ci.yml`). Ma
 
 Token Rats is a Cloudflare-native monorepo: a Next.js PWA, a Hono Worker API, and an npm-distributed CLI, all wired together through a shared contracts package. The mission/tech-stack rationale lives in `mission.md` and `tech-stack.md`; read those if a decision feels arbitrary.
 
-**Data flow.** The CLI (`packages/cli`) reads local Claude Code + Cursor logs from disk, runs them through pure parsers (`packages/parsers`), and `POST`s a `SessionRecord[]` to `/v1/sessions` on the Worker (`apps/api`). The Worker dedupes via `sessions.dedupe_key`, upserts into `daily_rollup`, and the web app reads leaderboards off that rollup. Counts only flow through this pipeline — there is a hard rule (`mission.md`) that prompt/completion content never leaves the user's machine.
+**Data flow.** The CLI (`packages/cli`) reads local Claude Code, Codex, OpenCode, and Cursor usage fields from disk. Claude Code and Codex use JSONL parsers, Cursor uses its local cache, and OpenCode uses the read-only SQLite query in `packages/cli/src/lib/opencode-extract.ts`. The CLI `POST`s a `SessionRecord[]` to `/v1/sessions` on the Worker (`apps/api`). The Worker dedupes via `sessions.dedupe_key`, upserts into `daily_rollup`, and the web app reads leaderboards off that rollup. Usage metadata only flows through this pipeline; full profile instructions are public only after explicit publication.
 
 **The contract package is load-bearing.** `packages/contracts` exports Zod schemas + inferred TS types for every API request/response, plus the domain types (`SessionRecord`, `Room`, `LeaderboardRow`, etc.). The Worker validates inbound payloads against these schemas; the web client and CLI import the same types. Changing a contract breaks the build everywhere on purpose — that's the cross-workspace safety net. When adding an endpoint, define its schema in `contracts` first, then implement the route handler and the client call.
 
@@ -49,19 +49,19 @@ Token Rats is a Cloudflare-native monorepo: a Next.js PWA, a Hono Worker API, an
 - `/v1/groups` (public country-locked group discovery)
 - `/v1/u` (public profiles)
 - `/v1/push`, `/v1/notifications`
-- `/v1/trending`, `/v1/abuse`, `/v1/proxy`, `/v1/orgs`, `/v1/admin` (project-owner only, gated by `ADMIN_GITHUB_LOGIN`)
+- `/v1/trending`, `/v1/abuse`, `/v1/orgs`, `/v1/admin` (project-owner only, gated by `ADMIN_GITHUB_LOGIN`)
 - `/webhooks/stripe`
 - `GET /healthz`
 
 Cross-cutting logic (auth helpers, ingest dedupe, primary-source resolution, rate limiting, Stripe, web push, weekly digest, referrals, email) lives in `lib/`. The cookie-based auth middleware is in `middleware/auth.ts` and sets `AuthVariables` on the Hono context. The `RoomLiveHub` Durable Object (re-exported from `index.ts`, source in `lib/room-live-hub.ts`) is the SSE fan-out for live room updates. `scheduled.ts` runs from the `0 16 * * 1` cron in `wrangler.toml` for weekly digests.
 
-**Worker bindings (`apps/api/wrangler.toml`).** `DB` (D1), `CACHE` (KV), `CARDS` (R2), `ROOM_LIVE` (Durable Object). One plain var: `WEB_ORIGIN` (set to the prod web origin; CORS also unconditionally allows any `localhost`/`127.0.0.1` origin for dev). Secrets — `GITHUB_CLIENT_ID/SECRET`, `SESSION_SIGNING_KEY`, `VAPID_PRIVATE_KEY/PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Twitter/X OAuth secrets, `ADMIN_GITHUB_LOGIN`, optional `ANTHROPIC_API_KEY` — set via `wrangler secret put`, never committed; use `.dev.vars` locally. The root `infra/wrangler.toml` is reference-only; the deployable config is `apps/api/wrangler.toml`.
+**Worker bindings (`apps/api/wrangler.toml`).** `DB` (D1), `CACHE` (KV), `CARDS` (R2), `ROOM_LIVE` (Durable Object). `WEB_ORIGIN` sets the web origin. Secrets — `GITHUB_CLIENT_ID/SECRET`, `SESSION_SIGNING_KEY`, `VAPID_PRIVATE_KEY/PUBLIC_KEY`, `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, Twitter/X OAuth secrets, and `ADMIN_GITHUB_LOGIN` — use Wrangler secrets and `.dev.vars` locally. The root `infra/wrangler.toml` is reference-only; the deployable config is `apps/api/wrangler.toml`.
 
-**D1 migrations.** SQL files in `infra/migrations/` (referenced by `migrations_dir = "../../infra/migrations"`). `0001_init.sql` is frozen — the original schema (users, orgs, org_members, rooms, room_members, sessions, daily_rollup). Later migrations layer in streaks/challenges (`0002`), notifications (`0003`), proxy keys (`0004`), public profiles (`0005`), the org plan (`0006`), referrals (`0007`), Twitter handles (`0008`), pending orgs (`0009`), user email (`0010`), public rooms (`0011`), pinned room members (`0012`). Add new migrations as numbered files; don't edit existing ones. `org_id` is nullable on `rooms` so the org plan slots in without a schema break.
+**D1 migrations.** SQL files in `infra/migrations/` (referenced by `migrations_dir = "../../infra/migrations"`). `0001_init.sql` is frozen. Add new migrations as numbered files; don't edit existing ones. Migration `0025` adds explicit full-instruction publication and workflow descriptions to profiles. Community navigation goes to r/TokenRats; the built-in forum routes are retired. The retired proxy key tables are removed only with `infra/manual/retire_proxy_keys.sql` after the new API is deployed, because CI applies normal migrations before deploying the Worker.
 
-**Web app (`apps/web/app`).** Next.js 15 App Router + React 19 + Tailwind. Top-level route segments: rooms (`r/`), public profiles (`u/`), orgs (`o/`), `signin`, `settings`, `onboarding`, `trending`, `proxy`, `cli`, `join`, `cards` (OG share-card route), `groups`, `changelog`, `admin`, and the authed dashboard at `app/` (with `app/friends`). Shared client helpers (`lib/api.ts`, `lib/auth.ts`, `lib/use-room-live.ts`, etc.) wrap fetch calls and the SSE live hook. Components are split into `components/ui/`, `components/room/`, and `components/onboarding/`.
+**Web app (`apps/web/app`).** Next.js 15 App Router + React 19 + Tailwind. Top-level route segments include rooms (`r/`), public profiles (`u/`), `community`, `sources`, `signin`, `settings`, `onboarding`, `trending`, `cli`, `join`, `cards`, `groups`, `changelog`, `admin`, and the authed dashboard at `app/`. Shared client helpers (`lib/api.ts`, `lib/auth.ts`, `lib/use-room-live.ts`, etc.) wrap fetch calls and the SSE live hook.
 
-**CLI (`packages/cli`).** Entry at `src/index.ts` dispatches commands in `src/commands/` (`login`, `sync`, `watch`, `whoami`, `logout`, `install-cursor`). `sync`/`watch` discover Claude Code + Cursor logs on disk, hand them to `@token-rats/parsers`, then upload to the API. `install-cursor` writes the Cursor log-export hook locally. The CLI is published as the `token-rats` binary via `bin` in its package.json; its build (`build.mjs`) is a separate esbuild step, not part of Turbo.
+**CLI (`packages/cli`).** Entry at `src/index.ts` dispatches commands in `src/commands/` (`login`, `sync`, `watch`, `whoami`, `logout`, `install-cursor`). `sync`/`watch` discover Claude Code, Codex, OpenCode, and Cursor data locally and upload usage metadata to the API. `install-cursor` is an optional native SQLite speed-up. The CLI is published as the `token-rats` binary via `bin` in its package.json; its build (`build.mjs`) is a separate esbuild step, not part of Turbo.
 
 ## Conventions
 

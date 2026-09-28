@@ -1,6 +1,6 @@
 # Run Token Rats locally
 
-Use Node 22 and pnpm 10. No production account or enterprise plan is needed.
+Use Node 22.13 or newer and pnpm 10. No production account or enterprise plan is needed.
 Cloudflare Wrangler runs the Worker, SQLite/D1, KV, and other bindings locally.
 
 ## Configure
@@ -26,7 +26,7 @@ pnpm dev
 ```
 
 Open `http://localhost:3000`. Sign in with GitHub. New accounts can create
-rooms, publish community posts, and compare local usage.
+rooms, share profile instructions and workflows, and compare local usage.
 
 The CLI can run from source without installing a background service:
 
@@ -50,13 +50,13 @@ must also be running for local uploads to succeed.
 
 ## Check the features
 
-- `/community`: publish an idea or AGENTS.md, reply, download, and delete.
+- `/settings/profile`: publish a full or partial AGENTS.md and workflow; verify the profile and download.
+- `/community`: redirects to r/TokenRats.
 - `/app/compare`: select a month and enter a subscription amount.
-- `/proxy`: add your own API key for optional provider requests.
+- `/sources`: inspect local Claude Code, Codex, OpenCode, and Cursor collection.
 - `/app/devices`: check the tracker heartbeat.
 
-Provider API calls use your provider account and can incur charges. Unit tests
-mock those calls. Email, push, and production deployment need their own
+Email, push, and production deployment need their own
 bindings and secrets; they are not needed for the core local flow.
 
 ## Verify changes

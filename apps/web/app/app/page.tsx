@@ -63,9 +63,9 @@ export default async function AppPage() {
           className="mb-6 flex flex-wrap gap-4 text-sm font-semibold text-rat-400"
         >
           <a href="/app/compare">Compare subscriptions</a>
-          <a href="/community">Community</a>
+          <a href="https://www.reddit.com/r/TokenRats/">Community</a>
           <a href="/app/friends">Friends</a>
-          <a href="/proxy">API tracking</a>
+          <a href="/sources">Local sources</a>
         </nav>
         <DashboardClient
           user={user}

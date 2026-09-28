@@ -1,6 +1,8 @@
 # Open source release
 
-This plan replaces the enterprise-first direction in older roadmaps.
+This plan replaces the enterprise-first direction in older roadmaps. The
+September 22 release below is already public. The next release is described
+after its status and validation notes.
 
 ## Implemented in this change
 
@@ -40,7 +42,7 @@ This plan replaces the enterprise-first direction in older roadmaps.
    Records whose logs are gone cannot be corrected from the current parser.
 6. Verify sign-in, first sync, offline retry, comparison, post/reply/delete,
    and one real API response for each provider with the owner's test keys.
-7. Make the repository public. The [launch drafts](launch.md) are ready for the
+7. Make the repository public. The [launch drafts](../traction/posts.md) are ready for the
    owner to post to Hacker News and Reddit.
 
 ## Release status — 2026-09-22
@@ -103,3 +105,18 @@ The suite is skipped without the test token.
 
 The autorunner is the background usage tracker. See the
 [counting limits](counting.md#known-limits) before making public claims.
+
+## 0.4.0: local OpenCode and profile sharing
+
+The release adds an OpenCode SQLite collector, explicit publication of full or partial AGENTS.md text on profiles, and workflow descriptions. Community navigation links to https://www.reddit.com/r/TokenRats/; Alberti creates the subreddit and posts launch messages himself. Hosted API proxies and the built-in forum endpoints are retired. Historical usage and forum data are retained.
+
+1. Run lint, typecheck, tests, production builds, browser checks, and npm archive inspection. Compare OpenCode with Tokscale and native stats. Check that existing complete instruction drafts are not made public automatically.
+2. Export remote D1 outside the repository. Apply additive migration `0025_profile_workflows.sql` before the new API runs.
+3. Deploy the API; publish and verify CLI 0.4.0; update `LATEST_CLI_VERSION`; deploy web from the same public GitHub commit. Existing daemons must be reinstalled to use the new collector.
+4. Verify profile publication/download, workflow text, privacy, comparison, local OpenCode dry run, and Reddit navigation. Verify `/v1/proxy/*` and built-in forum endpoints are retired.
+5. Run `wrangler d1 execute token-rats --remote --file ../../infra/manual/retire_proxy_keys.sql` from `apps/api` after the new API is live. This deletes retired credentials, not usage records.
+6. Publish the reviewed instruction excerpt on Alberti's own profile and verify the public page. Record deployed commits, npm verification, and checks in [traction/release.md](../traction/release.md).
+
+The [traction roadmap](../traction/roadmap.md) and [editable post drafts](../traction/posts.md) contain all external posting work. Agents do not publish those posts.
+
+The repository was confirmed public and MIT licensed on 2026-09-28. A limited scan of 394 tracked files and 1,597 reachable Git blobs found no common private-key or provider-token patterns. Repeat artifact inspection on the final release commit.

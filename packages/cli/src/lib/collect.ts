@@ -5,6 +5,7 @@ import type { SessionRecord } from "@token-rats/contracts";
 import { createClaudeCodeParser, createCodexParser, parseCursor } from "@token-rats/parsers";
 import { discoverWorkspaceDbs, extractCursorGenerations } from "./cursor-extract.js";
 import { discoverClaudeCodeFiles, discoverCodexFiles } from "./discover.js";
+import { collectOpenCodeSessions, discoverOpenCodeDbs } from "./opencode-extract.js";
 
 /** Keep one accumulator across files so copied messages and rollouts deduplicate. */
 export async function parseSessionFiles(
@@ -29,9 +30,10 @@ export async function parseSessionFiles(
 export async function collectSessions(): Promise<SessionRecord[]> {
   const claude = await parseSessionFiles(discoverClaudeCodeFiles(), createClaudeCodeParser());
   const codex = await parseSessionFiles(discoverCodexFiles(), createCodexParser());
+  const opencode = collectOpenCodeSessions();
   const { rows } = await extractCursorGenerations();
   const cursor = parseCursor(JSON.stringify(rows));
-  return [...claude, ...codex, ...cursor].map((record) => ({
+  return [...claude, ...codex, ...opencode, ...cursor].map((record) => ({
     ...record,
     accountingVersion: 2,
     dedupeKey: createHash("sha256")
@@ -75,6 +77,7 @@ export function createCollector() {
     const files = [
       ...discoverClaudeCodeFiles(),
       ...discoverCodexFiles(),
+      ...discoverOpenCodeDbs().flatMap((file) => [file, `${file}-wal`]),
       ...discoverWorkspaceDbs().flatMap((file) => [file, `${file}-wal`]),
     ].sort();
     const next = JSON.stringify(

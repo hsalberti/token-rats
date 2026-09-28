@@ -13,5 +13,4 @@ export * from "./referral.js";
 export * from "./friends.js";
 export * from "./device.js";
 export * from "./cli.js";
-export * from "./community.js";
 export * from "./comparison.js";

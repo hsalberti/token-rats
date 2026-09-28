@@ -147,7 +147,7 @@ export default async function HomePage({
             </a>
           </p>
           <a
-            href="/community"
+            href="https://www.reddit.com/r/TokenRats/"
             className="text-sm font-semibold text-zinc-400 hover:text-rat-400 transition-colors"
           >
             Share ideas and AGENTS.md files

@@ -1,6 +1,7 @@
 import type { Heatmap, HeatmapRange, Profile } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { AgentInstructions } from "../../../components/AgentInstructions";
 import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
 import { ProfileReferralCard } from "../../../components/ProfileReferralCard";
 import { SourceTiles } from "../../../components/SourcePill";
@@ -184,21 +185,18 @@ export default async function ProfilePage({ params, searchParams }: Props) {
 
         {/* Social profile details */}
         {profile.agentInstructionsPreview && (
-          <Card className="overflow-hidden p-0">
-            <div className="flex items-center justify-between border-b border-zinc-800 px-4 py-3 sm:px-6">
-              <div>
-                <h2 className="font-mono text-sm font-bold text-zinc-100">AGENTS.md</h2>
-                <p className="mt-0.5 text-xs text-zinc-500">
-                  How @{profile.handle} likes agents to work
-                </p>
-              </div>
-              <span className="rounded-full border border-zinc-700 bg-zinc-950 px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-zinc-500">
-                First 10 lines
-              </span>
-            </div>
-            <pre className="overflow-x-auto whitespace-pre-wrap break-words bg-zinc-950/60 px-4 py-4 font-mono text-sm leading-6 text-zinc-300 sm:px-6">
-              {profile.agentInstructionsPreview}
-            </pre>
+          <AgentInstructions
+            handle={profile.handle}
+            preview={profile.agentInstructionsPreview}
+            published={profile.agentInstructions ?? null}
+          />
+        )}
+        {profile.agentWorkflow && (
+          <Card className="p-5 sm:p-6">
+            <h2 className="font-semibold text-zinc-100">My agent workflow</h2>
+            <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">
+              {profile.agentWorkflow}
+            </p>
           </Card>
         )}
 

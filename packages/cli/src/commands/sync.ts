@@ -1,9 +1,8 @@
 /**
  * token-rats sync
  *
- * Discovers Claude Code .jsonl files + Cursor sqlite cache, parses them via
- * @token-rats/parsers, dedupes locally, then uploads in batches of 500 to
- * POST /v1/sessions.
+ * Reads Claude Code and Codex logs, OpenCode SQLite, and Cursor caches,
+ * deduplicates locally, then uploads batches to POST /v1/sessions.
  */
 
 import { ApiClient, ApiError, DeviceRevokedError } from "../lib/api.js";

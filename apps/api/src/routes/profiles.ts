@@ -21,7 +21,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
   const handle = c.req.param("handle");
 
   const user = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, agent_instructions, github_projects FROM users WHERE handle = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, agent_instructions, publish_agent_instructions, agent_workflow, github_projects FROM users WHERE handle = ?",
   )
     .bind(handle)
     .first<{
@@ -32,6 +32,8 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       bio: string | null;
       twitter_handle: string | null;
       agent_instructions: string | null;
+      publish_agent_instructions: number;
+      agent_workflow: string | null;
       github_projects: string | null;
     }>();
 
@@ -159,6 +161,9 @@ profiles.get("/:handle", optionalAuth, async (c) => {
             bio: user.bio,
             twitterHandle: user.twitter_handle,
             agentInstructionsPreview: agentInstructionsPreview(user.agent_instructions),
+            agentInstructions:
+              user.publish_agent_instructions === 1 ? user.agent_instructions : null,
+            agentWorkflow: user.agent_workflow,
             githubProjects: parseGithubProjects(user.github_projects),
           }
         : {}),

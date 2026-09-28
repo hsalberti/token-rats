@@ -3,11 +3,11 @@
  * token-rats — AI usage tracker and community.
  *
  * Reads local logs and uploads usage metadata, without prompts or completions.
- * Parser source: packages/parsers/.
+ * Reader source: packages/parsers/ and packages/cli/src/lib/.
  *
  * Commands:
  *   token-rats login     Authenticate (device-code flow)
- *   token-rats sync      Discover + upload Claude Code, Codex, and Cursor usage
+ *   token-rats sync      Discover + upload Claude Code, Codex, OpenCode, and Cursor usage
  *   token-rats watch     Run the autorunner and upload changed sessions
  *   token-rats whoami    Show the signed-in account
  *   token-rats logout    Clear credentials
@@ -44,7 +44,7 @@ function printHelp(): void {
 
 \x1b[1mCommands:\x1b[0m
   login              Authenticate with Token Rats (opens browser); installs the background watcher by default
-  sync               Read local Claude Code, Codex + Cursor logs and upload counts
+  sync               Read local Claude Code, Codex, OpenCode + Cursor logs and upload counts
   watch              Watch logs in real-time; upload new sessions as they appear
   whoami             Show the currently signed-in account + device id
   logout             Clear your stored credentials
@@ -69,7 +69,7 @@ function printHelp(): void {
 \x1b[1mPrivacy:\x1b[0m
   Token Rats reads local logs and uploads usage metadata only.
   It does not upload prompts or completions.
-  The parser source is in packages/parsers/.
+  The local readers are in packages/parsers/ and packages/cli/src/lib/.
 
 \x1b[1mCursor notes:\x1b[0m
   Cursor doesn't store token counts locally, so per-request tokens

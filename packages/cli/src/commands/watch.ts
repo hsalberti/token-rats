@@ -46,7 +46,7 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
   };
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
-  info("Tracking Claude Code, Codex, and Cursor. Press Ctrl-C to stop.");
+  info("Tracking Claude Code, Codex, OpenCode, and Cursor. Press Ctrl-C to stop.");
   try {
     while (!stopped) {
       try {

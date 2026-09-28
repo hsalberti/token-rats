@@ -7,6 +7,7 @@ const labels: Record<string, string> = {
   "claude-code": "Claude Code",
   codex: "Codex",
   cursor: "Cursor",
+  opencode: "OpenCode",
 };
 const number = (value: number) => value.toLocaleString("en-US");
 const dollars = (value: number) => `$${value.toFixed(2)}`;
@@ -50,7 +51,7 @@ export function ComparisonClient() {
       )}
       {!data && !error && <p>Loading usage…</p>}
       {data && (
-        <div className="grid gap-4 md:grid-cols-3">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {data.sources.map((source) => (
             <SourceCard key={`${month}:${source.source}`} source={source} month={month} />
           ))}
@@ -62,8 +63,8 @@ export function ComparisonClient() {
           output and is shown separately.
         </p>
         <p>
-          Only local CLI and IDE records enter this comparison. API proxy usage is excluded. Missing
-          logs cannot be recovered from your subscription account.
+          Only local CLI and IDE records enter this comparison. Historical proxy usage is excluded.
+          Missing logs cannot be recovered from your subscription account.
         </p>
         <p>
           Cursor counts are estimates. Unknown model or cache prices are shown as unpriced.
@@ -71,8 +72,9 @@ export function ComparisonClient() {
           and provider credits are not included.
         </p>
         <p>
-          Long sessions are assigned to their start date and last recorded model. A month with no
-          records means no recorded usage, not proof that the subscription was unused.
+          Claude Code and Codex sessions use their start date and last recorded model. OpenCode is
+          grouped by model but still uses the first message date. A month with no records means no
+          recorded usage, not proof that the subscription was unused.
         </p>
       </div>
     </div>

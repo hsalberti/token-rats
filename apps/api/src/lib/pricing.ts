@@ -116,7 +116,7 @@ async function recordSessionInferred(env: Env, model: string): Promise<void> {
        (id, provider, family, display_name, modality, is_active,
         first_seen_day, last_seen_day, source, notes)
      VALUES (?, 'unknown', NULL, ?, NULL, 0, DATE('now'), DATE('now'),
-             'session-inferred', 'Auto-created on first sighting in /v1/sessions or /v1/proxy')
+             'session-inferred', 'Auto-created on first sighting in /v1/sessions')
      ON CONFLICT(id) DO UPDATE SET last_seen_day = DATE('now')`,
   )
     .bind(model, model)

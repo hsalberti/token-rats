@@ -22,7 +22,7 @@ me.get("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
   const row = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, github_projects FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -35,6 +35,8 @@ me.get("/", requireAuth, async (c) => {
       twitter_user_id: string | null;
       email: string | null;
       agent_instructions: string | null;
+      publish_agent_instructions: number;
+      agent_workflow: string | null;
       github_projects: string | null;
     }>();
 
@@ -53,6 +55,8 @@ me.get("/", requireAuth, async (c) => {
       twitterVerified: row.twitter_user_id !== null,
       email: row.email,
       agentInstructions: row.agent_instructions,
+      publishAgentInstructions: row.publish_agent_instructions === 1,
+      agentWorkflow: row.agent_workflow,
       githubProjects: parseGithubProjects(row.github_projects),
     },
   });
@@ -80,10 +84,12 @@ me.patch("/", requireAuth, async (c) => {
     body.publicProfile === undefined &&
     body.bio === undefined &&
     body.agentInstructions === undefined &&
+    body.publishAgentInstructions === undefined &&
+    body.agentWorkflow === undefined &&
     body.githubProjects === undefined
   ) {
     const row = await c.env.DB.prepare(
-      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, github_projects FROM users WHERE id = ?",
+      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects FROM users WHERE id = ?",
     )
       .bind(userId)
       .first<{
@@ -96,6 +102,8 @@ me.patch("/", requireAuth, async (c) => {
         twitter_user_id: string | null;
         email: string | null;
         agent_instructions: string | null;
+        publish_agent_instructions: number;
+        agent_workflow: string | null;
         github_projects: string | null;
       }>();
     if (!row) return notFound(c, "User not found");
@@ -110,6 +118,8 @@ me.patch("/", requireAuth, async (c) => {
         twitterVerified: row.twitter_user_id !== null,
         email: row.email,
         agentInstructions: row.agent_instructions,
+        publishAgentInstructions: row.publish_agent_instructions === 1,
+        agentWorkflow: row.agent_workflow,
         githubProjects: parseGithubProjects(row.github_projects),
       },
     });
@@ -131,6 +141,14 @@ me.patch("/", requireAuth, async (c) => {
     setClauses.push("agent_instructions = ?");
     binds.push(body.agentInstructions ?? null);
   }
+  if (body.publishAgentInstructions !== undefined) {
+    setClauses.push("publish_agent_instructions = ?");
+    binds.push(body.publishAgentInstructions ? 1 : 0);
+  }
+  if (body.agentWorkflow !== undefined) {
+    setClauses.push("agent_workflow = ?");
+    binds.push(body.agentWorkflow ?? null);
+  }
   if (body.githubProjects !== undefined) {
     setClauses.push("github_projects = ?");
     binds.push(JSON.stringify(body.githubProjects));
@@ -143,7 +161,7 @@ me.patch("/", requireAuth, async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, github_projects FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -156,6 +174,8 @@ me.patch("/", requireAuth, async (c) => {
       twitter_user_id: string | null;
       email: string | null;
       agent_instructions: string | null;
+      publish_agent_instructions: number;
+      agent_workflow: string | null;
       github_projects: string | null;
     }>();
 
@@ -172,6 +192,8 @@ me.patch("/", requireAuth, async (c) => {
       twitterVerified: updated.twitter_user_id !== null,
       email: updated.email,
       agentInstructions: updated.agent_instructions,
+      publishAgentInstructions: updated.publish_agent_instructions === 1,
+      agentWorkflow: updated.agent_workflow,
       githubProjects: parseGithubProjects(updated.github_projects),
     },
   });

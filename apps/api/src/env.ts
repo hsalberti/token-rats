@@ -12,10 +12,7 @@ export type Env = {
   VAPID_PUBLIC_KEY: string;
   /** Durable Object namespace for per-room live fan-out (Phase 3 Track L) */
   ROOM_LIVE: DurableObjectNamespace;
-  /** Optional Anthropic API key for the proxy (Worker secret). When set, used as the
-   *  fallback key for all proxy requests that don't have a per-user key stored. */
-  ANTHROPIC_API_KEY?: string;
-  /** Stripe secret key (sk_live_* / sk_test_*). Used by API proxy calls if ever needed. */
+  /** Stripe secret key (sk_live_* / sk_test_*). */
   STRIPE_SECRET_KEY: string;
   /** Stripe webhook signing secret (whsec_*). Used to verify incoming webhook signatures. */
   STRIPE_WEBHOOK_SECRET: string;

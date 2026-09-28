@@ -50,7 +50,7 @@ comparison.get("/", async (c) => {
     .all<{ source: string; label: string; paidUsdCents: number }>();
   const index = await loadPriceIndex(c.env);
   const sources: SourceComparison[] = [];
-  for (const source of ["claude-code", "codex", "cursor"] as const) {
+  for (const source of ["claude-code", "codex", "cursor", "opencode"] as const) {
     const matching = rows.results.filter((r) => r.source === source);
     const plan = spend.results.find((r) => r.source === source);
     const item: SourceComparison = {

@@ -117,7 +117,7 @@ export function UserMenu({ user, locale = "en" }: Props) {
             {t(locale, "menu.friends")}
           </a>
           <a
-            href="/community"
+            href="https://www.reddit.com/r/TokenRats/"
             role="menuitem"
             className="block px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800"
           >

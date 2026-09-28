@@ -1,6 +1,6 @@
 # token-rats
 
-> Strava for AI token burn — sync your Claude Code + Cursor usage to your Token Rats leaderboard.
+> Sync local Claude Code, Codex, OpenCode, and Cursor usage to Token Rats.
 
 ## Install
 
@@ -21,7 +21,7 @@ token-rats sync
 | Command | Description |
 |---|---|
 | `token-rats login` | Open your browser to authenticate (device-code flow). Saves a token to `~/.config/token-rats/token`. |
-| `token-rats sync` | Discover Claude Code logs and the Cursor cache, parse them, and upload counts to your leaderboard. |
+| `token-rats sync` | Read local Claude Code, Codex, OpenCode, and Cursor usage and upload counts to your leaderboard. |
 | `token-rats whoami` | Show the currently signed-in account handle. |
 | `token-rats logout` | Delete your stored credentials. |
 | `token-rats --version` | Print the CLI version. |
@@ -50,7 +50,7 @@ token-rats sync [--dry-run] [--verbose] [--api-url <url>]
 
 It does **not** read, store, or transmit any prompt or completion content.
 
-The parser source code is in [`packages/parsers/`](../parsers/). You can audit exactly what is extracted before running `sync`. **We literally can't read what you typed.**
+The collector source is in [`packages/parsers/`](../parsers/) and [`packages/cli/src/lib/`](src/lib/). You can inspect which fields are extracted before running `sync`.
 
 ## Data sources
 
@@ -67,6 +67,17 @@ Reads the Cursor sqlite cache:
 
 If the Cursor database is not found or cannot be read, the CLI skips it silently and continues with Claude Code data.
 
+### Codex
+
+Reads `${CODEX_HOME:-~/.codex}/sessions/**/*.jsonl` and archived sessions.
+
+### OpenCode
+
+Reads the `message` table in `${XDG_DATA_HOME:-~/.local/share}/opencode/opencode*.db`.
+`OPENCODE_DATA_DIR` overrides the directory; `OPENCODE_DB` adds a custom database path.
+The reader selects only assistant usage fields and groups them by session, provider, and model.
+It includes current SQLite WAL changes. Older JSON storage is not imported.
+
 ## Auth
 
 Authentication uses a device-code flow:
@@ -78,20 +89,20 @@ Authentication uses a device-code flow:
 
 ## Requirements
 
-- Node.js ≥ 20
+- Node.js ≥ 22.13 (for the built-in SQLite reader without a flag)
 - A Token Rats account (sign up at [tokenrats.com](https://tokenrats.com))
 
 ## Privacy
 
 Token Rats is open source. The CLI source is in [`packages/cli/`](.) and the parsers are in [`packages/parsers/`](../parsers/). You can inspect exactly what is read from your disk and what is sent to the server.
 
-**Privacy posture:** Token Rats reads usage counts only — never prompts or completions. The parser source is in `packages/parsers/`. We literally can't read what you typed.
+**Privacy posture:** Token Rats uploads usage metadata only. Parsers inspect local usage fields and discard prompt and completion content. Full profile instructions are shared only when you explicitly publish them.
 
 
 ## Automatic tracking
 
 `token-rats login` installs the background tracker. It reads Claude Code,
-Codex, and Cursor records on startup, then checks for changes every 30 seconds.
+Codex, OpenCode, and Cursor records on startup, then checks for changes every 30 seconds.
 Failed uploads are retried. Use `login --no-daemon` to use manual sync only.
 Use `daemon-status` and `uninstall-daemon` to manage automatic tracking.
 After an upgrade, run `install-daemon` to copy the new runtime into place.

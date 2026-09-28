@@ -1,6 +1,13 @@
 import { z } from "zod";
 
-export const Source = z.enum(["claude-code", "cursor", "codex", "openrouter", "openai"]);
+export const Source = z.enum([
+  "claude-code",
+  "cursor",
+  "codex",
+  "opencode",
+  "openrouter",
+  "openai",
+]);
 export type Source = z.infer<typeof Source>;
 
 /**
@@ -51,7 +58,7 @@ export type SessionChannel = z.infer<typeof SessionChannel>;
  * control characters and unbounded blobs that could poison D1 / logs.
  */
 const ID_RE = /^[A-Za-z0-9._:/+ -]+$/;
-const MODEL_RE = /^[A-Za-z0-9._:/+ -]+$/;
+const MODEL_RE = /^[ -~]+$/;
 const DEDUPE_KEY_RE = /^[A-Za-z0-9._:-]+$/;
 const CLIENT_RE = /^[A-Za-z0-9._-]+$/;
 
@@ -94,6 +101,8 @@ export function defaultProviderForSource(source: Source): Provider {
       return "openai";
     case "cursor":
       return "cursor";
+    case "opencode":
+      return "unknown";
   }
 }
 
@@ -109,6 +118,8 @@ export function defaultClientForSource(source: Source): string {
       return "codex-cli";
     case "cursor":
       return "cursor";
+    case "opencode":
+      return "opencode";
   }
 }
 
@@ -123,5 +134,7 @@ export function defaultChannelForSource(source: Source): SessionChannel {
       return "cli";
     case "cursor":
       return "ide";
+    case "opencode":
+      return "cli";
   }
 }
