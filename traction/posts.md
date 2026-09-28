@@ -23,6 +23,7 @@ timestamps, and opaque IDs. Cursor counts are estimates. You can try local
 detection with `npx token-rats sync --dry-run` without creating an account.
 Profiles let people publish a full AGENTS.md, a selected excerpt, and a
 write-up of how their agents and apps work together. Discussion lives on r/TokenRats.
+My published instruction excerpt: https://tokenrats.com/u/hsalberti.
 
 The code and project documents are MIT licensed. The stack is TypeScript,
 Next.js, a Cloudflare Worker, and SQLite/D1.
