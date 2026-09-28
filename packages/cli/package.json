@@ -5,7 +5,7 @@
   "license": "MIT",
   "type": "module",
   "bin": {
-    "token-rats": "./dist/index.js"
+    "token-rats": "dist/index.js"
   },
   "files": ["dist", "README.md", "LICENSE"],
   "repository": {
