@@ -54,8 +54,13 @@ An npm download, copied command, or email click is not counted as installation. 
 - API suite: 222 tests passed on Node 22, including concurrent once-only claims, snapshot eligibility, unsubscribe/scanner behavior, signed webhook validation, unique engagement counts, attribution windows, concurrent sending, and retry expiry.
 - Desktop Chromium and mobile Chromium: guide display, dismissal, reload, a second browser context, Notifications reopening, Escape, email preference persistence, and overflow checks passed.
 - Lint, typecheck, and production builds passed.
-- Delivery, final deployment IDs, and the send result will be appended after verification.
+- Initial feature commit `ac13f9e4df72835438f818bf9b3c9f9289c30c79` passed CI, lint, E2E smoke, and deploy (`36595591280`). Pages deployment: `d5b914c0-204f-4ce2-a13c-9dbf5e1f1a39`.
+- Sender readiness and open tracking commit `61a95dff434b50ee1b00e0577d0bc1195df68fc8` passed CI, lint, E2E smoke, and API deploy (`36596445922`). The nine campaign-specific tests pass, including image deduplication and waiting for verification without consuming delivery attempts.
+- Production desktop and mobile smoke passed: guide display/reopening and admin campaign metrics, no page errors or horizontal overflow. The founder's guide claim was intercepted only in the test browser so Alberti still gets his real first-visit popup.
+- A signed diagnostic POST to the production webhook returned 200. No recipient/event counts were changed by that diagnostic.
+- Resend's own [DNS checker](https://dns.email/?domain=tokenrats.com) reports valid DKIM, SPF, DMARC, and authoritative nameservers. Receiving is intentionally disabled. Public Google and Cloudflare resolvers return the exact DKIM value from Resend.
+- Provider quota preflight: 2 / 100 daily and 2 / 3,000 monthly emails used, sufficient for the 53-recipient campaign.
 
-The immutable production audience is prepared: **57 accounts, 53 eligible recipients, 4 missing email, 0 suppressed/duplicate exclusions**. It is still a draft until the sender readiness gate is deployed and the start operation is performed.
+The immutable production audience is prepared: **57 accounts, 53 eligible recipients, 4 missing email, 0 suppressed/duplicate exclusions**. Started September 29 at **16:17 UTC**. The first delivery pass correctly returned “Waiting for Resend to verify tokenrats.com”: 53 pending, zero attempts consumed, zero emails sent. The five-minute cron will resume automatically once the sender is verified. No verification restarts are needed while status is pending.
 
 Provider references: [tracking configuration](https://resend.com/changelog/update-click-open-tracking-via-api), [signed events](https://resend.com/docs/webhooks/verify-webhooks-requests), [webhook creation](https://resend.com/docs/api-reference/webhooks/create-webhook).

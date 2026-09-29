@@ -1,5 +1,9 @@
 # Release record
 
+## Release guide and return campaign — 2026-09-29
+
+The once-per-account update guide, permanent Notifications entry, email preference, and admin campaign report are deployed. The authorized return campaign has 53 eligible recipients out of 57 accounts and waits automatically for Resend sender verification. See [release-campaign.md](release-campaign.md) for live evidence, metric definitions, and delivery status; email is no longer intentionally postponed.
+
 ## Friends’ changes and automatic history — 2026-09-29
 
 CLI 0.5.0 adds optional friends-only global AGENTS.md capture. Feed changes, kudos, audience controls, and the Friends directory are in the [release record](friends-changes-release.md), alongside deployment and verification evidence. Email remains postponed.

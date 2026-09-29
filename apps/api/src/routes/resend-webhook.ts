@@ -8,6 +8,7 @@ const eventSchema = z.object({
   created_at: z.string(),
   data: z.object({
     email_id: z.string(),
+    from: z.string().optional(),
     to: z.array(z.string()).optional(),
     tags: z
       .union([z.record(z.string()), z.array(z.object({ name: z.string(), value: z.string() }))])
@@ -61,7 +62,10 @@ webhook.post("/", async (c) => {
       .bind(event.type, row.id)
       .run();
   }
-  if (["email.bounced", "email.complained", "email.suppressed"].includes(event.type)) {
+  if (
+    ["email.bounced", "email.complained", "email.suppressed"].includes(event.type) &&
+    (row || /@tokenrats\.com>?$/i.test(event.data.from ?? ""))
+  ) {
     const emails = row ? [row.email] : (event.data.to ?? []);
     for (const email of emails) {
       await c.env.DB.prepare(`INSERT INTO email_suppressions(email,reason,created_at) VALUES(?,?,?)
