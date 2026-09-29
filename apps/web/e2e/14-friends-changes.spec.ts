@@ -1,5 +1,7 @@
 import { createHmac, randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
+import { skipReleaseGuide } from "./_setup/release-guide";
+test.beforeEach(async ({ request }) => skipReleaseGuide(request));
 function token(user: string) {
   const payload = `${user}.${Date.now() + 3600000}`;
   return `${payload}.${createHmac("sha256", "social-local-test-only").update(payload).digest("base64url")}`;

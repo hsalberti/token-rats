@@ -9,9 +9,10 @@ export const metadata = { title: "Inbox" };
 export default async function Page() {
   const user = await requireSession();
   const options = { cookieHeader: await getCookieHeader() };
-  const [data, prefs] = await Promise.all([
+  const [data, prefs, releasePrefs] = await Promise.all([
     socialRequest<{ notifications: SocialNotice[] }>("social/notifications", options),
     socialRequest<{ prefs: SocialPrefs; emailConfigured: boolean }>("social/preferences", options),
+    socialRequest<{ productEmails: boolean }>("releases/preferences", options),
   ]);
   return (
     <>
@@ -21,6 +22,7 @@ export default async function Page() {
           initial={data.notifications}
           prefs={prefs.prefs}
           emailConfigured={prefs.emailConfigured}
+          productEmails={releasePrefs.productEmails}
         />
       </main>
     </>

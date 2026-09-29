@@ -1,6 +1,6 @@
 # Release email drafts
 
-Drafts for Alberti to review. Email activation is postponed; see [email-continuation.md](email-continuation.md). Target the existing user base with appropriate delivery eligibility and unsubscribe handling. No campaign has been sent.
+The September 29 return campaign is authorized and tracked in [release-campaign.md](release-campaign.md). Its exact sending template lives in the app; the ideas below remain drafts for later campaigns. Target eligible accounts and respect product-email unsubscribes and suppression records.
 
 ## 1. Setup history launch
 

@@ -6,6 +6,7 @@ import {
   defaultProviderForSource,
 } from "@token-rats/contracts";
 import type { Env } from "../env.js";
+import { recordCampaignActivity } from "./release-campaigns.js";
 
 export function toUtcDay(tsMs: number): string {
   return new Date(tsMs).toISOString().slice(0, 10);
@@ -137,5 +138,6 @@ export async function upsertDeviceForIngest(
       .bind(deviceId, userId, nowMs, nowMs, uploadedRows, cliVersion)
       .run();
   }
+  await recordCampaignActivity(env, userId, "usage");
   return { revoked: false };
 }

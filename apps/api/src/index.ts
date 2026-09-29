@@ -29,6 +29,8 @@ import { runScheduled } from "./scheduled.js";
 
 import comparisonRoutes from "./routes/comparison.js";
 
+import releaseRoutes from "./routes/releases.js";
+import resendWebhookRoutes from "./routes/resend-webhook.js";
 import setupsRoutes from "./routes/setups.js";
 import socialRoutes from "./routes/social.js";
 
@@ -89,6 +91,8 @@ app.route("/v1", twitterAuthRoutes);
 
 app.route("/v1/setups", setupsRoutes);
 app.route("/v1/social", socialRoutes);
+app.route("/v1/releases", releaseRoutes);
+app.route("/webhooks/resend", resendWebhookRoutes);
 app.route("/v1/me/comparison", comparisonRoutes);
 app.route("/v1/me", meRoutes);
 // v1.2 Track AD — friends derived from shared private rooms.

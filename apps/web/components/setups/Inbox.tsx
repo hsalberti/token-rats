@@ -2,11 +2,19 @@
 import type { SocialNotice, SocialPrefs } from "@token-rats/contracts";
 import { useState } from "react";
 import { socialRequest } from "../../lib/social";
+import { ReleaseGuideLink } from "../ReleaseGuide";
 export function Inbox({
   initial,
   prefs: initialPrefs,
   emailConfigured,
-}: { initial: SocialNotice[]; prefs: SocialPrefs; emailConfigured: boolean }) {
+  productEmails: initialProductEmails,
+}: {
+  initial: SocialNotice[];
+  prefs: SocialPrefs;
+  emailConfigured: boolean;
+  productEmails: boolean;
+}) {
+  const [productEmails, setProductEmails] = useState(initialProductEmails);
   const [notices, setNotices] = useState(initial);
   const [prefs, setPrefs] = useState(initialPrefs);
   const [status, setStatus] = useState("");
@@ -42,6 +50,7 @@ export function Inbox({
           </button>
         </div>
         <div className="space-y-3">
+          <ReleaseGuideLink />
           {notices.map((n) => (
             <a
               key={n.id}
@@ -64,6 +73,38 @@ export function Inbox({
       </section>
       <aside className="h-fit space-y-5 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
         <h2 className="font-bold">Notification preferences</h2>
+        <label className="flex items-start gap-3 text-sm">
+          <input
+            type="checkbox"
+            checked={productEmails}
+            disabled={busy}
+            className="mt-1"
+            onChange={async (e) => {
+              const enabled = e.target.checked;
+              setProductEmails(enabled);
+              setBusy(true);
+              try {
+                await socialRequest("releases/preferences", {
+                  method: "PUT",
+                  body: JSON.stringify({ productEmails: enabled }),
+                });
+                setProductEmails(enabled);
+                setStatus("Preferences saved.");
+              } catch (error) {
+                setProductEmails(!enabled);
+                setStatus((error as Error).message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          />
+          <span>
+            Product update emails
+            <span className="mt-1 block text-xs leading-5 text-zinc-500">
+              Occasional release announcements and invitations to try new features.
+            </span>
+          </span>
+        </label>
         {(
           [
             [

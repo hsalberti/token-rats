@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
+import { recordCampaignActivity } from "../lib/release-campaigns.js";
 import { notificationInsert } from "../lib/setups.js";
 import { type AuthVariables, requireAuth } from "../middleware/auth.js";
 
@@ -114,6 +115,7 @@ watchers.post("/", async (c) => {
       now,
     }),
   ]);
+  await recordCampaignActivity(c.env, c.var.userId, "setup");
   const row = await c.env.DB.prepare("SELECT * FROM setup_watchers WHERE id=?")
     .bind(body.id)
     .first<WatchRow>();
@@ -154,6 +156,7 @@ watchers.post("/:id/sync", async (c) => {
     .first<{ revoked_at: number | null }>();
   if (device?.revoked_at != null) return c.json({ error: "device_revoked" }, 401);
   if (!w.enabled) return c.json({ changed: false, watcher: serialize(w) });
+  if (!body.error) await recordCampaignActivity(c.env, c.var.userId, "setup");
   const now = Date.now();
   if (body.error || body.content === undefined) {
     await c.env.DB.prepare("UPDATE setup_watchers SET last_seen_at=?,error=? WHERE id=?")

@@ -1,6 +1,8 @@
 import { createHmac } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { skipReleaseGuide } from "./_setup/release-guide";
+test.beforeEach(async ({ request }) => skipReleaseGuide(request));
 
 // Run against the isolated social test database, never a live account.
 test("edit profile instructions, select lines, and share a real PNG", async ({

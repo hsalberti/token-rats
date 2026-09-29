@@ -100,7 +100,8 @@ export async function deliverSocialEmails(env: Env, now = Date.now()) {
   for (const row of rows.results) {
     const pref = row.kind === "setup" ? "setup_emails" : "milestone_emails";
     const allowed = await env.DB.prepare(
-      `SELECT 1 FROM social_notifications n JOIN users a ON a.id=n.actor_id JOIN social_prefs p ON p.user_id=n.user_id WHERE n.id=? AND p.${pref}=1 AND ${LIVE_NOTICE}`,
+      `SELECT 1 FROM social_notifications n JOIN users a ON a.id=n.actor_id JOIN social_prefs p ON p.user_id=n.user_id WHERE n.id=? AND p.${pref}=1 AND ${LIVE_NOTICE}
+      AND NOT EXISTS(SELECT 1 FROM email_suppressions e JOIN users recipient ON recipient.email=e.email WHERE recipient.id=n.user_id AND e.reason<>'unsubscribe')`,
     )
       .bind(row.id)
       .first();

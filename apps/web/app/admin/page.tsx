@@ -17,6 +17,7 @@ import {
 } from "../../lib/api";
 import { getCookieHeader, requireSession } from "../../lib/auth";
 import { AdminDashboard } from "./AdminDashboard";
+import { ReleaseCampaigns } from "./ReleaseCampaigns";
 
 export const runtime = "edge";
 
@@ -75,6 +76,7 @@ export default async function AdminPage() {
           referrers={referrers}
           pendingOrgs={pendingOrgs}
         />
+        <ReleaseCampaigns />
       </main>
     </div>
   );

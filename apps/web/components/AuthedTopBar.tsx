@@ -12,6 +12,7 @@
 import type { User } from "@token-rats/contracts";
 import type { Locale } from "../lib/i18n";
 import { AppNav } from "./AppNav";
+import { ReleaseGuide } from "./ReleaseGuide";
 import { SyncStatusShell } from "./SyncStatusShell";
 import { UserMenu } from "./UserMenu";
 
@@ -25,6 +26,7 @@ export function AuthedTopBar({ user, locale }: Props) {
     <>
       <SyncStatusShell userMenuSlot={<UserMenu user={user} locale={locale} />} />
       <AppNav handle={user.handle} />
+      <ReleaseGuide key={user.id} />
     </>
   );
 }

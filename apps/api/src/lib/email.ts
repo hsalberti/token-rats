@@ -3,6 +3,8 @@ export interface EmailMessage {
   to: string;
   subject: string;
   text: string;
+  html?: string;
+  tags?: { name: string; value: string }[];
   key: string;
   unsubscribe: string;
 }
@@ -25,6 +27,8 @@ export async function sendEmail(
         to: [message.to],
         subject: message.subject,
         text: message.text,
+        html: message.html,
+        tags: message.tags,
         headers: {
           "List-Unsubscribe": `<${message.unsubscribe}>`,
           "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",

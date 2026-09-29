@@ -14,6 +14,7 @@
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { notFound } from "../lib/errors.js";
+import { recordCampaignActivity } from "../lib/release-campaigns.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -374,6 +375,7 @@ devices.post("/devices/heartbeat", requireAuth, async (c) => {
     .bind(now, cliVersion, deviceIdHeader)
     .run();
 
+  await recordCampaignActivity(c.env, userId, "usage");
   return c.json({ ok: true, lastHeartbeatAt: now });
 });
 
