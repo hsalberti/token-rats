@@ -6,13 +6,12 @@
  *
  *   1. UpdateBanner — full-width strip above the header when at least one
  *      device is on a CLI older than `latest`. Dismissible per-version.
- *   2. SyncChip — small pill rendered next to the user menu, summarizing
- *      the **worst** state across all non-revoked devices.
+ *   2. SyncChip — small pill rendered next to the user menu, showing whether
+ *      any registered device has an active background watcher.
  *
- * Aggregation rules — when one machine is autosyncing and another is not, we
- * surface the worst-of state so the user is nudged to fix the lagging install:
- *   • all live, ≥1 device          → green  "Synced 2m ago · 2/2 live"
- *   • daemon stale OR upload stale → amber  "Last synced 47m ago · 1/2 live"
+ * An old manual device does not make a working background watcher look stale.
+ *   • any live daemon              → green  "Autosync active"
+ *   • daemon seen, none live       → amber  "Last synced 47m ago"
  *   • no daemon ever               → grey   "Manual · last synced 3h ago"
  *   • no devices ever              → hidden
  */
@@ -88,7 +87,7 @@ function useSyncStatus(): Status {
 
     let state: Status["state"];
     if (activeCount === 0) state = "empty";
-    else if (liveCount === activeCount) state = "synced";
+    else if (liveCount > 0) state = "synced";
     else if (anyDaemonEverSeen) state = "stale";
     else state = "manual";
 
@@ -217,9 +216,6 @@ function SyncChip({ status }: { status: Status }) {
   if (status.loading || status.state === "empty") return null;
 
   const fresh = status.lastSyncedAt ? relativeFrom(status.lastSyncedAt) : "never";
-  const machines =
-    status.activeCount > 1 ? ` · ${status.liveCount}/${status.activeCount} live` : "";
-
   if (status.state === "synced") {
     return (
       <a
@@ -228,8 +224,7 @@ function SyncChip({ status }: { status: Status }) {
         title="Background daemon active"
       >
         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-        Synced {fresh}
-        {machines}
+        Autosync active
       </a>
     );
   }
@@ -243,7 +238,6 @@ function SyncChip({ status }: { status: Status }) {
       >
         <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
         Last synced {fresh}
-        {machines}
       </a>
     );
   }
