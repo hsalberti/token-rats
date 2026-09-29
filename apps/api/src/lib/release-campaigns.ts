@@ -9,6 +9,7 @@ export const CAMPAIGN_ID = CURRENT_RELEASE.id;
 export function releaseEmail(origin: string, apiOrigin: string, recipientId: string) {
   const link = `${apiOrigin}/v1/releases/email/${recipientId}`;
   const unsubscribe = `${apiOrigin}/v1/releases/unsubscribe/${recipientId}`;
+  const pixel = `${apiOrigin}/v1/releases/open/${recipientId}.gif`;
   const paragraphs = [
     "Hi, it's Alberti, founder of Token Rats.",
     "I've been changing my agent instructions and tools constantly. I wanted a place to remember what I tried, see what my friends are changing, and keep the experiments that didn't work out too.",
@@ -33,7 +34,11 @@ export function releaseEmail(origin: string, apiOrigin: string, recipientId: str
     `Unsubscribe from product updates: ${unsubscribe}`,
   ].join("\n\n");
   const html = `<!doctype html><html lang="en"><body style="margin:0;background:#f4f4f5;color:#18181b;font-family:Arial,sans-serif"><main style="max-width:580px;margin:24px auto;padding:32px;background:#fff;border-radius:16px"><a href="${origin}" style="font-weight:800;color:#18181b;text-decoration:none">TOKEN RATS</a><h1 style="font-size:28px;line-height:1.2">${CURRENT_RELEASE.title}</h1>${paragraphs.map((p) => `<p style="line-height:1.6">${p}</p>`).join("")}<ul style="padding-left:22px">${features.map((f) => `<li style="line-height:1.6;margin-bottom:14px">${f}</li>`).join("")}</ul><p style="margin:28px 0"><a href="${link}" style="display:inline-block;background:#f59e0b;color:#18181b;font-weight:bold;text-decoration:none;padding:14px 22px;border-radius:9px">See what's new →</a></p><p>Our code is <a href="https://github.com/hsalberti/token-rats">public on GitHub</a>.</p><p>— Alberti</p><hr style="border:0;border-top:1px solid #e4e4e7;margin:28px 0"><p style="font-size:12px;line-height:1.6;color:#71717a">${footer}</p><a href="${unsubscribe}" style="font-size:12px;color:#52525b">Unsubscribe from product updates</a></main></body></html>`;
-  return { subject: CURRENT_RELEASE.subject, text, html, unsubscribe };
+  const trackedHtml = html.replace(
+    "</main>",
+    `<img src="${pixel}" width="1" height="1" alt="" style="display:block;border:0" /></main>`,
+  );
+  return { subject: CURRENT_RELEASE.subject, text, html: trackedHtml, unsubscribe };
 }
 
 /** Immutable audience snapshot. Repeated calls never add recipients or resend. */
@@ -130,6 +135,36 @@ export async function recordCampaignActivity(
 export async function deliverReleaseEmails(env: Env, apiOrigin = "https://api.tokenrats.com") {
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM || !env.RESEND_WEBHOOK_SECRET)
     return { sent: 0, configured: false };
+  const pending =
+    await env.DB.prepare(`SELECT 1 FROM release_campaigns c JOIN campaign_recipients r ON r.campaign_id=c.id
+    WHERE c.status='sending' AND r.status='pending' LIMIT 1`).first();
+  if (!pending) {
+    await env.DB.prepare(`UPDATE release_campaigns SET status='complete' WHERE status='sending'
+      AND NOT EXISTS(SELECT 1 FROM campaign_recipients r WHERE r.campaign_id=release_campaigns.id AND r.status='pending')`).run();
+    return { sent: 0, configured: true };
+  }
+  // Do not consume attempts while DNS verification is pending. The cron can
+  // resume an authorized campaign as soon as the sender is ready.
+  if (env.RESEND_DOMAIN_ID) {
+    try {
+      const response = await fetch(`https://api.resend.com/domains/${env.RESEND_DOMAIN_ID}`, {
+        headers: { Authorization: `Bearer ${env.RESEND_API_KEY}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      const domain = response.ok ? ((await response.json()) as { status?: string }) : null;
+      if (domain?.status !== "verified") {
+        const waiting = response.ok
+          ? "Waiting for Resend to verify tokenrats.com"
+          : "Unable to check the sending domain";
+        await env.CACHE.put("release-email-readiness", waiting);
+        return { sent: 0, configured: true, waiting };
+      }
+      await env.CACHE.put("release-email-readiness", "Sender verified");
+    } catch {
+      await env.CACHE.put("release-email-readiness", "Unable to check the sending domain");
+      return { sent: 0, configured: true, waiting: "Unable to check the sending domain" };
+    }
+  }
   const now = Date.now();
   const rows = await env.DB.prepare(`SELECT r.* FROM campaign_recipients r
     JOIN release_campaigns c ON c.id=r.campaign_id

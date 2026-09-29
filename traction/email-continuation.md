@@ -1,4 +1,6 @@
-# Email activation — postponed at Alberti's request
+# Email activation
+
+September 29 update: Alberti resumed email work and authorized the return campaign. DNS and Worker credentials are configured; follow [release-campaign.md](release-campaign.md) for the current verification, send queue, and tracking status. The historical handoff below records the earlier deferral.
 
 ## Current status
 

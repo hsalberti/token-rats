@@ -79,6 +79,24 @@ releases.get("/email/:id", async (c) => {
     `${c.env.WEB_ORIGIN}/app/setups?utm_source=release_email&utm_campaign=${CAMPAIGN_ID}`,
   );
 });
+releases.get("/open/:image", async (c) => {
+  const id = c.req.param("image").replace(/\.gif$/, "");
+  if (c.req.method === "GET") {
+    await c.env.DB.prepare(`UPDATE campaign_recipients SET opened_at=COALESCE(opened_at,?)
+      WHERE id=? AND first_attempt_at IS NOT NULL AND opened_at IS NULL`)
+      .bind(Date.now(), id)
+      .run();
+  }
+  // A one-pixel transparent GIF. Provider events share the same unique counter.
+  const bytes = Uint8Array.from(
+    atob("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"),
+    (c) => c.charCodeAt(0),
+  );
+  return c.body(bytes, 200, {
+    "Content-Type": "image/gif",
+    "Cache-Control": "no-store, max-age=0",
+  });
+});
 releases.get("/unsubscribe/:id", async (c) => {
   const row = await c.env.DB.prepare("SELECT 1 FROM campaign_recipients WHERE id=?")
     .bind(c.req.param("id"))
@@ -123,6 +141,7 @@ releases.get("/campaigns/report", async (c) => {
   return c.json({
     campaigns: await campaignReports(c.env),
     walkthrough: views,
+    delivery: await c.env.CACHE.get("release-email-readiness"),
     generatedAt: Date.now(),
   });
 });

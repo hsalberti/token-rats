@@ -38,6 +38,7 @@ crons = [
 
 [vars]
 WEB_ORIGIN = "https://tokenrats.com"
+RESEND_DOMAIN_ID = "08d8c143-21f6-4b9d-a1a7-48dac6127bb1"
 # Bumped manually when a new `token-rats` npm version is published. Drives
 # the in-app upgrade banner. Set MIN_SUPPORTED_CLI_VERSION to flag installs
 # below it as unsupported (currently informational only).

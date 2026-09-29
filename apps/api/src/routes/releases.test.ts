@@ -223,3 +223,36 @@ it("rechecks opt-outs before delivery and stops retries before provider idempote
   expect(fetcher).not.toHaveBeenCalled();
   expect(recipient().status).toBe("cancelled");
 });
+it("counts unique tracking-image loads only after sending begins and ignores HEAD", async () => {
+  await prepareCampaign(db.env);
+  const url = `/open/${recipient().id}.gif`;
+  await request(url, "");
+  expect(recipient().opened_at).toBeNull();
+  db.db
+    .prepare("UPDATE campaign_recipients SET first_attempt_at=?,sent_at=?,status='sent'")
+    .run(Date.now(), Date.now());
+  await request(url, "", "HEAD");
+  expect(recipient().opened_at).toBeNull();
+  const response = await request(url, "");
+  expect(response.headers.get("Content-Type")).toBe("image/gif");
+  expect(response.headers.get("Cache-Control")).toContain("no-store");
+  await request(url, "");
+  expect((await campaignReports(db.env))[0]?.opened).toBe(1);
+});
+it("waits for sender verification without consuming attempts, then resumes the queue", async () => {
+  await prepareCampaign(db.env);
+  await request("/campaigns/start", "moderator", "POST");
+  db.env.RESEND_DOMAIN_ID = "test-domain";
+  const fetcher = vi
+    .spyOn(globalThis, "fetch")
+    .mockResolvedValue(new Response(JSON.stringify({ status: "pending" })));
+  expect(await deliverReleaseEmails(db.env)).toMatchObject({
+    sent: 0,
+    waiting: expect.any(String),
+  });
+  expect(db.db.prepare("SELECT attempts FROM campaign_recipients").get()).toEqual({ attempts: 0 });
+  fetcher
+    .mockResolvedValueOnce(new Response(JSON.stringify({ status: "verified" })))
+    .mockResolvedValueOnce(new Response(JSON.stringify({ id: "email-1" })));
+  expect((await deliverReleaseEmails(db.env)).sent).toBe(1);
+});

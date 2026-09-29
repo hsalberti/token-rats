@@ -10,6 +10,7 @@ export function ReleaseCampaigns() {
   const [data, setData] = useState<{
     campaigns: CampaignReport[];
     walkthrough: { seen: number; dismissed: number };
+    delivery: string | null;
   } | null>(null);
   const [error, setError] = useState("");
   useEffect(() => {
@@ -48,6 +49,7 @@ export function ReleaseCampaigns() {
           {error}
         </p>
       )}
+      {data?.delivery && <p className="text-sm text-amber-400">{data.delivery}</p>}
       {!data && !error && <p className="text-sm text-zinc-400">Loading metrics…</p>}
       {data && (
         <p className="text-sm text-zinc-400">
@@ -106,9 +108,9 @@ export function ReleaseCampaigns() {
         </div>
       ))}
       <p className="text-xs leading-5 text-zinc-500">
-        Open signals come from the email provider; image blocking and privacy preloading make them
-        approximate. Link scanners can generate clicks. Returns require a signed-in app visit. Usage
-        activation requires a device sync or heartbeat; setup activation requires an enabled
+        Open signals come from email tracking images; image blocking and privacy preloading make
+        them approximate. Link scanners can generate clicks. Returns require a signed-in app visit.
+        Usage activation requires a device sync or heartbeat; setup activation requires an enabled
         automatic capture. Copying an install command does not count. “New” means no previous
         tracker at the audience snapshot. Activity after an email shows timing, not proof that the
         email caused it.

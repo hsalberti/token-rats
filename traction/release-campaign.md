@@ -23,7 +23,7 @@ Campaign ID: `friends-history-2026-09`. Preparing snapshots the current audience
 | --- | --- |
 | Sent | Resend accepted the message; percentage of recipients |
 | Delivered | Signed provider delivery event; percentage of sent |
-| Open signals | First provider open event per recipient; percentage of sent |
+| Open signals | First tracking-image load or signed provider open event per recipient; percentage of sent |
 | CTA clicks | First request to the recipient's opaque redirect link; percentage of sent |
 | Returned | Signed-in browser visits after send, within 30 days; percentage of sent |
 | Returned after click | Signed-in visit after a CTA click, including people who also visited before clicking |
@@ -41,9 +41,12 @@ An npm download, copied command, or email click is not counted as installation. 
 - API deployed before web. Sending stays paused until the explicit admin start operation.
 - Resend domain `08d8c143-21f6-4b9d-a1a7-48dac6127bb1`; sender `Token Rats <updates@tokenrats.com>`.
 - Four requested DNS records added via Cloudflare DNS token; authoritative/public DNS matches Resend's DKIM value.
+- The uploaded Resend documentation clarifies that open tracking requires a verified tracking subdomain. Added DNS-only `links.tokenrats.com` → `links2.resend-dns.com`. Verification is asynchronous; repeated POST `/verify` calls restart the full cycle, so subsequent monitoring uses GET only.
+- Campaign HTML also has a Token Rats tracking image, sharing the same unique-open counter. Measurement remains available while provider-level tracking is being configured; duplicate image loads/provider events never increment the unique-recipient count.
 - Webhook `20bf3428-4fc8-43af-b025-b2a4740fa7ff` → `https://api.tokenrats.com/webhooks/resend`. Its signing secret is in BWS as `RESEND_WEBHOOK_SECRET`.
 - Signed events are verified with Svix, duplicates are idempotent, and bounces/complaints are suppressed. GET unsubscribe shows a confirmation; POST performs one-click unsubscribe.
 - Delivery claims up to 10 recipients per batch with leases, stable provider idempotency keys, and bounded retries within Resend's retention window. The five-minute cron resumes a started queue. No campaign starts automatically.
+- Once explicitly started, the queue checks sender verification before any attempt and waits without consuming retries until ready. This domain check currently uses the full-access Resend key; a future switch to a send-only key must move verification to separate credentials or remove this gate after verification. Readiness appears in the admin report.
 - Admin API: `/v1/releases/campaigns/prepare`, `/start`, `/pause`, `/deliver` (POST), `/report` (GET). These share the existing `ADMIN_GITHUB_LOGIN` gate. Prepare returns the exact preview plus audience totals; start only changes state, then cron or deliver drains the queue.
 
 ## Checks
@@ -52,5 +55,7 @@ An npm download, copied command, or email click is not counted as installation. 
 - Desktop Chromium and mobile Chromium: guide display, dismissal, reload, a second browser context, Notifications reopening, Escape, email preference persistence, and overflow checks passed.
 - Lint, typecheck, and production builds passed.
 - Delivery, final deployment IDs, and the send result will be appended after verification.
+
+The immutable production audience is prepared: **57 accounts, 53 eligible recipients, 4 missing email, 0 suppressed/duplicate exclusions**. It is still a draft until the sender readiness gate is deployed and the start operation is performed.
 
 Provider references: [tracking configuration](https://resend.com/changelog/update-click-open-tracking-via-api), [signed events](https://resend.com/docs/webhooks/verify-webhooks-requests), [webhook creation](https://resend.com/docs/api-reference/webhooks/create-webhook).
