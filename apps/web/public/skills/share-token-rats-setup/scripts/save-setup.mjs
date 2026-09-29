@@ -70,7 +70,9 @@ export async function saveSetup(
 ) {
   const file = args[0];
   if (!file || file.startsWith("--"))
-    throw new Error("Usage: node save-setup.mjs bundle.json [--dry-run] [--publish] [--setup ID]");
+    throw new Error(
+      "Usage: node save-setup.mjs bundle.json [--dry-run] [--publish | --friends] [--setup ID]",
+    );
   const flags = args.slice(1);
   const index = flags.indexOf("--setup");
   const setupId = index >= 0 ? flags[index + 1] : undefined;
@@ -81,17 +83,23 @@ export async function saveSetup(
       i++;
       continue;
     }
-    if (!["--dry-run", "--publish"].includes(flags[i]))
+    if (!["--dry-run", "--publish", "--friends"].includes(flags[i]))
       throw new Error(`Unknown option: ${flags[i]}`);
   }
   const input = validate(JSON.parse(await read(file, "utf8")));
-  const publish = flags.includes("--publish");
+  if (flags.includes("--publish") && flags.includes("--friends"))
+    throw new Error("Choose one audience: --publish or --friends.");
+  const visibility = flags.includes("--publish")
+    ? "public"
+    : flags.includes("--friends")
+      ? "friends"
+      : "private";
   if (flags.includes("--dry-run"))
     return {
       dryRun: true,
       name: input.name,
       files: input.bundle.files.map((f) => f.name),
-      publication: publish ? "public" : "private",
+      publication: visibility,
     };
   const token = await loadToken();
   if (!token) throw new Error("No session. Run npx token-rats@latest login --no-daemon.");
@@ -127,29 +135,34 @@ export async function saveSetup(
   if (matches.length > 1) throw new Error("More than one setup has this name. Use --setup ID.");
   if (setupId && !matches.length) throw new Error("Setup not found in your account.");
   const existing = matches[0];
+  if (existing?.automatic)
+    throw new Error(
+      "This setup is tracked automatically. Edit the local file or choose a new setup name.",
+    );
   if (
     existing &&
-    (publish || !existing.publishedAt) &&
+    (visibility !== "private" || existing.visibility === "private") &&
     existing.name === input.name &&
     JSON.stringify(existing.bundle) === JSON.stringify(input.bundle) &&
     existing.note === input.note &&
     existing.verdict === input.verdict
   ) {
-    if (publish && !existing.publishedAt) await api(`/versions/${existing.id}/publish`, "POST");
+    if (visibility !== existing.visibility)
+      await api(`/versions/${existing.id}/visibility`, "PUT", { visibility });
     return {
       url: `https://tokenrats.com/setups/${existing.setupId}?v=${existing.id}`,
-      publication: publish || existing.publishedAt ? "public" : "private",
+      publication: visibility,
       unchanged: true,
     };
   }
   const saved = await api(existing ? `/${existing.setupId}/versions` : "", "POST", {
     ...input,
-    publish,
+    visibility,
     baseVersionId: existing?.id ?? null,
   });
   return {
     url: `https://tokenrats.com/setups/${saved.id}?v=${saved.versionId}`,
-    publication: publish ? "public" : "private",
+    publication: visibility,
   };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {

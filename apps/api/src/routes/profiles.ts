@@ -42,11 +42,11 @@ profiles.get("/:handle/share", async (c) => {
     return notFound(c, "Profile not found");
 
   const version = await c.env.DB.prepare(
-    `${VERSION_SELECT} WHERE s.user_id=? AND v.published_at IS NOT NULL
-     ${query.version ? "AND v.id=?" : "AND v.number=(SELECT MAX(number) FROM setup_versions WHERE setup_id=s.id AND published_at IS NOT NULL)"}
+    `${VERSION_SELECT} WHERE s.user_id=? AND v.published_at IS NOT NULL AND v.visibility='public'
+     ${query.version ? "AND v.id=?" : "AND v.number=(SELECT MAX(number) FROM setup_versions WHERE setup_id=s.id AND published_at IS NOT NULL AND visibility='public')"}
      ORDER BY s.featured DESC,v.published_at DESC LIMIT 1`,
   )
-    .bind(user.id, ...(query.version ? [query.version] : []))
+    .bind("", user.id, ...(query.version ? [query.version] : []))
     .first<VersionRow>();
   if (!version && (query.version || query.file !== undefined || query.start || query.end))
     return notFound(c, "Published instructions not found");

@@ -13,6 +13,7 @@ Product scope: local Claude Code, Codex, OpenCode, and Cursor usage; profile ins
 
 ## Setup history release
 
+- [friends-changes-release.md](friends-changes-release.md): inline feed diffs, kudos, friends-only automatic captures in CLI 0.5.0.
 - [setup-history-release.md](setup-history-release.md): implemented scope, validation, deployment evidence.
 - [release-emails.md](release-emails.md): announcement and follow-up drafts for the existing user base.
 - [linkedin-posts.md](linkedin-posts.md): founder posts to edit and publish manually.

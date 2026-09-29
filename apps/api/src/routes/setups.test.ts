@@ -53,7 +53,7 @@ const body = (text = "Run the tests.", publish = false) => ({
   },
   note: "Trying a new reviewer",
   verdict: "experiment",
-  publish,
+  visibility: publish ? "public" : "private",
 });
 async function create(text = "Run the tests.", publish = false) {
   const r = await request("/setups", "alice", "POST", body(text, publish));
@@ -94,7 +94,9 @@ it("keeps private versions out of public history, feed and direct reads; restore
   expect(copied.status).toBe(201);
   const c = (await copied.json()) as { id: string };
   expect((await request(`/setups/${c.id}`, "")).status).toBe(404);
-  await request(`/setups/versions/${second.versionId}/publish`, "alice", "DELETE");
+  await request(`/setups/versions/${second.versionId}/visibility`, "alice", "PUT", {
+    visibility: "private",
+  });
   expect((await request(`/setups/${a.id}`, "")).status).toBe(404);
 });
 it("follows public accounts, emits one notification, and maintains version-specific shelves and ratings", async () => {
@@ -102,7 +104,9 @@ it("follows public accounts, emits one notification, and maintains version-speci
   const a = await create("Shared", true);
   const feed = await (await request("/setups/feed", "bob")).json();
   expect(feed).toMatchObject({ versions: [{ id: a.versionId }] });
-  await request(`/setups/versions/${a.versionId}/publish`, "alice", "POST");
+  await request(`/setups/versions/${a.versionId}/visibility`, "alice", "PUT", {
+    visibility: "public",
+  });
   expect(await (await request("/social/notifications", "bob")).json()).toMatchObject({ unread: 1 });
   expect(
     (
@@ -214,7 +218,9 @@ it("hides unpublished notifications and never sends an opted-out or unfollowed e
   });
   await request("/setups/follow/alice", "bob", "PUT");
   const a = await create("Shared", true);
-  await request(`/setups/versions/${a.versionId}/publish`, "alice", "DELETE");
+  await request(`/setups/versions/${a.versionId}/visibility`, "alice", "PUT", {
+    visibility: "private",
+  });
   const fetch = vi.spyOn(globalThis, "fetch");
   await deliverSocialEmails(db.env);
   expect(fetch).not.toHaveBeenCalled();

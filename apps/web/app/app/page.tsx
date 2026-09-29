@@ -15,7 +15,7 @@ export default async function Page() {
     <>
       <AuthedTopBar user={user} locale={await getServerLocale()} />
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <Feed initial={data} />
+        <Feed initial={data} userId={user.id} />
       </main>
     </>
   );

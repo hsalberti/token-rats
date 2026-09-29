@@ -32,6 +32,34 @@ interface Patch {
 
 const PATCHES: Patch[] = [
   {
+    version: "1.4",
+    codename: "Small Changes",
+    date: "2026-09-29",
+    blurb: "See the line they added. Give kudos. Keep your own history with a single command.",
+    sections: [
+      {
+        heading: "New",
+        items: [
+          {
+            tone: "new",
+            title: "Changes in your feed",
+            body: "Added lines appear in green, removed lines in red, with just enough context to read the change. Give kudos without opening the full setup.",
+          },
+          {
+            tone: "new",
+            title: "Friends-only setup history",
+            body: "Friends are people you share a private board with, or people you follow who also follow you. See your friends in one place and choose Only me, Friends only, or Public for each manual version.",
+          },
+          {
+            tone: "new",
+            title: "Automatic global AGENTS.md capture",
+            body: "CLI 0.5.0 adds setup-track. Preview your global instructions once, enable sharing, and future saved edits appear for friends. Pause or resume from My setups. Existing usage tracking never enables instruction sharing by itself.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.3",
     codename: "Setup Histories",
     date: "2026-09-28",

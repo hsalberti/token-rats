@@ -8,7 +8,7 @@ Build only after people regularly save versions and return to their shelves. Use
 
 ## Other follow-ups
 
-- Optional local-file watching and reviewed imports for people who want automatic private checkpoints.
+- Automatic private checkpoints as an alternative to friends-only capture, if requested by users.
 - Better discovery once there are enough real public setups to browse.
 - Richer timeline navigation and annual/monthly filters once histories are long enough to need them.
 - Larger email queue throughput and campaign tooling after the deferred sender setup is complete.
@@ -17,4 +17,4 @@ Build only after people regularly save versions and return to their shelves. Use
 
 The shipped starting point is a copyable agent skill: investigate the selected local setup, make it reproducible, and save a version through the existing login.
 
-Longer term, watch selected global AGENTS.md files and other explicitly selected config sources. Detect and coalesce meaningful edits, preserve version history, and let the owner opt into either automatic private checkpoints or automatic publication of approved sources. Show the watched sources and publication mode clearly, support pause/exclusion, and keep secrets and machine-specific details out of public snapshots. Automatic publication must be a deliberate per-source setting, and should handle failed uploads and duplicate events without losing history. This is a future feature, not enabled by the current skill.
+Global instruction watching is implemented in CLI 0.5.0: explicit preview and opt-in, Codex/OpenCode detection or a chosen file, friends-only snapshots, stable-scan coalescing, pause/resume, and excluded sections. See [friends-changes-release.md](friends-changes-release.md) for rollout evidence. Future work can expand source discovery and offer automatic private checkpoints; annual rewind remains deferred until traction.

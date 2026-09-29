@@ -10,6 +10,7 @@ import {
 import { CLI_VERSION } from "../lib/cli-version.js";
 import { SyncQueue, createCollector } from "../lib/collect.js";
 import { error, info, success, warn } from "../lib/log.js";
+import { type PendingCaptures, pollSetupTracking } from "../lib/setup-tracking.js";
 
 export interface WatchOptions {
   apiUrl?: string;
@@ -38,6 +39,7 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
   });
   const queue = new SyncQueue();
   const collect = createCollector();
+  const captures: PendingCaptures = new Map();
   let stopped = false;
   let wake: (() => void) | undefined;
   const stop = () => {
@@ -50,6 +52,15 @@ export async function watchCommand(opts: WatchOptions): Promise<void> {
   try {
     while (!stopped) {
       try {
+        try {
+          const changes = await pollSetupTracking(client, captures);
+          if (changes) success(`Shared ${changes} instruction change(s) with friends.`);
+        } catch (err) {
+          if (err instanceof ApiError && err.status === 401) throw err;
+          warn(
+            `Instruction capture will retry: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
         const count = await queue.flush(await collect(), (batch) => client.uploadSessions(batch));
         // Empty ingest registers a new device even when no logs exist yet.
         if (count === 0) await client.uploadSessions([]);

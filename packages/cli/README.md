@@ -1,6 +1,6 @@
 # token-rats
 
-> Sync local Claude Code, Codex, OpenCode, and Cursor usage to Token Rats.
+> Track local agent usage and share your evolving global instructions with friends on Token Rats.
 
 ## Install
 
@@ -22,6 +22,7 @@ token-rats sync
 |---|---|
 | `token-rats login` | Open your browser to authenticate (device-code flow). Saves a token to `~/.config/token-rats/token`. |
 | `token-rats sync` | Read local Claude Code, Codex, OpenCode, and Cursor usage and upload counts to your leaderboard. |
+| `token-rats setup-track [path]` | Preview global instructions and enable automatic friends-only history. |
 | `token-rats whoami` | Show the currently signed-in account handle. |
 | `token-rats logout` | Delete your stored credentials. |
 | `token-rats --version` | Print the CLI version. |
@@ -41,14 +42,14 @@ token-rats sync [--dry-run] [--verbose] [--api-url <url>]
 
 ## What data is collected
 
-**Token Rats reads usage counts only.** It reads:
+**Usage collection reads usage metadata.** It reads:
 
 - Input token count
 - Output token count
 - Model name
 - Session start/end timestamps
 
-It does **not** read, store, or transmit any prompt or completion content.
+Usage parsers discard prompt and completion content. The separate, opt-in `setup-track` feature uploads the instruction text you choose to track; it is off by default.
 
 The collector source is in [`packages/parsers/`](../parsers/) and [`packages/cli/src/lib/`](src/lib/). You can inspect which fields are extracted before running `sync`.
 
@@ -96,7 +97,7 @@ Authentication uses a device-code flow:
 
 Token Rats is open source. The CLI source is in [`packages/cli/`](.) and the parsers are in [`packages/parsers/`](../parsers/). You can inspect exactly what is read from your disk and what is sent to the server.
 
-**Privacy posture:** Token Rats uploads usage metadata only. Parsers inspect local usage fields and discard prompt and completion content. Full profile instructions are shared only when you explicitly publish them.
+**Data boundaries:** Usage collection uploads metadata. `setup-track` additionally uploads selected instruction files after an explicit preview and opt-in. Common credential patterns and marked private sections are omitted; review the preview for other private details. Automatic versions are shared only with current friends (common private board or mutual follows), even if your profile is private.
 
 
 ## Automatic tracking
@@ -113,3 +114,29 @@ for a month. Cursor counts are estimates. API estimates are not provider bills.
 See the [counting method](https://github.com/hsalberti/token-rats/blob/main/docs/counting.md).
 
 The CLI and its documentation are MIT licensed. The npm package includes LICENSE.
+
+## Automatic global AGENTS.md history (0.5.0)
+
+```sh
+npx token-rats@latest setup-track             # preview, confirm, install background tracker
+npx token-rats@latest setup-track --dry-run   # preview only; no login, uploads, or installation
+npx token-rats@latest setup-track /path/to/AGENTS.md
+npx token-rats@latest setup-track --stop      # pause all captures on this machine
+npx token-rats@latest setup-track --status    # list local sources; web shows live status
+```
+
+Default discovery checks `${CODEX_HOME:-~/.codex}/AGENTS.override.md` (preferred when present), otherwise `AGENTS.md`, and `${XDG_CONFIG_HOME:-~/.config}/opencode/AGENTS.md`. Supply a path for another global instructions file. Each file gets a separate history. Changing the global file location requires running `setup-track` again for the new path.
+
+Review the preview and confirm. `--yes` skips the interactive question when you have already reviewed the preview; `--no-daemon` skips background installation, so run `token-rats watch` yourself. The installed tracker also syncs token usage.
+
+Two stable scans coalesce rapid edits; changes usually appear within a minute while the tracker is online. Atomic file saves work. Failed uploads retry the latest saved content; edits made and replaced between scans or while offline are not a keystroke-level history. Duplicate sanitized content does not add a version. Missing files and files over 20,000 characters show an error in My setups.
+
+To exclude a private section, use markers on separate lines (without nesting):
+
+```md
+<!-- token-rats:private -->
+Instructions that must stay on this computer.
+<!-- /token-rats:private -->
+```
+
+Open [My setups](https://tokenrats.com/app/setups#automatic) to pause or resume a source and view its history. Pausing retains existing versions and their audience. Hide a version with “Only me” or delete the setup to remove its history. Automatic captures cannot be made public directly; copy a reviewed excerpt to a separate manual setup for public sharing. Local file paths stay on your machine; instruction content can itself contain private information, so review it before enabling.

@@ -12,8 +12,9 @@
 
 The application, CLI, parsers, and project documents use the MIT license. Enterprise work is paused. Start with the [public documents](docs/README.md), [counting method](docs/counting.md), and [current release plan](docs/open-source-release.md).
 
-- Versioned setups: private snapshots, public sharing, timeline diffs, restore, exports, and featured profiles.
-- Friends feed and shelves: Want to try, Trying, Using, Tried, and Dropped; optional ratings and short notes.
+- Versioned setups: private snapshots, friends-only or public sharing, timeline diffs, restore, exports, and featured profiles.
+- Line diffs and kudos in your friends feed. Personal shelves: Want to try, Trying, Using, Tried, and Dropped; optional ratings and short notes.
+- Automatic global AGENTS.md history: `npx token-rats@latest setup-track` previews selected files and enables friends-only updates. Pause or resume in My setups.
 - Agent capture skill: [copy it from the app](https://tokenrats.com/skill) or inspect [SKILL.md](apps/web/public/skills/share-token-rats-setup/SKILL.md).
 - In-app setup and monthly milestone notifications. Email activation is deferred; [continuation notes](traction/email-continuation.md).
 - Community discussion: [r/TokenRats](https://www.reddit.com/r/TokenRats/), Alberti will create and manage the subreddit.
@@ -27,7 +28,7 @@ The application, CLI, parsers, and project documents use the MIT license. Enterp
 3. The CLI reads local **Claude Code**, **Codex**, **OpenCode**, and **Cursor** usage fields, parses them into typed `SessionRecord`s, and uploads **counts only** — never prompts or completions.
 4. The Worker dedupes, rolls into `daily_rollup`, and the web app draws leaderboards, streaks, challenges, share cards, and a live SSE feed.
 
-The local CLI sends usage metadata only. Profile sharing publishes only the text you choose to share. See the [data boundaries](docs/counting.md#data-boundaries).
+Usage collection sends metadata. Optional `setup-track` also shares selected instruction text with friends after you enable it. Friends share a private board or follow each other. Access is checked when a version is viewed. See the [data boundaries](docs/counting.md#data-boundaries).
 
 ## Specs
 
@@ -92,7 +93,7 @@ Release context, the posting schedule, and editable drafts live in [`traction/`]
 ## Privacy
 
 - We store **token counts, model and provider names, opaque session and device IDs, start/end timestamps, and computed cost** for usage records.
-- The local tracker does not send prompts, completions, file paths, or tool output. Profiles display the instructions and workflows you choose to share.
+- Usage collection does not send prompts, completions, file paths, or tool output. Optional setup capture uploads the selected instruction text, omitting common credential patterns and explicitly excluded sections. Review its preview for other private details. Saved versions have an explicit Only me, Friends only, or Public audience.
 - Rooms are private by default. Public profiles and global trending are opt-in.
 
 ## License & notices

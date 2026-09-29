@@ -27,6 +27,7 @@ export function AppNav({ handle }: { handle: string }) {
         {[
           ["/app", "Feed"],
           ["/app/setups", "My setups"],
+          ["/app/friends", "Friends"],
           ["/app/stats", "Stats"],
           ["/app/boards", "Boards"],
           [`/u/${handle}`, "Profile"],

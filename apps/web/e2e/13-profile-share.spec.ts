@@ -22,7 +22,7 @@ test("edit profile instructions, select lines, and share a real PNG", async ({
     headers,
     data: {
       name: `Profile brief ${info.project.name}`,
-      publish: true,
+      visibility: "public",
       bundle: {
         files: [{ name: "AGENTS.md", content: original }],
         tools: "My tools stay unchanged",

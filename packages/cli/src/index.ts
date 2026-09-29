@@ -23,6 +23,7 @@ import {
 } from "./commands/install-daemon.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
+import { setupTrackCommand } from "./commands/setup-track.js";
 import { syncCommand } from "./commands/sync.js";
 import { watchCommand } from "./commands/watch.js";
 import { whoamiCommand } from "./commands/whoami.js";
@@ -45,7 +46,8 @@ function printHelp(): void {
 \x1b[1mCommands:\x1b[0m
   login              Authenticate with Token Rats (opens browser); installs the background watcher by default
   sync               Read local Claude Code, Codex, OpenCode + Cursor logs and upload counts
-  watch              Watch logs in real-time; upload new sessions as they appear
+  watch              Sync usage and any enabled instruction-file captures
+  setup-track [path] Preview global AGENTS.md files and enable automatic friends-only sharing
   whoami             Show the currently signed-in account + device id
   logout             Clear your stored credentials
   install-daemon     Install the background watcher (runs at logon)
@@ -66,8 +68,16 @@ function printHelp(): void {
   --interval <ms>   Scan interval in ms (default: 30000, minimum: 1000)
   --verbose         Print file change events and upload detail
 
+Flags (setup-track):
+  --dry-run         Preview the exact instructions without uploading
+  --yes             Enable after reviewing; share only with friends
+  --stop            Pause captures (optional path selects one file)
+  --status          Show locally tracked files
+  --no-daemon       Skip installing the background tracker
+
 \x1b[1mPrivacy:\x1b[0m
-  Token Rats reads local logs and uploads usage metadata only.
+  Usage tracking uploads metadata. setup-track uploads selected instruction text
+  only after you enable friends-only sharing. No files are tracked by default.
   It does not upload prompts or completions.
   The local readers are in packages/parsers/ and packages/cli/src/lib/.
 
@@ -95,6 +105,9 @@ interface ParsedArgs {
   verbose: boolean;
   interval: number | undefined;
   noDaemon: boolean;
+  yes: boolean;
+  stop: boolean;
+  status: boolean;
   rest: string[];
 }
 
@@ -105,6 +118,9 @@ function parseArgs(argv: string[]): ParsedArgs {
   let verbose = false;
   let interval: number | undefined;
   let noDaemon = false;
+  let yes = false;
+  let stop = false;
+  let status = false;
 
   let i = 0;
   while (i < argv.length) {
@@ -123,6 +139,12 @@ function parseArgs(argv: string[]): ParsedArgs {
       interval = Number(arg.slice("--interval=".length));
     } else if (arg === "--no-daemon") {
       noDaemon = true;
+    } else if (arg === "--yes") {
+      yes = true;
+    } else if (arg === "--stop") {
+      stop = true;
+    } else if (arg === "--status") {
+      status = true;
     } else if (arg === "--version" || arg === "-V") {
       console.log(getVersion());
       process.exit(0);
@@ -137,7 +159,7 @@ function parseArgs(argv: string[]): ParsedArgs {
   }
 
   const [command = null, ...rest] = positional;
-  return { command, apiUrl, dryRun, verbose, interval, noDaemon, rest };
+  return { command, apiUrl, dryRun, verbose, interval, noDaemon, yes, stop, status, rest };
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -158,6 +180,18 @@ async function main(): Promise<void> {
 
     case "sync":
       await syncCommand({ apiUrl, dryRun, verbose });
+      break;
+
+    case "setup-track":
+      await setupTrackCommand({
+        apiUrl,
+        dryRun,
+        noDaemon,
+        yes: args.yes,
+        stop: args.stop,
+        status: args.status,
+        file: args.rest[0],
+      });
       break;
 
     case "watch":

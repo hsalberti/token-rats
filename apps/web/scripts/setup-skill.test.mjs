@@ -42,7 +42,7 @@ test("new snapshots default to private and credentials go only to the API", asyn
   const deps = dependencies([{ versions: [] }, { id: "s", versionId: "v" }]);
   const result = await saveSetup(["setup.json"], deps);
   assert.equal(result.publication, "private");
-  assert.equal(JSON.parse(deps.requests[1].options.body).publish, false);
+  assert.equal(JSON.parse(deps.requests[1].options.body).visibility, "private");
   assert.equal(deps.requests[1].options.headers.Authorization, "Bearer synthetic-session");
   assert.ok(deps.requests.every((r) => new URL(r.url).origin === "https://api.tokenrats.com"));
   assert.equal(deps.requests[1].options.redirect, "error");
@@ -56,15 +56,31 @@ test("explicit publication updates the existing setup with its last version", as
   await saveSetup(["setup.json", "--publish"], deps);
   assert.ok(deps.requests[1].url.endsWith("/s/versions"));
   assert.equal(JSON.parse(deps.requests[1].options.body).baseVersionId, "old");
-  assert.equal(JSON.parse(deps.requests[1].options.body).publish, true);
+  assert.equal(JSON.parse(deps.requests[1].options.body).visibility, "public");
 });
 test("an unchanged snapshot is not saved twice", async () => {
   const deps = dependencies([
-    { versions: [{ ...input, setupId: "s", id: "v", publishedAt: null }] },
+    { versions: [{ ...input, setupId: "s", id: "v", visibility: "private" }] },
   ]);
   const result = await saveSetup(["setup.json"], deps);
   assert.equal(result.unchanged, true);
   assert.equal(deps.requests.length, 1);
+});
+test("friends sharing uses an explicit audience and updates identical private snapshots without duplicating", async () => {
+  const deps = dependencies([
+    { versions: [{ ...input, setupId: "s", id: "v", visibility: "private" }] },
+    { visibility: "friends" },
+  ]);
+  const result = await saveSetup(["setup.json", "--friends"], deps);
+  assert.equal(result.publication, "friends");
+  assert.equal(result.unchanged, true);
+  assert.ok(deps.requests[1].url.endsWith("/versions/v/visibility"));
+  assert.equal(deps.requests[1].options.method, "PUT");
+  assert.deepEqual(JSON.parse(deps.requests[1].options.body), { visibility: "friends" });
+  await assert.rejects(
+    saveSetup(["setup.json", "--friends", "--publish"], dependencies([])),
+    /Choose one audience/,
+  );
 });
 test("an ambiguous setup requires selection instead of creating another", async () => {
   const deps = dependencies([

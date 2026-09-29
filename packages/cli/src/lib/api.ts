@@ -127,6 +127,15 @@ export class ApiClient {
     if (!res.ok) throw await this.failedResponseToError(res);
     return res.json() as Promise<T>;
   }
+  async put<T>(path: string, body: unknown): Promise<T> {
+    const res = await this.fetchWithRetry(`${this.apiUrl}${path}`, {
+      method: "PUT",
+      headers: this.headers(),
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw await this.failedResponseToError(res);
+    return res.json() as Promise<T>;
+  }
 
   /** Initiate device-code flow. */
   async cliExchange(): Promise<{

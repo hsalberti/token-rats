@@ -1,5 +1,6 @@
 import type { Env } from "../env.js";
 import { sendEmail } from "./email.js";
+import { connectedSql, readableSql } from "./friendship.js";
 import { notificationInsert } from "./setups.js";
 
 export async function monthlyMilestones(env: Env, userId: string, now = Date.now()) {
@@ -75,9 +76,9 @@ export async function unsubscribeUser(env: Env, token: string) {
     return null;
   }
 }
-export const LIVE_NOTICE = `a.public_profile=1 AND EXISTS(SELECT 1 FROM follows f WHERE f.follower_id=n.user_id AND f.followed_id=n.actor_id)
- AND (n.kind='milestone' AND COALESCE((SELECT share_milestones FROM social_prefs WHERE user_id=n.actor_id),1)=1
- OR n.kind='setup' AND EXISTS(SELECT 1 FROM setup_versions v WHERE v.id=n.version_id AND v.published_at IS NOT NULL))`;
+export const LIVE_NOTICE = `${connectedSql("n.user_id", "a.id")}
+ AND (n.kind='milestone' AND a.public_profile=1 AND COALESCE((SELECT share_milestones FROM social_prefs WHERE user_id=n.actor_id),1)=1
+ OR n.kind='setup' AND EXISTS(SELECT 1 FROM setup_versions v WHERE v.id=n.version_id AND ${readableSql("v", "a", "n.user_id")}))`;
 export async function deliverSocialEmails(env: Env, now = Date.now()) {
   if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { sent: 0, configured: false };
   const rows = await env.DB.prepare(

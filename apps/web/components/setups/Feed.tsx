@@ -2,8 +2,9 @@
 import type { SetupFeed } from "@token-rats/contracts";
 import { useState } from "react";
 import { socialRequest } from "../../lib/social";
-import { SetupCard } from "./SetupCard";
-export function Feed({ initial }: { initial: SetupFeed }) {
+import { FRIENDS_DESCRIPTION } from "./Audience";
+import { ChangeCard } from "./ChangeCard";
+export function Feed({ initial, userId }: { initial: SetupFeed; userId: string }) {
   const [data, setData] = useState(initial);
   const [mode, setMode] = useState("following");
   const [error, setError] = useState("");
@@ -51,7 +52,7 @@ export function Feed({ initial }: { initial: SetupFeed }) {
       <section>
         <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-black">Your people, their setups.</h1>
+            <h1 className="text-3xl font-black">Small changes. Shared progress.</h1>
             <p className="mt-2 text-sm text-zinc-400">What they kept, changed, and left behind.</p>
           </div>
           <a
@@ -70,7 +71,7 @@ export function Feed({ initial }: { initial: SetupFeed }) {
               onClick={() => load(m)}
               className={`pb-3 text-sm capitalize ${mode === m ? "border-b-2 border-rat-500 text-rat-400" : "text-zinc-400"}`}
             >
-              {m}
+              {m === "following" ? "Friends & following" : "Discover"}
             </button>
           ))}
         </div>
@@ -81,7 +82,7 @@ export function Feed({ initial }: { initial: SetupFeed }) {
         )}
         <div className="space-y-5">
           {data.versions.map((v) => (
-            <SetupCard key={v.id} version={v} />
+            <ChangeCard key={v.id} version={v} userId={userId} />
           ))}
           {!data.versions.length && (
             <div className="rounded-xl border border-dashed border-zinc-700 p-8">
@@ -108,6 +109,16 @@ export function Feed({ initial }: { initial: SetupFeed }) {
         )}
       </section>
       <aside className="space-y-6">
+        <div className="rounded-xl border border-rat-500/20 bg-rat-500/5 p-5">
+          <h2 className="font-semibold">Who sees your changes</h2>
+          <p className="mt-2 text-sm leading-6 text-zinc-400">{FRIENDS_DESCRIPTION}</p>
+          <a href="/app/friends" className="mt-3 block text-sm text-rat-400">
+            See your friends →
+          </a>
+          <a href="/app/setups#automatic" className="mt-3 block text-sm text-rat-400">
+            Automatically share AGENTS.md changes →
+          </a>
+        </div>
         <div className="rounded-xl border border-zinc-800 p-5">
           <h2 className="font-semibold">Find your people</h2>
           <form

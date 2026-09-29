@@ -1,6 +1,7 @@
-import type { SetupVersion } from "@token-rats/contracts";
+import type { SetupVersion, SetupWatcher } from "@token-rats/contracts";
 import { AuthedTopBar } from "../../../components/AuthedTopBar";
 import { AgentCapture } from "../../../components/setups/AgentCapture";
+import { AutomaticCapture } from "../../../components/setups/AutomaticCapture";
 import { SetupCard } from "../../../components/setups/SetupCard";
 import { getCookieHeader, requireSession } from "../../../lib/auth";
 import { getServerLocale } from "../../../lib/server-locale";
@@ -10,12 +11,13 @@ export const metadata = { title: "My setups" };
 export default async function Page() {
   const user = await requireSession();
   const cookieHeader = await getCookieHeader();
-  const [mine, shelf] = await Promise.all([
+  const [mine, shelf, capture] = await Promise.all([
     socialRequest<{ versions: SetupVersion[] }>("setups/mine", { cookieHeader }),
     socialRequest<{ versions: (SetupVersion & { shelf: { status: string } })[] }>(
       "setups/library",
       { cookieHeader },
     ),
+    socialRequest<{ watchers: SetupWatcher[] }>("setups/watchers", { cookieHeader }),
   ]);
   return (
     <>
@@ -32,6 +34,7 @@ export default async function Page() {
             New setup
           </a>
         </header>
+        <AutomaticCapture initial={capture.watchers} />
         <AgentCapture />
         {!mine.versions.length && (
           <p className="rounded-xl border border-dashed border-zinc-700 p-8 text-zinc-400">

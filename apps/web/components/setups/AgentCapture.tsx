@@ -1,9 +1,11 @@
 "use client";
+import type { SetupVisibility } from "@token-rats/contracts";
 import { useEffect, useState } from "react";
+import { AUDIENCE, FRIENDS_DESCRIPTION } from "./Audience";
 export function AgentCapture() {
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
-  const [publish, setPublish] = useState(false);
+  const [visibility, setVisibility] = useState<SetupVisibility>("private");
   const [status, setStatus] = useState("");
   const [instructions, setInstructions] = useState("");
   async function copy() {
@@ -11,7 +13,7 @@ export function AgentCapture() {
       const response = await fetch("/skills/share-token-rats-setup/SKILL.md");
       if (!response.ok) throw new Error("Skill unavailable");
       const skill = await response.text();
-      const prompt = `Use the skill below to inspect my current agent setup and ${publish ? "publish a sanitized, reproducible version on my Token Rats profile" : "save a reproducible private version in Token Rats"}. Include my global and project instructions, tools, model roles, and coordination workflow. Preserve my local configuration. Return the saved version link.\n\n${skill}`;
+      const prompt = `Use the skill below to inspect my current agent setup and ${visibility === "public" ? "publish a sanitized, reproducible public version on my Token Rats profile" : visibility === "friends" ? "share a sanitized, reproducible version with friends only on Token Rats" : "save a reproducible private version in Token Rats"}. Include my global and project instructions, tools, model roles, and coordination workflow. Preserve my local configuration. Return the saved version link.\n\n${skill}`;
       setInstructions(prompt);
       try {
         await navigator.clipboard.writeText(prompt);
@@ -45,21 +47,30 @@ export function AgentCapture() {
           Copy agent instructions
         </button>
       </div>
-      <label className="mt-4 flex items-start gap-2 text-sm text-zinc-300">
-        <input
-          type="checkbox"
+      <label className="mt-4 block text-sm text-zinc-300">
+        Save this snapshot for
+        <select
+          aria-label="Agent snapshot audience"
           disabled={!ready}
-          checked={publish}
-          onChange={(e) => setPublish(e.target.checked)}
-          className="mt-1 h-4 w-4 shrink-0"
-        />
-        <span>
-          Ask my agent to publish a sanitized version
-          <span className="block text-xs leading-5 text-zinc-500">
-            Leave unchecked to save privately and review it first.
-          </span>
-        </span>
+          value={visibility}
+          onChange={(e) => setVisibility(e.target.value as SetupVisibility)}
+          className="ml-3 rounded-lg border border-zinc-700 bg-zinc-900 p-2"
+        >
+          {Object.entries(AUDIENCE).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
       </label>
+      <p className="mt-2 text-xs leading-5 text-zinc-500">
+        {visibility === "friends"
+          ? FRIENDS_DESCRIPTION
+          : visibility === "public"
+            ? "Anyone can read this snapshot. Your agent removes private details before sharing."
+            : "Save privately and review before sharing."}{" "}
+        This captures one version.
+      </p>
       <div className="mt-4 flex flex-wrap gap-4 text-xs text-zinc-500">
         <a
           href="/skills/share-token-rats-setup/SKILL.md"

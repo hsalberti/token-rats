@@ -1,7 +1,7 @@
 {
   "name": "token-rats",
-  "version": "0.4.1",
-  "description": "Track Claude Code, Codex, OpenCode, and Cursor usage and compare AI subscriptions.",
+  "version": "0.5.0",
+  "description": "Track local coding agent usage and share global AGENTS.md changes with friends.",
   "license": "MIT",
   "type": "module",
   "bin": {

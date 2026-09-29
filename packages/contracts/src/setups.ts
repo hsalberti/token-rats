@@ -28,12 +28,14 @@ export const SetupBundle = z
   });
 export type SetupBundle = z.infer<typeof SetupBundle>;
 export const SetupVerdict = z.enum(["experiment", "using", "retired"]);
+export const SetupVisibility = z.enum(["private", "friends", "public"]);
+export type SetupVisibility = z.infer<typeof SetupVisibility>;
 export const SaveSetupVersion = z.object({
   name: z.string().trim().min(1).max(100),
   bundle: SetupBundle,
   note: z.string().max(2_000).default(""),
   verdict: SetupVerdict.default("experiment"),
-  publish: z.boolean().default(false),
+  visibility: SetupVisibility.default("private"),
   baseVersionId: z.string().nullable().default(null),
 });
 export type SaveSetupVersion = z.infer<typeof SaveSetupVersion>;
@@ -63,6 +65,10 @@ export interface SetupVersion {
   verdict: z.infer<typeof SetupVerdict>;
   createdAt: number;
   publishedAt: number | null;
+  visibility: SetupVisibility;
+  automatic: boolean;
+  kudosCount: number;
+  viewerHasKudos: boolean;
   featured: boolean;
   originVersionId: string | null;
   averageRating: number | null;
@@ -82,8 +88,27 @@ export interface SetupDetail {
   isOwner: boolean;
 }
 export interface SetupFeed {
-  versions: SetupVersion[];
+  versions: (SetupVersion & { change: SetupChange })[];
   nextCursor: string | null;
+}
+export interface SetupChange {
+  previousVersion: number | null;
+  additions: number;
+  deletions: number;
+  truncated: boolean;
+  files: {
+    name: string;
+    lines: { kind: "added" | "removed" | "context" | "gap"; text: string }[];
+  }[];
+}
+export interface SetupWatcher {
+  id: string;
+  setupId: string;
+  label: string;
+  enabled: boolean;
+  lastSeenAt: number;
+  lastChangeAt: number | null;
+  error: string | null;
 }
 export interface SocialPrefs {
   setupEmails: boolean;

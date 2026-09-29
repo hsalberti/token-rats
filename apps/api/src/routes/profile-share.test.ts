@@ -48,7 +48,7 @@ async function create(publish = true, user = "alice") {
     "POST",
     {
       name: "My setup",
-      publish,
+      visibility: publish ? "public" : "private",
       bundle: {
         files: [
           { name: "notes.md", content: "Other notes" },
@@ -128,7 +128,7 @@ it("shares exact selected lines from the named published version and preserves t
     "POST",
     {
       name: "My setup",
-      publish: true,
+      visibility: "public",
       baseVersionId: first.versionId,
       bundle: { files: [{ name: "AGENTS.md", content: "Changed instructions" }] },
     },
@@ -144,7 +144,7 @@ it("shares exact selected lines from the named published version and preserves t
         "POST",
         {
           name: "Stale edit",
-          publish: true,
+          visibility: "public",
           baseVersionId: first.versionId,
           bundle: { files: [{ name: "AGENTS.md", content: "Overwrite" }] },
         },
@@ -162,7 +162,12 @@ it("never exposes private, unpublished, other-owner, or banned instructions thro
   ).toBe(404);
   expect((await request(`/u/alice/share?version=${other.versionId}`)).status).toBe(404);
   const published = await create();
-  await request(`/setups/versions/${published.versionId}/publish`, "DELETE", undefined, "alice");
+  await request(
+    `/setups/versions/${published.versionId}/visibility`,
+    "PUT",
+    { visibility: "private" },
+    "alice",
+  );
   expect((await request(`/u/alice/share?version=${published.versionId}`)).status).toBe(404);
   fixture.db.prepare("UPDATE users SET public_profile=0 WHERE id='alice'").run();
   expect((await request("/u/alice/share", "GET", undefined, "alice")).status).toBe(404);
@@ -178,7 +183,7 @@ it("uses the profile's featured setup and latest published version, even after r
     "POST",
     {
       name: "My setup",
-      publish: true,
+      visibility: "public",
       baseVersionId: first.versionId,
       bundle: { files: [{ name: "AGENTS.md", content: "Current profile instructions" }] },
     },
@@ -186,8 +191,18 @@ it("uses the profile's featured setup and latest published version, even after r
   );
   expect(next.status).toBe(201);
   vi.mocked(Date.now).mockReturnValue(now + 60_000);
-  await request(`/setups/versions/${first.versionId}/publish`, "DELETE", undefined, "alice");
-  await request(`/setups/versions/${first.versionId}/publish`, "POST", undefined, "alice");
+  await request(
+    `/setups/versions/${first.versionId}/visibility`,
+    "PUT",
+    { visibility: "private" },
+    "alice",
+  );
+  await request(
+    `/setups/versions/${first.versionId}/visibility`,
+    "PUT",
+    { visibility: "public" },
+    "alice",
+  );
   expect((await share()).instructions?.text).toBe("Current profile instructions");
   vi.mocked(Date.now).mockReturnValue(now + 120_000);
   const other = await create();

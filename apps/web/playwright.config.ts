@@ -49,6 +49,10 @@ export default defineConfig({
       use: { ...devices["Desktop Safari"] },
     },
     {
+      name: "mobile-chromium",
+      use: { ...devices["iPhone 15"], defaultBrowserType: "chromium", browserName: "chromium" },
+    },
+    {
       name: "mobile-webkit",
       use: { ...devices["iPhone 15"] },
     },

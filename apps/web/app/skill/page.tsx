@@ -30,8 +30,12 @@ export default function Page() {
         </li>
       </ol>
       <p className="text-sm text-zinc-500">
-        You choose when to capture and publish. Automatic detection of changes is a future option.
+        For ongoing global AGENTS.md history, enable friends-only automatic capture in My setups.
+        The one-time skill captures a broader setup snapshot.
       </p>
+      <a href="/app/setups#automatic" className="block text-sm text-rat-400">
+        Set up automatic history →
+      </a>
       <a href="/setups/new" className="inline-block text-sm text-rat-400">
         Prefer to add files yourself? →
       </a>

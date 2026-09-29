@@ -1,5 +1,5 @@
 import type { SetupDetail } from "@token-rats/contracts";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { AuthedTopBar } from "../../../../components/AuthedTopBar";
 import { SetupEditor } from "../../../../components/setups/SetupEditor";
 import { getCookieHeader, requireSession } from "../../../../lib/auth";
@@ -19,6 +19,7 @@ export default async function Page({
     { cookieHeader: await getCookieHeader() },
   );
   if (!data.isOwner) notFound();
+  if (data.version.automatic) redirect("/app/setups#automatic");
   return (
     <>
       <AuthedTopBar user={user} locale={await getServerLocale()} />

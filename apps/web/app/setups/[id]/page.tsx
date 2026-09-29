@@ -7,7 +7,10 @@ import { getCookieHeader, getSession } from "../../../lib/auth";
 import { getServerLocale } from "../../../lib/server-locale";
 import { socialRequest } from "../../../lib/social";
 export const runtime = "edge";
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<{ v?: string }> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ v?: string; changes?: string }>;
+};
 async function read({ params, searchParams }: Props) {
   const { id } = await params;
   const { v } = await searchParams;
@@ -26,10 +29,11 @@ export async function generateMetadata(props: Props) {
   return {
     title: `${v.name} · @${v.handle}`,
     description: v.note || `Explore ${v.name}, version ${v.number}`,
-    robots: v.publishedAt ? undefined : { index: false, follow: false },
-    openGraph: v.publishedAt
-      ? { images: [{ url: `/cards/setups/${v.id}`, width: 1200, height: 630 }] }
-      : undefined,
+    robots: v.visibility === "public" ? undefined : { index: false, follow: false },
+    openGraph:
+      v.visibility === "public"
+        ? { images: [{ url: `/cards/setups/${v.id}`, width: 1200, height: 630 }] }
+        : undefined,
   };
 }
 export default async function Page(props: Props) {
@@ -51,7 +55,12 @@ export default async function Page(props: Props) {
         </header>
       )}
       <main className="mx-auto max-w-5xl px-6 py-8">
-        <SetupDetail key={data.version.id} data={data} signedIn={!!user} />
+        <SetupDetail
+          key={data.version.id}
+          data={data}
+          signedIn={!!user}
+          showChanges={(await props.searchParams).changes === "1"}
+        />
       </main>
     </>
   );

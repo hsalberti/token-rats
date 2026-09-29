@@ -5,6 +5,8 @@ import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { socialRequest } from "../../lib/social";
+import { AUDIENCE, FRIENDS_DESCRIPTION } from "./Audience";
+import { Kudos } from "./Kudos";
 export const SHELVES: Record<ShelfStatus, string> = {
   want_to_try: "Want to try",
   trying: "Trying",
@@ -12,12 +14,16 @@ export const SHELVES: Record<ShelfStatus, string> = {
   tried: "Tried",
   dropped: "Dropped",
 };
-export function SetupDetail({ data, signedIn }: { data: Detail; signedIn: boolean }) {
+export function SetupDetail({
+  data,
+  signedIn,
+  showChanges = false,
+}: { data: Detail; signedIn: boolean; showChanges?: boolean }) {
   const { version: v, history, isOwner } = data;
   const router = useRouter();
   const [ready, setReady] = useState(false);
   useEffect(() => setReady(true), []);
-  const [tab, setTab] = useState("setup");
+  const [tab, setTab] = useState(showChanges ? "timeline" : "setup");
   const [compare, setCompare] = useState(history.find((x) => x.number < v.number)?.id ?? "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -72,7 +78,8 @@ export function SetupDetail({ data, signedIn }: { data: Detail; signedIn: boolea
             Version {v.number} · {new Date(v.createdAt).toISOString().slice(0, 10)}
           </span>
           <span className="rounded-full border border-zinc-700 px-2 py-0.5 text-xs">
-            {v.publishedAt ? "Shared" : "Private"}
+            {AUDIENCE[v.visibility]}
+            {v.automatic && " · Auto-captured"}
           </span>
         </div>
         <h1 className="text-3xl font-black sm:text-4xl">{v.name}</h1>
@@ -83,6 +90,17 @@ export function SetupDetail({ data, signedIn }: { data: Detail; signedIn: boolea
               ? "Currently using this setup."
               : "An experiment in progress."}
         </p>
+        {v.visibility === "friends" && (
+          <p className="mt-3 rounded-lg border border-rat-500/20 bg-rat-500/5 p-3 text-xs leading-5 text-zinc-400">
+            {FRIENDS_DESCRIPTION}
+          </p>
+        )}
+        {v.automatic && isOwner && (
+          <p className="mt-3 text-xs leading-5 text-zinc-400">
+            Each new capture is shared with friends. Changing this version’s audience affects only
+            this version. Pause capture to stop new updates.
+          </p>
+        )}
         {v.note && (
           <p className="mt-4 whitespace-pre-wrap break-words text-zinc-200 leading-7">{v.note}</p>
         )}
@@ -90,21 +108,45 @@ export function SetupDetail({ data, signedIn }: { data: Detail; signedIn: boolea
           {isOwner ? (
             <>
               <a
-                href={`/setups/${v.setupId}/edit?v=${v.id}`}
+                href={v.automatic ? "/app/setups#automatic" : `/setups/${v.setupId}/edit?v=${v.id}`}
                 className="rounded-lg bg-rat-500 px-4 py-2 font-bold text-black"
               >
-                {history[0]?.id === v.id ? "Save a new version" : "Restore as a new version"}
+                {v.automatic
+                  ? "Manage automatic capture"
+                  : history[0]?.id === v.id
+                    ? "Save a new version"
+                    : "Restore as a new version"}
               </a>
-              <button
-                type="button"
-                disabled={!ready || busy}
-                onClick={() =>
-                  act(`setups/versions/${v.id}/publish`, v.publishedAt ? "DELETE" : "POST")
-                }
-                className="rounded-lg border border-zinc-700 px-3 py-2"
-              >
-                {v.publishedAt ? "Make private" : "Publish this version"}
-              </button>
+              {v.automatic && (
+                <button
+                  type="button"
+                  disabled={!ready || busy}
+                  onClick={copy}
+                  className="rounded-lg border border-zinc-700 px-3 py-2"
+                >
+                  Copy to a private setup
+                </button>
+              )}
+              <label className="text-xs text-zinc-400">
+                Audience
+                <select
+                  aria-label="Version audience"
+                  value={v.visibility}
+                  disabled={!ready || busy}
+                  onChange={(e) =>
+                    act(`setups/versions/${v.id}/visibility`, "PUT", { visibility: e.target.value })
+                  }
+                  className="ml-2 rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-base text-zinc-100 sm:text-sm"
+                >
+                  {Object.entries(AUDIENCE)
+                    .filter(([key]) => !v.automatic || key !== "public")
+                    .map(([key, label]) => (
+                      <option key={key} value={key}>
+                        {label}
+                      </option>
+                    ))}
+                </select>
+              </label>
               <button
                 type="button"
                 disabled={!ready || busy}
@@ -141,7 +183,7 @@ export function SetupDetail({ data, signedIn }: { data: Detail; signedIn: boolea
               Sign in to save, rate, or follow
             </a>
           )}
-          {v.publishedAt && (
+          {v.visibility === "public" && (
             <>
               <button type="button" disabled={!ready} onClick={share} className="text-rat-400">
                 Share
@@ -155,6 +197,7 @@ export function SetupDetail({ data, signedIn }: { data: Detail; signedIn: boolea
               </a>
             </>
           )}
+          {v.publishedAt && <Kudos version={v} canGive={signedIn && !isOwner} />}
           <a
             download={`${v.name.replace(/[^a-z0-9-]/gi, "-")}-v${v.number}.json`}
             href={`data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify({ name: v.name, bundle: v.bundle, note: v.note, verdict: v.verdict }, null, 2))}`}
@@ -247,7 +290,7 @@ export function SetupDetail({ data, signedIn }: { data: Detail; signedIn: boolea
               <p className="mt-2 text-sm leading-6 text-zinc-400">
                 Rate this version and leave a short note. Bring the longer story to r/TokenRats.
               </p>
-              {v.publishedAt && (
+              {v.visibility === "public" && (
                 <a
                   href={reddit}
                   target="_blank"
@@ -276,8 +319,7 @@ export function SetupDetail({ data, signedIn }: { data: Detail; signedIn: boolea
                   Version {h.number}
                 </a>
                 <p className="mt-1 text-xs text-zinc-500">
-                  {new Date(h.createdAt).toISOString().slice(0, 10)} ·{" "}
-                  {h.publishedAt ? "Shared" : "Private"}
+                  {new Date(h.createdAt).toISOString().slice(0, 10)} · {AUDIENCE[h.visibility]}
                 </p>
                 <p className="mt-2 line-clamp-3 text-sm text-zinc-400">{h.note || h.verdict}</p>
               </li>

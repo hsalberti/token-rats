@@ -1,5 +1,6 @@
 "use client";
 import type { SetupVersion } from "@token-rats/contracts";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { socialRequest } from "../../lib/social";
 import { ProfileInstructions } from "./ProfileInstructions";
@@ -19,6 +20,7 @@ export function ProfileSetups({
   signedIn: boolean;
   publicProfile?: boolean;
 }) {
+  const router = useRouter();
   const [following, setFollowing] = useState(initial);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -27,6 +29,7 @@ export function ProfileSetups({
     try {
       await socialRequest(`setups/follow/${handle}`, { method: following ? "DELETE" : "PUT" });
       setFollowing(!following);
+      router.refresh();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -96,7 +99,7 @@ export function ProfileSetups({
       {!versions.length && (
         <p className="rounded-xl border border-dashed border-zinc-800 p-5 text-sm text-zinc-500">
           {isOwner
-            ? "Share your first setup to start your public timeline."
+            ? "Share your first setup with friends or publicly to start your timeline."
             : "No shared setups yet."}
         </p>
       )}

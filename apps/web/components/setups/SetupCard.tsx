@@ -1,4 +1,5 @@
 import type { SetupVersion } from "@token-rats/contracts";
+import { AUDIENCE } from "./Audience";
 export function SetupCard({ version: v }: { version: SetupVersion }) {
   return (
     <article className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 sm:p-6">
@@ -7,8 +8,9 @@ export function SetupCard({ version: v }: { version: SetupVersion }) {
           @{v.handle}
         </a>
         <span>
-          {new Date(v.publishedAt ?? v.createdAt).toISOString().slice(0, 10)} · v{v.number}{" "}
-          {v.publishedAt ? "" : "· Private"}
+          {new Date(v.publishedAt ?? v.createdAt).toISOString().slice(0, 10)} · v{v.number} ·{" "}
+          {AUDIENCE[v.visibility]}
+          {v.automatic && " · Auto-captured"}
         </span>
       </div>
       <a

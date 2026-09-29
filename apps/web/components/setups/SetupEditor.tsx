@@ -3,6 +3,7 @@ import { SaveSetupVersion as SaveSetupSchema } from "@token-rats/contracts";
 import type { SetupBundle, SetupVersion } from "@token-rats/contracts";
 import { useEffect, useState } from "react";
 import { socialRequest } from "../../lib/social";
+import { AUDIENCE, FRIENDS_DESCRIPTION } from "./Audience";
 const field =
   "appearance-none text-zinc-100 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base sm:text-sm focus:border-rat-500 focus:outline-none";
 export function SetupEditor({
@@ -24,7 +25,7 @@ export function SetupEditor({
   );
   const [note, setNote] = useState("");
   const [verdict, setVerdict] = useState<SetupVersion["verdict"]>(initial?.verdict ?? "experiment");
-  const [publish, setPublish] = useState(false);
+  const [visibility, setVisibility] = useState<SetupVersion["visibility"]>("private");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   async function save(e: React.FormEvent) {
@@ -41,7 +42,7 @@ export function SetupEditor({
             bundle,
             note,
             verdict,
-            publish,
+            visibility,
             baseVersionId: baseVersionId ?? null,
           }),
         },
@@ -67,7 +68,7 @@ export function SetupEditor({
           setBundle(snapshot.bundle);
           setNote(snapshot.note);
           setVerdict(snapshot.verdict);
-          setPublish(false);
+          setVisibility("private");
           return;
         }
       }
@@ -250,21 +251,29 @@ export function SetupEditor({
             className={`${field} mt-2`}
           />
         </label>
-        <label className="flex items-start gap-3 rounded-xl border border-zinc-700 p-4 text-sm">
-          <input
-            type="checkbox"
-            checked={publish}
-            onChange={(e) => setPublish(e.target.checked)}
-            className="mt-1 h-4 w-4 shrink-0"
-          />
-          <span>
-            <span>Share this version publicly</span>
-            <span className="mt-1 block text-xs leading-5 text-zinc-400">
-              All text above will be visible, downloadable, and shared with followers. Review the
-              files first. Leave unchecked to save privately.
-            </span>
-          </span>
-        </label>
+        <div className="rounded-xl border border-zinc-700 p-4">
+          <label className="block text-sm">
+            Who can see this version?
+            <select
+              value={visibility}
+              onChange={(e) => setVisibility(e.target.value as typeof visibility)}
+              className={`${field} mt-2`}
+            >
+              {Object.entries(AUDIENCE).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <p className="mt-3 text-xs leading-5 text-zinc-400">
+            {visibility === "friends"
+              ? FRIENDS_DESCRIPTION
+              : visibility === "public"
+                ? "Anyone can read and download this version. Review all text before sharing."
+                : "Only you can see this checkpoint."}
+          </p>
+        </div>
         {error && (
           <p role="alert" className="text-sm text-red-400">
             {error}{" "}
@@ -279,7 +288,13 @@ export function SetupEditor({
             disabled={!ready || busy}
             className="rounded-lg bg-rat-500 px-5 py-2.5 font-bold text-black disabled:opacity-50"
           >
-            {busy ? "Saving…" : publish ? "Save and share version" : "Save private version"}
+            {busy
+              ? "Saving…"
+              : visibility === "public"
+                ? "Share publicly"
+                : visibility === "friends"
+                  ? "Share with friends"
+                  : "Save private version"}
           </button>
           {onCancel && (
             <button type="button" onClick={onCancel} className="text-sm text-zinc-400">

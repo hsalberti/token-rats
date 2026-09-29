@@ -50,10 +50,20 @@ node save-setup.mjs token-rats-setup.json --dry-run
 node save-setup.mjs token-rats-setup.json
 # Only for an explicitly requested public share:
 node save-setup.mjs token-rats-setup.json --publish
+# To share only with friends:
+node save-setup.mjs token-rats-setup.json --friends
 ```
 
-Use Node.js 22.13 or newer. The helper uses the existing Token Rats CLI session from the OS configuration directory; it never prints the credential. If sign-in is missing/expired, run `npx token-rats@latest login --no-daemon` and let the user complete the browser login. Do not enable usage collection just to save a setup. A private profile must be made public by its owner at `https://tokenrats.com/settings/profile` before publication.
+Use Node.js 22.13 or newer. The helper uses the existing Token Rats CLI session from the OS configuration directory; it never prints the credential. If sign-in is missing/expired, run `npx token-rats@latest login --no-daemon` and let the user complete the browser login. Do not enable usage collection just to save a setup. A private profile must be made public by its owner at `https://tokenrats.com/settings/profile` before a public share. Friends-only sharing works with a private profile. Friends are people on a common private board or people who follow each other; access is checked when they view the history.
 
 The helper finds an existing setup by exact name, saves the next version, and skips an identical snapshot. To select an existing setup explicitly, add `--setup SETUP_ID`. If the request result is uncertain, inspect My setups before retrying; do not blindly create another snapshot. A stale-version conflict requires re-reading the latest version before deciding how to incorporate it.
 
 Return the saved URL, publication state, files included, and any omitted requirements. The user can download files, compare versions, restore history, feature the setup, or share its card from that page. Longer discussion belongs on r/TokenRats; this skill does not post to external social accounts.
+
+## Automatic global instructions history
+
+If the user asks to keep sharing future global instruction changes, run `npx token-rats@latest setup-track --dry-run` (or append the chosen file path). Show the sanitized preview and explain that future edits will be saved automatically for current and future friends. A one-time setup share does not enable ongoing capture.
+
+When ongoing sharing is authorized and the preview is reviewed, run `npx token-rats@latest setup-track --yes` with the same path if specified. It detects Codex and OpenCode global instruction files, saves an initial friends-only version, and installs the background tracker for usage and enabled files. Existing token collection never enables instruction capture by itself. Common credential patterns are omitted; other private sections must be removed or enclosed by `<!-- token-rats:private -->` and `<!-- /token-rats:private -->` on separate lines. Do not nest those markers. Future edits inside excluded sections stay local.
+
+Changes normally appear within a minute while the computer and tracker are running. Each file has its own history; unchanged sanitized content does not create a version. Open `https://tokenrats.com/app/setups#automatic` to view status, pause, or resume. `npx token-rats@latest setup-track --stop` also pauses captures. Pausing keeps saved versions visible to their audience; the owner can hide individual versions or delete a setup and its history. Automatic versions cannot be made public directly. Copy a reviewed excerpt into a separate manual setup for a public share.

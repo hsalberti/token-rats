@@ -1,8 +1,9 @@
-import { SaveSetupVersion, SetupReview } from "@token-rats/contracts";
+import { SaveSetupVersion, SetupReview, SetupVisibility, setupChange } from "@token-rats/contracts";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import type { Env } from "../env.js";
+import { connectedSql, friendsSql, readableSql } from "../lib/friendship.js";
 import {
   VERSION_SELECT,
   type VersionRow,
@@ -11,6 +12,7 @@ import {
   serializeVersion,
 } from "../lib/setups.js";
 import { type AuthVariables, optionalAuth, requireAuth } from "../middleware/auth.js";
+import watchers from "./setup-watchers.js";
 
 const setups = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 setups.use("*", bodyLimit({ maxSize: 400_000 }));
@@ -26,10 +28,12 @@ setups.onError((err, c) => {
   console.error("[setups]", err);
   return c.json({ error: "Could not save the setup. Please retry." }, 500);
 });
+setups.route("/watchers", watchers);
 
 setups.get("/feed", optionalAuth, async (c) => {
   const user = c.var.userId ?? "";
   const mode = c.req.query("mode") ?? "following";
+  if (!["following", "discover"].includes(mode)) return c.json({ error: "Invalid feed" }, 400);
   if (mode === "following" && !user) return c.json({ error: "Sign in to view your feed" }, 401);
   const raw = c.req.query("cursor");
   let time = Number.MAX_SAFE_INTEGER;
@@ -45,17 +49,34 @@ setups.get("/feed", optionalAuth, async (c) => {
   }
   const filter =
     mode === "following"
-      ? "AND (s.user_id=? OR s.user_id IN (SELECT followed_id FROM follows WHERE follower_id=?))"
-      : "";
+      ? `AND ${connectedSql("(SELECT id FROM viewer)", "s.user_id")}`
+      : "AND v.visibility='public' AND u.public_profile=1";
   const data =
-    await c.env.DB.prepare(`${VERSION_SELECT} WHERE v.published_at IS NOT NULL AND u.public_profile=1 ${filter}
+    await c.env.DB.prepare(`${VERSION_SELECT} WHERE v.published_at IS NOT NULL AND ${readableSql()} ${filter}
  AND (v.published_at < ? OR (v.published_at = ? AND v.id < ?)) ORDER BY v.published_at DESC,v.id DESC LIMIT 21`)
-      .bind(...(mode === "following" ? [user, user] : []), time, time, id)
+      .bind(user, time, time, id)
       .all<VersionRow>();
   const rows = data.results.slice(0, 20);
   const last = rows.at(-1);
   return c.json({
-    versions: rows.map(serializeVersion),
+    versions: await Promise.all(
+      rows.map(async (row) => {
+        const previous = await c.env.DB.prepare(
+          `${VERSION_SELECT} WHERE s.id=? AND v.number<? AND ${readableSql()} ORDER BY v.number DESC LIMIT 1`,
+        )
+          .bind(user, row.setup_id, row.number)
+          .first<VersionRow>();
+        const version = serializeVersion(row);
+        return {
+          ...version,
+          change: setupChange(
+            version.bundle,
+            previous ? JSON.parse(previous.bundle) : undefined,
+            previous?.number ?? null,
+          ),
+        };
+      }),
+    ),
     nextCursor:
       data.results.length > 20 && last ? btoa(JSON.stringify([last.published_at, last.id])) : null,
   });
@@ -64,15 +85,15 @@ setups.get("/mine", requireAuth, async (c) => {
   const rows = await c.env.DB.prepare(
     `${VERSION_SELECT} WHERE s.user_id=? AND v.number=(SELECT MAX(number) FROM setup_versions WHERE setup_id=s.id) ORDER BY v.created_at DESC`,
   )
-    .bind(c.var.userId)
+    .bind(c.var.userId, c.var.userId)
     .all<VersionRow>();
   return c.json({ versions: rows.results.map(serializeVersion) });
 });
 setups.get("/library", requireAuth, async (c) => {
   const rows = await c.env.DB.prepare(
-    `${VERSION_SELECT} JOIN setup_reviews r ON r.version_id=v.id AND r.user_id=? WHERE v.published_at IS NOT NULL AND u.public_profile=1 ORDER BY r.updated_at DESC LIMIT 100`,
+    `${VERSION_SELECT} JOIN setup_reviews r ON r.version_id=v.id AND r.user_id=? WHERE v.published_at IS NOT NULL AND ${readableSql()} ORDER BY r.updated_at DESC LIMIT 100`,
   )
-    .bind(c.var.userId)
+    .bind(c.var.userId, c.var.userId)
     .all<VersionRow>();
   const reviews = await c.env.DB.prepare(
     "SELECT version_id,status,stars,note FROM setup_reviews WHERE user_id=?",
@@ -89,22 +110,32 @@ setups.get("/library", requireAuth, async (c) => {
 setups.get("/people", requireAuth, async (c) => {
   const q = (c.req.query("q") ?? "").slice(0, 60);
   const rows =
-    await c.env.DB.prepare(`SELECT u.id,u.handle,u.avatar_url AS avatarUrl,EXISTS(SELECT 1 FROM follows WHERE follower_id=? AND followed_id=u.id) AS following
- FROM users u WHERE u.public_profile=1 AND u.id!=? AND u.handle LIKE ? ORDER BY following DESC,u.handle LIMIT 50`)
-      .bind(c.var.userId, c.var.userId, `%${q}%`)
+    await c.env.DB.prepare(`WITH viewer AS (SELECT ? AS id) SELECT u.id,u.handle,u.avatar_url AS avatarUrl,EXISTS(SELECT 1 FROM follows WHERE follower_id=(SELECT id FROM viewer) AND followed_id=u.id) AS following,
+ EXISTS(SELECT 1 FROM follows WHERE follower_id=u.id AND followed_id=(SELECT id FROM viewer)) AS followsYou,
+ ${friendsSql("(SELECT id FROM viewer)", "u.id")} AS friend
+ FROM users u WHERE (u.public_profile=1 OR ${friendsSql("(SELECT id FROM viewer)", "u.id")} OR EXISTS(SELECT 1 FROM follows WHERE follower_id=u.id AND followed_id=(SELECT id FROM viewer))) AND u.id!=(SELECT id FROM viewer) AND u.handle LIKE ? ${c.req.query("friends") === "1" ? `AND ${friendsSql("(SELECT id FROM viewer)", "u.id")}` : ""} ORDER BY friend DESC,following DESC,u.handle LIMIT 50`)
+      .bind(c.var.userId, `%${q}%`)
       .all();
   return c.json({ people: rows.results });
 });
 setups.get("/profile/:handle", optionalAuth, async (c) => {
-  const user = await c.env.DB.prepare("SELECT id,public_profile FROM users WHERE handle=?")
-    .bind(c.req.param("handle"))
-    .first<{ id: string; public_profile: number }>();
-  if (!user || (!user.public_profile && user.id !== c.var.userId))
+  const user = await c.env.DB.prepare(
+    `WITH viewer AS (SELECT ? AS id) SELECT u.id,u.handle,u.avatar_url,u.public_profile,${friendsSql("(SELECT id FROM viewer)", "u.id")} AS friend FROM users u WHERE handle=?`,
+  )
+    .bind(c.var.userId ?? "", c.req.param("handle"))
+    .first<{
+      id: string;
+      handle: string;
+      avatar_url: string | null;
+      public_profile: number;
+      friend: number;
+    }>();
+  if (!user || (!user.public_profile && !user.friend && user.id !== c.var.userId))
     return c.json({ error: "Not found" }, 404);
   const rows = await c.env.DB.prepare(
-    `${VERSION_SELECT} WHERE s.user_id=? AND v.published_at IS NOT NULL AND v.number=(SELECT MAX(number) FROM setup_versions WHERE setup_id=s.id AND published_at IS NOT NULL) ORDER BY s.featured DESC,v.published_at DESC`,
+    `${VERSION_SELECT} WHERE s.user_id=? AND v.published_at IS NOT NULL AND ${readableSql()} AND v.number=(SELECT MAX(p.number) FROM setup_versions p WHERE p.setup_id=s.id AND p.published_at IS NOT NULL AND ${readableSql("p")}) ORDER BY s.featured DESC,v.published_at DESC`,
   )
-    .bind(user.id)
+    .bind(c.var.userId ?? "", user.id)
     .all<VersionRow>();
   const follow = await c.env.DB.prepare(
     "SELECT 1 FROM follows WHERE follower_id=? AND followed_id=?",
@@ -115,14 +146,20 @@ setups.get("/profile/:handle", optionalAuth, async (c) => {
     versions: rows.results.map(serializeVersion),
     following: !!follow,
     isOwner: c.var.userId === user.id,
+    friend: !!user.friend,
+    owner: {
+      handle: user.handle,
+      avatarUrl: user.avatar_url,
+      publicProfile: !!user.public_profile,
+    },
   });
 });
 setups.put("/follow/:handle", requireAuth, async (c) => {
-  const target = await c.env.DB.prepare("SELECT id FROM users WHERE handle=? AND public_profile=1")
+  const target = await c.env.DB.prepare("SELECT id FROM users WHERE handle=?")
     .bind(c.req.param("handle"))
     .first<{ id: string }>();
   if (!target || target.id === c.var.userId)
-    return c.json({ error: "Choose another public profile" }, 400);
+    return c.json({ error: "Choose another profile" }, 400);
   await c.env.DB.prepare(
     "INSERT OR IGNORE INTO follows(follower_id,followed_id,created_at) VALUES(?,?,?)",
   )
@@ -147,7 +184,7 @@ setups.post("/", requireAuth, async (c) => {
   const owner = await c.env.DB.prepare("SELECT public_profile,handle FROM users WHERE id=?")
     .bind(user)
     .first<{ public_profile: number; handle: string }>();
-  if (body.publish && !owner?.public_profile)
+  if (body.visibility === "public" && !owner?.public_profile)
     return c.json(
       { error: "Make your profile public in Profile settings before publishing." },
       400,
@@ -160,7 +197,7 @@ setups.post("/", requireAuth, async (c) => {
       now,
     ),
     c.env.DB.prepare(
-      "INSERT INTO setup_versions(id,setup_id,number,name,bundle,note,verdict,created_at,published_at) VALUES(?,?,1,?,?,?,?,?,?)",
+      "INSERT INTO setup_versions(id,setup_id,number,name,bundle,note,verdict,created_at,published_at,visibility) VALUES(?,?,1,?,?,?,?,?,?,?)",
     ).bind(
       versionId,
       id,
@@ -169,10 +206,11 @@ setups.post("/", requireAuth, async (c) => {
       body.note,
       body.verdict,
       now,
-      body.publish ? now : null,
+      body.visibility !== "private" ? now : null,
+      body.visibility,
     ),
   ];
-  if (body.publish)
+  if (body.visibility !== "private")
     statements.push(
       notificationInsert(c.env, {
         actorId: user,
@@ -194,7 +232,7 @@ setups.get("/versions/:id", optionalAuth, async (c) => {
 });
 setups.put("/versions/:id/review", requireAuth, async (c) => {
   const v = await accessibleVersion(c.env, c.req.param("id"), c.var.userId);
-  if (!v || !v.published_at || !v.public_profile) return c.json({ error: "Not found" }, 404);
+  if (!v || !v.published_at) return c.json({ error: "Not found" }, 404);
   if (v.user_id === c.var.userId)
     return c.json({ error: "You can rate setups by other people" }, 400);
   const body = SetupReview.parse(await c.req.json());
@@ -239,40 +277,60 @@ setups.post("/versions/:id/copy", requireAuth, async (c) => {
   ]);
   return c.json({ id, versionId }, 201);
 });
-setups.post("/versions/:id/publish", requireAuth, async (c) => {
+setups.put("/versions/:id/visibility", requireAuth, async (c) => {
   const v = await accessibleVersion(c.env, c.req.param("id"), c.var.userId);
   if (!v || v.user_id !== c.var.userId) return c.json({ error: "Not found" }, 404);
-  if (!v.public_profile)
+  const visibility = SetupVisibility.parse((await c.req.json()).visibility);
+  if (visibility === "public" && (!v.public_profile || v.automatic))
     return c.json(
-      { error: "Make your profile public in Profile settings before publishing." },
+      {
+        error: v.automatic
+          ? "Automatic captures are friends only. Copy the text into a new setup to share publicly."
+          : "Make your profile public before sharing publicly.",
+      },
       400,
     );
   const now = Date.now();
   await c.env.DB.batch([
     c.env.DB.prepare(
-      "UPDATE setup_versions SET published_at=COALESCE(published_at,?) WHERE id=?",
-    ).bind(now, v.id),
-    notificationInsert(c.env, {
-      actorId: c.var.userId,
-      key: `setup:${v.id}`,
-      kind: "setup",
-      versionId: v.id,
-      title: `@${v.handle} shared ${v.name}`,
-      href: `/setups/${v.setup_id}?v=${v.id}`,
-      now,
-    }),
+      "UPDATE setup_versions SET visibility=?,published_at=CASE WHEN ?='private' THEN NULL ELSE COALESCE(published_at,?) END WHERE id=?",
+    ).bind(visibility, visibility, now, v.id),
+    ...(visibility === "private"
+      ? [
+          c.env.DB.prepare(
+            "UPDATE social_notifications SET email_state='cancelled' WHERE version_id=?",
+          ).bind(v.id),
+        ]
+      : [
+          notificationInsert(c.env, {
+            actorId: c.var.userId,
+            key: `setup:${v.id}`,
+            kind: "setup",
+            versionId: v.id,
+            title: `@${v.handle} shared ${v.name}`,
+            href: `/setups/${v.setup_id}?v=${v.id}`,
+            now,
+          }),
+        ]),
   ]);
+  return c.json({ visibility });
+});
+setups.put("/versions/:id/kudos", requireAuth, async (c) => {
+  const v = await accessibleVersion(c.env, c.req.param("id"), c.var.userId);
+  if (!v || !v.published_at) return c.json({ error: "Not found" }, 404);
+  if (v.user_id === c.var.userId)
+    return c.json({ error: "Give kudos to someone else's change" }, 400);
+  await c.env.DB.prepare(
+    "INSERT OR IGNORE INTO setup_kudos(user_id,version_id,created_at) VALUES(?,?,?)",
+  )
+    .bind(c.var.userId, v.id, Date.now())
+    .run();
   return c.json({ ok: true });
 });
-setups.delete("/versions/:id/publish", requireAuth, async (c) => {
-  const v = await accessibleVersion(c.env, c.req.param("id"), c.var.userId);
-  if (!v || v.user_id !== c.var.userId) return c.json({ error: "Not found" }, 404);
-  await c.env.DB.batch([
-    c.env.DB.prepare("UPDATE setup_versions SET published_at=NULL WHERE id=?").bind(v.id),
-    c.env.DB.prepare(
-      "UPDATE social_notifications SET email_state='cancelled' WHERE version_id=?",
-    ).bind(v.id),
-  ]);
+setups.delete("/versions/:id/kudos", requireAuth, async (c) => {
+  await c.env.DB.prepare("DELETE FROM setup_kudos WHERE user_id=? AND version_id=?")
+    .bind(c.var.userId, c.req.param("id"))
+    .run();
   return c.json({ ok: true });
 });
 setups.post("/:id/versions", requireAuth, async (c) => {
@@ -280,6 +338,17 @@ setups.post("/:id/versions", requireAuth, async (c) => {
     .bind(c.req.param("id"), c.var.userId)
     .first();
   if (!s) return c.json({ error: "Not found" }, 404);
+  const watcher = await c.env.DB.prepare("SELECT 1 FROM setup_watchers WHERE setup_id=?")
+    .bind(c.req.param("id"))
+    .first();
+  if (watcher)
+    return c.json(
+      {
+        error:
+          "Edit the tracked file on your computer. Copy this version to start a separate setup.",
+      },
+      400,
+    );
   const body = SaveSetupVersion.parse(await c.req.json());
   const latest = await c.env.DB.prepare(
     "SELECT id FROM setup_versions WHERE setup_id=? ORDER BY number DESC LIMIT 1",
@@ -291,7 +360,7 @@ setups.post("/:id/versions", requireAuth, async (c) => {
   const owner = await c.env.DB.prepare("SELECT public_profile,handle FROM users WHERE id=?")
     .bind(c.var.userId)
     .first<{ public_profile: number; handle: string }>();
-  if (body.publish && !owner?.public_profile)
+  if (body.visibility === "public" && !owner?.public_profile)
     return c.json(
       { error: "Make your profile public in Profile settings before publishing." },
       400,
@@ -301,7 +370,7 @@ setups.post("/:id/versions", requireAuth, async (c) => {
   const setupId = c.req.param("id");
   const statements = [
     c.env.DB.prepare(
-      "INSERT INTO setup_versions(id,setup_id,number,name,bundle,note,verdict,created_at,published_at,base_version_id) SELECT ?,?,MAX(number)+1,?,?,?,?,?,?,? FROM setup_versions WHERE setup_id=?",
+      "INSERT INTO setup_versions(id,setup_id,number,name,bundle,note,verdict,created_at,published_at,base_version_id,visibility) SELECT ?,?,MAX(number)+1,?,?,?,?,?,?,?,? FROM setup_versions WHERE setup_id=?",
     ).bind(
       id,
       setupId,
@@ -310,13 +379,14 @@ setups.post("/:id/versions", requireAuth, async (c) => {
       body.note,
       body.verdict,
       now,
-      body.publish ? now : null,
+      body.visibility !== "private" ? now : null,
       body.baseVersionId,
+      body.visibility,
       setupId,
     ),
     c.env.DB.prepare("UPDATE setups SET name=? WHERE id=?").bind(body.name, setupId),
   ];
-  if (body.publish)
+  if (body.visibility !== "private")
     statements.push(
       notificationInsert(c.env, {
         actorId: c.var.userId,
@@ -350,9 +420,9 @@ setups.delete("/:id", requireAuth, async (c) => {
 });
 setups.get("/:id", optionalAuth, async (c) => {
   const rows = await c.env.DB.prepare(
-    `${VERSION_SELECT} WHERE s.id=? AND (s.user_id=? OR (v.published_at IS NOT NULL AND u.public_profile=1)) ORDER BY v.number DESC`,
+    `${VERSION_SELECT} WHERE s.id=? AND ${readableSql()} ORDER BY v.number DESC`,
   )
-    .bind(c.req.param("id"), c.var.userId ?? "")
+    .bind(c.var.userId ?? "", c.req.param("id"))
     .all<VersionRow>();
   const v = c.req.query("v")
     ? rows.results.find((v) => v.id === c.req.query("v"))

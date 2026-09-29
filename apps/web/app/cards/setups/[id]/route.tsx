@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       status: e instanceof ApiError && e.status === 404 ? 404 : 500,
     });
   }
-  if (!version.publishedAt) return new Response("Not found", { status: 404 });
+  if (version.visibility !== "public") return new Response("Not found", { status: 404 });
   const v = version;
   const image = new ImageResponse(
     <div

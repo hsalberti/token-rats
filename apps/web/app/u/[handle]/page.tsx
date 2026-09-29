@@ -108,7 +108,43 @@ export default async function ProfilePage({ params, searchParams }: Props) {
     }
   }
 
-  // Private profile page
+  const shared = await socialRequest<{
+    versions: SetupVersion[];
+    following: boolean;
+    isOwner: boolean;
+    friend: boolean;
+    owner: { handle: string; avatarUrl: string | null; publicProfile: boolean };
+  }>(`setups/profile/${encodeURIComponent(handle)}`, { cookieHeader }).catch((error) => {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
+  });
+  if (isPrivate && shared?.friend) {
+    return (
+      <div className="min-h-screen bg-zinc-950">
+        <main className="mx-auto max-w-3xl space-y-8 px-6 py-10">
+          <a href="/app" className="text-sm text-rat-400">
+            ← Feed
+          </a>
+          <header className="flex items-center gap-4">
+            <Avatar src={shared.owner.avatarUrl} handle={handle} size="xl" />
+            <div>
+              <h1 className="text-3xl font-black">@{handle}</h1>
+              <p className="mt-2 text-sm text-zinc-400">Your friend · shared setup history</p>
+            </div>
+          </header>
+          <ProfileSetups
+            handle={handle}
+            versions={shared.versions}
+            following={shared.following}
+            isOwner={false}
+            signedIn={!!currentUser}
+            publicProfile={false}
+          />
+        </main>
+      </div>
+    );
+  }
+  // Stats remain private even when the owner shares setups with friends.
   if (isPrivate) {
     return (
       <div className="min-h-screen bg-zinc-950">
@@ -143,12 +179,8 @@ export default async function ProfilePage({ params, searchParams }: Props) {
     );
   }
 
-  if (!profile) return null;
-  const shared = await socialRequest<{
-    versions: SetupVersion[];
-    following: boolean;
-    isOwner: boolean;
-  }>(`setups/profile/${handle}`, { cookieHeader });
+  if (!profile || !shared) return null;
+  const publicVersion = shared.versions.find((version) => version.visibility === "public");
 
   // Origin for the share link — read from request headers so SSR and CSR
   // render identically (no client-only window reads).
@@ -194,7 +226,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         {/* Social profile details */}
         <ProfileShareButton
           handle={profile.handle}
-          selection={shared.versions[0] ? { version: shared.versions[0].id } : {}}
+          selection={publicVersion ? { version: publicVersion.id } : {}}
           publicProfile={profile.publicProfile !== false}
         />
         {profile.agentSoftware && profile.agentSoftware.length > 0 && (

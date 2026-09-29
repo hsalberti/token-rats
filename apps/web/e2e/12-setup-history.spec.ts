@@ -36,9 +36,9 @@ test("save, publish, compare, restore, follow, rate and copy a setup", async ({
   await page
     .getByLabel("What changed, or why did you move on?")
     .fill("Trying a separate reviewer; keeping the old experiment in history.");
-  await page.getByRole("checkbox", { name: /Share this version publicly/ }).check();
-  await page.getByRole("button", { name: "Save and share version", exact: true }).click();
-  await expect(page.getByText("Shared", { exact: true }).first()).toBeVisible();
+  await page.getByLabel("Who can see this version?").selectOption("public");
+  await page.getByRole("button", { name: "Share publicly", exact: true }).click();
+  await expect(page.getByText("Public", { exact: true }).first()).toBeVisible();
   const publicUrl = page.url();
   await page.getByRole("button", { name: "Timeline (2)", exact: true }).click();
   await expect(page.getByText("− Private draft details", { exact: false })).toBeVisible();
@@ -69,7 +69,7 @@ test("save, publish, compare, restore, follow, rate and copy a setup", async ({
     friend.getByRole("heading", { name: "2.0 / 5 · 1 ratings", exact: true }),
   ).toBeVisible();
   await friend.getByRole("button", { name: "Use this version", exact: true }).click();
-  await expect(friend.getByText("Private", { exact: true }).first()).toBeVisible();
+  await expect(friend.getByText("Only me", { exact: true }).first()).toBeVisible();
   await expect(friend.getByRole("link", { name: "Save a new version", exact: true })).toBeVisible();
   await page.goto(privateUrl);
   await page.getByRole("link", { name: "Restore as a new version", exact: true }).click();
@@ -79,11 +79,13 @@ test("save, publish, compare, restore, follow, rate and copy a setup", async ({
   await page
     .getByLabel("Contents of AGENTS.md")
     .fill("# My instructions\nReview changes that need another pair of eyes.");
-  await page.getByRole("checkbox", { name: /Share this version publicly/ }).check();
-  await page.getByRole("button", { name: "Save and share version", exact: true }).click();
+  await page.getByLabel("Who can see this version?").selectOption("public");
+  await page.getByRole("button", { name: "Share publicly", exact: true }).click();
   await expect(page.getByText("Version 4 ·", { exact: false })).toBeVisible();
   await friend.goto("/app");
-  await expect(friend.getByRole("link", { name, exact: true }).first()).toBeVisible();
+  await expect(
+    friend.getByRole("link", { name: `${name} · v4`, exact: true }).first(),
+  ).toBeVisible();
   await friend.screenshot({
     path: `/tmp/token-rats-social-feed-${testInfo.project.name}.png`,
     fullPage: true,

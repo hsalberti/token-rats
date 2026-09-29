@@ -64,9 +64,9 @@ not quality, savings, unused quota, or a provider guarantee.
 
 ## Data boundaries
 
-The local CLI uploads session IDs, counts, model/provider names, timestamps,
-and an opaque device ID. It does not upload prompts, responses, local paths,
-or AGENTS.md content. The OpenCode SQLite query selects only session IDs,
+Usage collection uploads session IDs, counts, model/provider names, timestamps,
+and an opaque device ID. Usage collection does not upload prompts, responses,
+local paths, or AGENTS.md content. The OpenCode SQLite query selects only session IDs,
 model/provider names, timestamps, and token counts from assistant messages.
-Profile sharing displays the instructions and workflow text authors choose to publish.
+Optional `setup-track` separately uploads selected instruction text after a preview and explicit opt-in. It omits common credential patterns and marked private sections; it is not an exhaustive privacy review. Automatic versions are friends-only (shared private board or mutual follows), and access is checked on each read. Manual setup snapshots can be private, friends-only, or public. Profile sharing displays the instructions and workflow text authors choose for that audience.
 Community discussion takes place on Reddit.

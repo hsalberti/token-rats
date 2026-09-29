@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { socialRequest } from "../../lib/social";
 import { ProfileShareButton } from "../ProfileShareButton";
+import { AUDIENCE } from "./Audience";
 
 export function ProfileInstructions({
   version,
@@ -67,7 +68,7 @@ export function ProfileInstructions({
           },
           verdict: version.verdict,
           note: "Updated profile instructions.",
-          publish: true,
+          visibility: version.visibility,
           baseVersionId: version.id,
         }),
       });
@@ -87,7 +88,9 @@ export function ProfileInstructions({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800 p-4 sm:px-5">
         <div>
-          <h3 className="text-xs uppercase tracking-widest text-zinc-500">Favorite instructions</h3>
+          <h3 className="text-xs uppercase tracking-widest text-zinc-500">
+            Favorite instructions · {AUDIENCE[version.visibility]}
+          </h3>
           {version.bundle.files.length > 1 ? (
             <select
               aria-label="Instruction file"
@@ -112,7 +115,7 @@ export function ProfileInstructions({
             <p className="mt-1 font-mono text-sm font-semibold">{file.name}</p>
           )}
         </div>
-        {isOwner && !editing && (
+        {isOwner && !version.automatic && !editing && (
           <button
             type="button"
             onClick={() => {
@@ -142,7 +145,7 @@ export function ProfileInstructions({
             className="w-full rounded-lg border border-zinc-700 bg-zinc-950 p-3 font-mono text-sm leading-6 focus:border-rat-500 focus:outline-none"
           />
           <p className="text-xs text-zinc-500">
-            Saving publishes a new version on your profile. Previous versions remain in your
+            Saving shares a new version with the same audience. Previous versions remain in your
             history.
           </p>
           {error && (
@@ -254,12 +257,14 @@ export function ProfileInstructions({
               >
                 {anchor === null ? "Copy instructions" : `Copy lines ${start}–${end}`}
               </button>
-              <ProfileShareButton
-                handle={version.handle}
-                selection={{ version: version.id, file: fileIndex, start, end }}
-                label={anchor === null ? "Share" : "Share selected lines"}
-                publicProfile={publicProfile}
-              />
+              {version.visibility === "public" && (
+                <ProfileShareButton
+                  handle={version.handle}
+                  selection={{ version: version.id, file: fileIndex, start, end }}
+                  label={anchor === null ? "Share" : "Share selected lines"}
+                  publicProfile={publicProfile}
+                />
+              )}
               {anchor !== null && (
                 <button
                   type="button"
