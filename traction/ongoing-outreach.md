@@ -37,6 +37,8 @@ I maintain Token Rats. It started with local coding-agent usage tracking. I’ve
 
 You can save private versions, inspect diffs, restore an older setup, or share a version publicly. Follow someone to see new versions. If you try one, you can keep it on a Want to try / Trying / Using / Tried / Dropped shelf and give that exact version a star rating with a short note.
 
+A copyable agent skill can investigate your local configuration and assemble a reproducible bundle for you: https://tokenrats.com/skill. It saves privately by default, or publishes a sanitized version when requested. Automatic file watching is a future idea.
+
 Usage tracking and leaderboards are still available. We display usage separately; the app does not infer that a configuration change caused a token change.
 
 Here is my public example: https://tokenrats.com/u/hsalberti

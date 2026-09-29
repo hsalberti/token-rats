@@ -20,6 +20,8 @@ Token Rats now lets you:
 
 Your usage and leaderboards are still there. Setup history stands on its own, and you can save your first version privately.
 
+You can also let your coding agent capture it for you. Copy the skill, paste it into your agent, and it can inspect your instructions and tools, write reproduction steps, and save your version: https://tokenrats.com/skill
+
 Start your history: https://tokenrats.com/app/setups
 My public profile: https://tokenrats.com/u/hsalberti
 

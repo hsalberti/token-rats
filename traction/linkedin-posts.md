@@ -10,6 +10,8 @@ I’ve added versioned setups to Token Rats. You can save AGENTS.md files and ex
 
 There’s a place for “I tried this and dropped it” too. A short note can be useful to the next person with a different project or working style.
 
+To get started, you can give your coding agent a copyable skill. It investigates your setup, writes the steps someone else would need to reproduce it, and saves a version: https://tokenrats.com/skill
+
 The source is public: https://github.com/hsalberti/token-rats
 My setup: https://tokenrats.com/u/hsalberti
 
