@@ -1,6 +1,6 @@
 # Inline changes, kudos, and automatic friends-only history
 
-Release date: 2026-09-29. CLI: 0.5.0. Deployment evidence is recorded below after verification.
+Shipped and verified on 2026-09-29. CLI: 0.5.0. Web: https://tokenrats.com.
 
 ## Scope
 
@@ -50,7 +50,7 @@ Use this as a reply in an existing relevant conversation or the next permitted s
 - 321 unit/integration tests passed (21 contracts, 58 parsers, 20 CLI, 215 API, 7 skill helper). A parallel test run initially exhausted worker startup time on the development machine; the complete suite passed with two workers per package.
 - Six browser scenarios passed in desktop Chromium and mobile Chromium: histories/restoration/reviews, profile instructions/share cards, and inline diffs/kudos/friends/capture controls. WebKit could not start because this host lacks its image libraries; no Safari result is claimed.
 - A clean installation of the inspected 0.5.0 archive previewed and registered a synthetic file against an isolated local API, captured an actual edit exactly once as friends-only, and paused from the CLI. No real instruction files were enabled.
-- Public repository verified at https://github.com/hsalberti/token-rats. Production rollout is in progress; final commit, deployment, and registry evidence follow here.
+- Public repository verified at https://github.com/hsalberti/token-rats. The completed rollout is recorded below.
 
 ### Published artifacts
 
@@ -59,4 +59,13 @@ Use this as a reply in an existing relevant conversation or the next permitted s
 - D1 was exported to a private SQL backup outside the repository (19,784,739 bytes) before migration 0028. Cloudflare OAuth export failed; the BWS deployment token and continuous polling completed the backup.
 - Migration 0028 applied successfully. Initial production Worker version: `6cc27adf-7d83-4fcb-be9f-c2fce65ac113`.
 - Live API: health passed; the authenticated feed returns diff previews, the Friends directory reflects the current connections, and capture status works. Email configuration remains disabled. No real instruction files were enabled on Alberti’s machine.
-- Web deployment and final registry install verification are being checked during rollout.
+- Deployed web/API configuration commit: [`d505e35898f85139d169f08c69cd2e22a690dee7`](https://github.com/hsalberti/token-rats/commit/d505e35898f85139d169f08c69cd2e22a690dee7). Pages production deployment `3724e20d-4d63-4c9f-8be0-5095ea71ec30` succeeded. The preceding feature deployment `5957ae48-538c-4a18-b5c0-8ed7c31b50d2` also succeeded.
+- Final Worker version: `455061a8-ba62-499b-9b09-244c4f85583c`. [Deploy run 36585146568](https://github.com/hsalberti/token-rats/actions/runs/36585146568) succeeded; `/healthz` returned 200 and `/v1/cli/version` advertises 0.5.0.
+- [CI for the feature](https://github.com/hsalberti/token-rats/actions/runs/36584800347), [CI for the advertised version](https://github.com/hsalberti/token-rats/actions/runs/36584975952), lint, and [the existing browser smoke matrix](https://github.com/hsalberti/token-rats/actions/runs/36584800378) all passed. Authenticated feature coverage was run separately against the isolated database as described above.
+- Production browser checks passed in desktop and mobile Chromium: feed tabs, diff cards, capture onboarding, Friends directory, no browser exceptions, and no horizontal overflow on the capture page.
+- A clean registry installation reports 0.5.0; its executable matches the locally verified release build byte for byte. The no-account preview worked. npm `gitHead` is the public feature commit `269e76729c09bfe163bae7e77a3fbd9b477985e5`; tarball SHA-1 is `8591baa40aece8663d98873c5f638a3b4ace494d`.
+- GitHub release: https://github.com/hsalberti/token-rats/releases/tag/v0.5.0. Registry: https://www.npmjs.com/package/token-rats/v/0.5.0.
+
+### Remaining actions
+
+No release blocker remains. Alberti can enable capture on his own machine with `npx token-rats@latest setup-track` after reviewing the preview. Email remains deferred in [email-continuation.md](email-continuation.md), and outreach drafts remain for Alberti to edit and post. Annual rewind is still a traction-dependent idea in [later.md](later.md).
