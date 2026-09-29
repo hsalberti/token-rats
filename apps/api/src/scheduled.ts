@@ -14,6 +14,7 @@
 
 import type { Env } from "./env.js";
 import { refreshPrices } from "./lib/price-refresh.js";
+import { deliverSocialEmails } from "./lib/social-notifications.js";
 
 const WEEKLY_DIGEST_CRON = "0 16 * * 1";
 const DAILY_PRICE_REFRESH_CRON = "0 4 * * *";
@@ -116,7 +117,7 @@ export async function runScheduled(event: ScheduledEvent, env: Env): Promise<voi
       await runDailyPriceRefresh(env);
       return;
     case CANARY_CRON:
-      await runCanary(env);
+      await Promise.all([runCanary(env), deliverSocialEmails(env)]);
       return;
     default:
       console.warn("[scheduled] unhandled cron", { cron: event.cron });

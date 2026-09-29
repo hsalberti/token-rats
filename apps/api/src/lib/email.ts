@@ -1,43 +1,44 @@
-/**
- * Email sending stub for Token Rats.
- *
- * TODO: Wire in Resend or Postmark here at deploy time.
- * Resend example:
- *   import { Resend } from "resend";
- *   const resend = new Resend(env.RESEND_API_KEY);
- *   await resend.emails.send({ from: "noreply@tokenrats.com", to, subject, html });
- *
- * Postmark example:
- *   const res = await fetch("https://api.postmarkapp.com/email", {
- *     method: "POST",
- *     headers: { "X-Postmark-Server-Token": env.POSTMARK_API_TOKEN, "Content-Type": "application/json" },
- *     body: JSON.stringify({ From: "noreply@tokenrats.com", To: to, Subject: subject, HtmlBody: html, TextBody: text }),
- *   });
- */
-
+import type { Env } from "../env.js";
 export interface EmailMessage {
   to: string;
   subject: string;
-  html: string;
   text: string;
+  key: string;
+  unsubscribe: string;
 }
-
-export interface SendEmailResult {
-  ok: boolean;
-  id?: string;
-  error?: string;
-}
-
-/**
- * Stub email sender. Logs the intent and returns ok: true.
- * Replace the body of this function with a real email provider call.
- */
-export async function sendEmail(message: EmailMessage): Promise<SendEmailResult> {
-  console.log("[email] Would send email:", {
-    to: message.to,
-    subject: message.subject,
-    textPreview: message.text.slice(0, 100),
-  });
-  // TODO: wire Resend/Postmark here at deploy time.
-  return { ok: true, id: `stub-${Date.now()}` };
+export async function sendEmail(
+  env: Env,
+  message: EmailMessage,
+): Promise<{ ok: boolean; id?: string }> {
+  if (!env.RESEND_API_KEY || !env.EMAIL_FROM) return { ok: false };
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      signal: AbortSignal.timeout(10000),
+      headers: {
+        Authorization: `Bearer ${env.RESEND_API_KEY}`,
+        "Content-Type": "application/json",
+        "Idempotency-Key": message.key,
+      },
+      body: JSON.stringify({
+        from: env.EMAIL_FROM,
+        to: [message.to],
+        subject: message.subject,
+        text: message.text,
+        headers: {
+          "List-Unsubscribe": `<${message.unsubscribe}>`,
+          "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+        },
+      }),
+    });
+    if (!response.ok) {
+      console.error("[email] provider rejected delivery", response.status);
+      return { ok: false };
+    }
+    const data = (await response.json()) as { id: string };
+    return { ok: true, id: data.id };
+  } catch {
+    console.error("[email] delivery failed");
+    return { ok: false };
+  }
 }

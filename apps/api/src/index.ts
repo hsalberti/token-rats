@@ -29,6 +29,9 @@ import { runScheduled } from "./scheduled.js";
 
 import comparisonRoutes from "./routes/comparison.js";
 
+import setupsRoutes from "./routes/setups.js";
+import socialRoutes from "./routes/social.js";
+
 const app = new Hono<{ Bindings: Env; Variables: AuthVariables }>();
 
 // CORS — credentials required for cookie-based auth.
@@ -84,6 +87,8 @@ app.route("/v1", twitterAuthRoutes);
 /* Identity                                                                    */
 /* -------------------------------------------------------------------------- */
 
+app.route("/v1/setups", setupsRoutes);
+app.route("/v1/social", socialRoutes);
 app.route("/v1/me/comparison", comparisonRoutes);
 app.route("/v1/me", meRoutes);
 // v1.2 Track AD — friends derived from shared private rooms.

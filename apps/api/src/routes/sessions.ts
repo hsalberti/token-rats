@@ -24,6 +24,7 @@ import { recordSessionsBatch, toUtcDay, upsertDeviceForIngest } from "../lib/ing
 import { maybeNotifyMilestone } from "../lib/milestone-notify.js";
 import { loadPriceIndex, priceWithIndex } from "../lib/pricing.js";
 import { rateLimit } from "../lib/rate-limit.js";
+import { monthlyMilestones } from "../lib/social-notifications.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
 
@@ -195,6 +196,9 @@ sessions.post("/", requireAuth, async (c) => {
   const duplicates = records.length - accepted;
 
   if (accepted > 0) {
+    c.executionCtx.waitUntil(
+      monthlyMilestones(c.env, userId).catch((err) => console.error("[monthly-milestone]", err)),
+    );
     const newRecords = pricedRecords.filter((_, i) => inserted[i]);
     const totalTokens = newRecords.reduce((s, r) => s + r.inTokens + r.outTokens, 0);
     const totalCostUsdCents = newRecords.reduce((s, r) => s + r.costUsdCents, 0);

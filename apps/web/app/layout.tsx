@@ -11,11 +11,11 @@ export const metadata: Metadata = {
     template: "%s | Token Rats",
   },
   description:
-    "Track AI usage, compare subscriptions, and share agent workflows with an open source community.",
+    "Keep a history of your agent setups, try your friends’ configurations, and track local AI usage.",
   metadataBase: new URL("https://tokenrats.com"),
   openGraph: {
     title: "Token Rats",
-    description: "Track AI usage. Compare subscriptions. Share what works.",
+    description: "Save setups. Try a version. Keep the history.",
     url: "https://tokenrats.com",
     siteName: "Token Rats",
     type: "website",
@@ -23,7 +23,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Token Rats",
-    description: "Track AI usage. Compare subscriptions. Share what works.",
+    description: "Save setups. Try a version. Keep the history.",
   },
   manifest: "/manifest.webmanifest",
   icons: {

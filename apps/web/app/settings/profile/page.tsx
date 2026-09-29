@@ -29,7 +29,6 @@ export default async function ProfileSettingsPage() {
   const twitterHandle = data.user.twitterHandle ?? null;
   const twitterVerified = data.user.twitterVerified ?? false;
   const email = data.user.email ?? null;
-  const agentInstructions = data.user.agentInstructions ?? null;
   const githubProjects = data.user.githubProjects ?? [];
 
   return (
@@ -74,9 +73,6 @@ export default async function ProfileSettingsPage() {
           handle={currentUser.handle}
           initialPublicProfile={publicProfile}
           initialBio={bio}
-          initialAgentInstructions={agentInstructions}
-          initialPublishAgentInstructions={data.user.publishAgentInstructions ?? false}
-          initialAgentWorkflow={data.user.agentWorkflow ?? null}
           initialGithubProjects={githubProjects}
           initialTwitterHandle={twitterHandle}
           initialTwitterVerified={twitterVerified}

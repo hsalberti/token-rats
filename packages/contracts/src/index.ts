@@ -14,3 +14,4 @@ export * from "./friends.js";
 export * from "./device.js";
 export * from "./cli.js";
 export * from "./comparison.js";
+export * from "./setups.js";

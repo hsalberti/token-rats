@@ -11,6 +11,7 @@
 
 import type { User } from "@token-rats/contracts";
 import type { Locale } from "../lib/i18n";
+import { AppNav } from "./AppNav";
 import { SyncStatusShell } from "./SyncStatusShell";
 import { UserMenu } from "./UserMenu";
 
@@ -20,5 +21,10 @@ interface Props {
 }
 
 export function AuthedTopBar({ user, locale }: Props) {
-  return <SyncStatusShell userMenuSlot={<UserMenu user={user} locale={locale} />} />;
+  return (
+    <>
+      <SyncStatusShell userMenuSlot={<UserMenu user={user} locale={locale} />} />
+      <AppNav handle={user.handle} />
+    </>
+  );
 }

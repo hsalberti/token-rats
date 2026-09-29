@@ -1,6 +1,6 @@
 # Token Rats
 
-**An open source community for AI builders.** Track Claude Code, Codex, OpenCode, and Cursor usage, compare your subscriptions, and share agent workflows and AGENTS.md examples.
+**A history for your agent setups.** Save versions of instructions, tools, models, and workflows. Follow friends, try their setups, and rate the versions you used. Track Claude Code, Codex, OpenCode, and Cursor usage alongside it.
 
 > Track usage. Share what works. Build in public.
 
@@ -12,7 +12,10 @@
 
 The application, CLI, parsers, and project documents use the MIT license. Enterprise work is paused. Start with the [public documents](docs/README.md), [counting method](docs/counting.md), and [current release plan](docs/open-source-release.md).
 
-- Public profiles: explicitly publish AGENTS.md files or excerpts and describe agent workflows.
+- Versioned setups: private snapshots, public sharing, timeline diffs, restore, exports, and featured profiles.
+- Friends feed and shelves: Want to try, Trying, Using, Tried, and Dropped; optional ratings and short notes.
+- Agent capture skill: [copy it from the app](https://tokenrats.com/skill) or inspect [SKILL.md](apps/web/public/skills/share-token-rats-setup/SKILL.md).
+- In-app setup and monthly milestone notifications. Email activation is deferred; [continuation notes](traction/email-continuation.md).
 - Community discussion: [r/TokenRats](https://www.reddit.com/r/TokenRats/), Alberti will create and manage the subreddit.
 - `/app/compare`: monthly local usage and user-entered subscription amounts.
 - `/sources`: local collector setup and counting details.

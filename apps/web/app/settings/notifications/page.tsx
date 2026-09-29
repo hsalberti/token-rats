@@ -27,6 +27,12 @@ export default async function NotificationsSettingsPage() {
         <h2 className="text-xl font-bold mb-2">Notifications</h2>
         <p className="text-zinc-400 mb-8">Control how Token Rats reaches you.</p>
 
+        <a
+          href="/app/notifications"
+          className="mb-6 block rounded-xl border border-rat-500/30 p-4 text-rat-400"
+        >
+          Friend updates and milestone emails →
+        </a>
         <NotificationsClient initialPrefs={prefs} />
       </div>
     </main>

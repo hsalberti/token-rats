@@ -24,9 +24,6 @@ interface Props {
   handle: string;
   initialPublicProfile: boolean;
   initialBio: string | null;
-  initialAgentInstructions: string | null;
-  initialPublishAgentInstructions: boolean;
-  initialAgentWorkflow: string | null;
   initialGithubProjects: GithubProject[];
   initialTwitterHandle: string | null;
   initialTwitterVerified: boolean;
@@ -74,20 +71,12 @@ export function ProfileSettingsClient({
   handle,
   initialPublicProfile,
   initialBio,
-  initialAgentInstructions,
-  initialPublishAgentInstructions,
-  initialAgentWorkflow,
   initialGithubProjects,
   initialTwitterHandle,
   initialTwitterVerified,
 }: Props) {
   const [publicProfile, setPublicProfile] = useState(initialPublicProfile);
   const [bio, setBio] = useState(initialBio ?? "");
-  const [agentInstructions, setAgentInstructions] = useState(initialAgentInstructions ?? "");
-  const [publishAgentInstructions, setPublishAgentInstructions] = useState(
-    initialPublishAgentInstructions,
-  );
-  const [agentWorkflow, setAgentWorkflow] = useState(initialAgentWorkflow ?? "");
   const [githubProjects, setGithubProjects] = useState(initialGithubProjects);
   const [availableProjects, setAvailableProjects] =
     useState<GithubProject[]>(initialGithubProjects);
@@ -163,9 +152,6 @@ export function ProfileSettingsClient({
       await patchMe({
         publicProfile,
         bio: bio.trim() || null,
-        agentInstructions: agentInstructions.trim() || null,
-        publishAgentInstructions,
-        agentWorkflow: agentWorkflow.trim() || null,
         githubProjects,
       });
       setSaveStatus("saved");
@@ -174,14 +160,6 @@ export function ProfileSettingsClient({
     } finally {
       setSaving(false);
     }
-  }
-
-  async function handleInstructionsFile(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const text = await file.text();
-    setAgentInstructions(text.slice(0, 20_000));
-    event.target.value = "";
   }
 
   function toggleProject(project: GithubProject) {
@@ -270,73 +248,15 @@ export function ProfileSettingsClient({
         <p className="text-xs text-zinc-600 text-right">{bio.length}/200</p>
       </section>
 
-      {/* Agent instructions */}
-      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <label htmlFor="agent-instructions" className="font-semibold text-zinc-100">
-              Favorite agent instructions
-            </label>
-            <p className="mt-1 text-sm text-zinc-400">
-              Paste a full AGENTS.md or an edited excerpt. Your profile shows the first 10 lines
-              unless you choose to publish all the text.
-            </p>
-          </div>
-          <label className="cursor-pointer rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-200 transition-colors hover:bg-zinc-700">
-            Import .md file
-            <input
-              type="file"
-              accept=".md,.txt,text/markdown,text/plain"
-              className="sr-only"
-              onChange={(event) => void handleInstructionsFile(event)}
-              disabled={saving}
-            />
-          </label>
-        </div>
-        <textarea
-          id="agent-instructions"
-          value={agentInstructions}
-          onChange={(event) => setAgentInstructions(event.target.value.slice(0, 20_000))}
-          disabled={saving}
-          placeholder={"# How I like agents to work\n\nBe concise and lead with the outcome..."}
-          rows={10}
-          maxLength={20_000}
-          spellCheck={false}
-          className="w-full resize-y rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-sm leading-6 text-zinc-100 placeholder-zinc-600 focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:opacity-50"
-        />
-        <p className="text-right text-xs text-zinc-600">
-          {agentInstructions.length.toLocaleString()}/20,000
+      <section className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+        <h3 className="font-semibold">Instructions, tools, and workflow</h3>
+        <p className="mt-2 text-sm text-zinc-400">
+          Save these in a setup so each change has its own version. Feature a setup to show it on
+          your profile.
         </p>
-        <label className="flex items-start gap-3 text-sm text-zinc-300">
-          <input
-            type="checkbox"
-            checked={publishAgentInstructions}
-            onChange={(event) => setPublishAgentInstructions(event.target.checked)}
-            disabled={saving}
-            className="mt-1"
-          />
-          Publish all the text above on my profile and allow it to be downloaded. Review the text
-          before saving.
-        </label>
-      </section>
-
-      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-        <label htmlFor="agent-workflow" className="font-semibold text-zinc-100">
-          How my agents and apps work together
-        </label>
-        <p className="text-sm text-zinc-400">
-          Describe the tools and model versions, who handles each task, and what changed when you
-          adjusted your setup. This text appears on your profile.
-        </p>
-        <textarea
-          id="agent-workflow"
-          value={agentWorkflow}
-          onChange={(event) => setAgentWorkflow(event.target.value)}
-          maxLength={5000}
-          rows={7}
-          disabled={saving}
-          className="w-full rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-sm text-zinc-100"
-        />
+        <a href="/app/setups" className="mt-3 inline-block text-sm text-rat-400">
+          Manage my setups →
+        </a>
       </section>
 
       {/* Featured GitHub projects */}

@@ -28,7 +28,7 @@ async function patch(body: unknown) {
     setup.env,
   );
 }
-it("publishes full instructions only after explicit opt-in and respects profile privacy", async () => {
+it("keeps legacy saved instructions private after moving publication to setup versions", async () => {
   const instructions = `${"Public preview\n".repeat(10)}Private draft line`;
   expect((await patch({ publicProfile: true, agentInstructions: instructions })).status).toBe(200);
   const read = () => app.request("https://test/u/alice", {}, setup.env);
@@ -36,7 +36,7 @@ it("publishes full instructions only after explicit opt-in and respects profile 
     profile: { agentInstructions: string | null; agentInstructionsPreview: string };
   };
   expect(before.profile.agentInstructions).toBeNull();
-  expect(before.profile.agentInstructionsPreview).not.toContain("Private draft line");
+  expect(before.profile.agentInstructionsPreview).toBeNull();
   expect(
     (
       await patch({
@@ -47,8 +47,8 @@ it("publishes full instructions only after explicit opt-in and respects profile 
   ).toBe(200);
   expect(await (await read()).json()).toMatchObject({
     profile: {
-      agentInstructions: instructions,
-      agentWorkflow: "Planner delegates to implementers.",
+      agentInstructions: null,
+      agentWorkflow: null,
     },
   });
   expect((await patch({ publicProfile: false })).status).toBe(200);

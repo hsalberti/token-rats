@@ -21,6 +21,9 @@ export function Footer() {
           <a href="https://github.com/hsalberti/token-rats" className="hover:text-zinc-300">
             Source and docs
           </a>
+          <a href="/skill" className="hover:text-zinc-300">
+            Agent skill
+          </a>
           <a href="/changelog" className="hover:text-zinc-300">
             Changelog
           </a>

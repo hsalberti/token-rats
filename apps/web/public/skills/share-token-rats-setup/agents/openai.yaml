@@ -1,0 +1,4 @@
+interface:
+  display_name: "Save my Token Rats setup"
+  short_description: "Capture reproducible agent setups and version changes"
+  default_prompt: "Use $share-token-rats-setup to inspect my agent configuration and save a reproducible private version in Token Rats."

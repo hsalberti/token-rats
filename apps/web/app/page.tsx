@@ -1,11 +1,14 @@
+import type { SetupFeed } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { InstallBlock } from "../components/InstallBlock";
+import { SetupCard } from "../components/setups/SetupCard";
 import { Wordmark } from "../components/ui/Wordmark.js";
 import { AUTH_GITHUB_START, getTrending } from "../lib/api";
 import { getSession } from "../lib/auth";
 import { t } from "../lib/i18n";
 import { getServerLocale } from "../lib/server-locale";
+import { socialRequest } from "../lib/social";
 import { TrendingClient } from "./trending/Client";
 
 export const runtime = "edge";
@@ -51,25 +54,25 @@ function buildStartUrl(params: {
 }
 
 export const metadata: Metadata = {
-  title: "Token Rats — AI usage and community",
+  title: "Token Rats — your agent setup, with a history",
   description:
-    "Track Claude Code, Codex, and Cursor usage, compare subscriptions, and share agent workflows.",
+    "Save and share agent setups, follow friends, and keep a history of what you tried. Track your local AI usage alongside it.",
   openGraph: {
-    title: "Token Rats — AI usage and community",
-    description: "Compare AI usage and share what works.",
+    title: "Token Rats — your agent setup, with a history",
+    description: "Save setups. Try a version. Keep the history.",
     images: [
       {
         url: "/cards/trending/7d",
         width: 1200,
         height: 630,
-        alt: "Token Rats — AI usage and community",
+        alt: "Token Rats — your agent setup, with a history",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Token Rats — AI usage and community",
-    description: "Compare AI usage and share what works.",
+    title: "Token Rats — your agent setup, with a history",
+    description: "Save setups. Try a version. Keep the history.",
     images: ["/cards/trending/7d"],
   },
 };
@@ -88,6 +91,10 @@ export default async function HomePage({
   const user = await getSession();
   if (user) redirect("/app");
 
+  const publicFeed = await socialRequest<SetupFeed>("setups/feed?mode=discover").catch(() => ({
+    versions: [],
+    nextCursor: null,
+  }));
   const locale = await getServerLocale();
   const params = await searchParams;
   const ref = pickRef(params.ref);
@@ -125,7 +132,8 @@ export default async function HomePage({
         <div className="mx-auto max-w-3xl px-6 py-14 flex flex-col items-center text-center gap-6">
           <Wordmark size="xl" />
           <p className="max-w-md text-base text-zinc-300 sm:text-lg">
-            Track your AI usage. Compare subscriptions. Share what works.
+            Your agent setup, with a history. Save what you tried, share what you kept, and find
+            your next experiment.
           </p>
           <a
             href={startUrl}
@@ -150,11 +158,26 @@ export default async function HomePage({
             href="https://www.reddit.com/r/TokenRats/"
             className="text-sm font-semibold text-zinc-400 hover:text-rat-400 transition-colors"
           >
-            Share ideas and AGENTS.md files
+            Talk setups on r/TokenRats
           </a>
         </div>
       </section>
 
+      <section className="mx-auto max-w-3xl px-6 pt-12">
+        <h1 className="text-2xl font-black">Setups worth exploring</h1>
+        <p className="mt-2 mb-6 text-sm text-zinc-400">
+          Instructions, tools, and models from the people using them. Save a private copy, try it,
+          and leave a rating.
+        </p>
+        <div className="space-y-5">
+          {publicFeed.versions.slice(0, 3).map((v) => (
+            <SetupCard key={v.id} version={v} />
+          ))}
+        </div>
+        <a href={startUrl} className="mt-5 inline-block text-rat-400">
+          Start your own history →
+        </a>
+      </section>
       {/* Live trending board */}
       <main className="mx-auto max-w-3xl px-6 py-12">
         <div className="mb-6">

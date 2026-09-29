@@ -8,7 +8,7 @@
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { notFound } from "../lib/errors.js";
-import { agentInstructionsPreview, parseGithubProjects } from "../lib/profile-social.js";
+import { parseGithubProjects } from "../lib/profile-social.js";
 import { ensureReferralCode } from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
@@ -160,10 +160,9 @@ profiles.get("/:handle", optionalAuth, async (c) => {
         ? {
             bio: user.bio,
             twitterHandle: user.twitter_handle,
-            agentInstructionsPreview: agentInstructionsPreview(user.agent_instructions),
-            agentInstructions:
-              user.publish_agent_instructions === 1 ? user.agent_instructions : null,
-            agentWorkflow: user.agent_workflow,
+            agentInstructionsPreview: null,
+            agentInstructions: null,
+            agentWorkflow: null,
             githubProjects: parseGithubProjects(user.github_projects),
           }
         : {}),

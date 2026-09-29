@@ -1,4 +1,6 @@
 export type Env = {
+  RESEND_API_KEY?: string;
+  EMAIL_FROM?: string;
   DB: D1Database;
   CACHE: KVNamespace;
   CARDS: R2Bucket;

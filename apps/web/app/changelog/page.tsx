@@ -32,6 +32,54 @@ interface Patch {
 
 const PATCHES: Patch[] = [
   {
+    version: "1.3",
+    codename: "Setup Histories",
+    date: "2026-09-28",
+    blurb: "Keep the setups you tried, share the ones you choose, and learn from friends.",
+    sections: [
+      {
+        heading: "New",
+        items: [
+          {
+            tone: "new",
+            title: "Versioned agent setups",
+            body: "Save instructions, tools, model roles, subscriptions, and workflows. Compare versions, restore an earlier one, download your files, and feature a setup on your profile.",
+          },
+          {
+            tone: "new",
+            title: "Following feed and personal shelves",
+            body: "Follow people, browse their shared setups, and keep a Want to try, Trying, Using, Tried, or Dropped shelf. Rate the exact version you tried and copy it into your own private history.",
+          },
+          {
+            tone: "new",
+            title: "Let your agent capture your setup",
+            body: "Copy the skill from My setups or tokenrats.com/skill. Your agent investigates your configuration, writes reproduction steps, and saves a private version or publishes the sanitized setup you requested.",
+          },
+          {
+            tone: "new",
+            title: "An inbox for people you follow",
+            body: "Get in-app notifications when friends share a version or first reach 1M, 10M, or 100M recorded tokens in a calendar month. Email delivery will follow later.",
+          },
+        ],
+      },
+      {
+        heading: "Improvements",
+        items: [
+          {
+            tone: "improved",
+            title: "Setups lead the profile",
+            body: "Share your favorite instructions, tools, and subscriptions with a version link or image card. Usage stats and leaderboards stay available. Longer setup discussions link to r/TokenRats.",
+          },
+          {
+            tone: "improved",
+            title: "Open source local collection",
+            body: "CLI 0.4.0 reads OpenCode usage from its local SQLite files alongside Claude Code, Codex, and Cursor. The hosted API proxy has been removed; the MIT source and counting method are public on GitHub.",
+          },
+        ],
+      },
+    ],
+  },
+  {
     version: "1.2",
     codename: "Launch Surface",
     date: "2026-05-19",

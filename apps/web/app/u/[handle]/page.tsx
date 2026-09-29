@@ -1,16 +1,17 @@
-import type { Heatmap, HeatmapRange, Profile } from "@token-rats/contracts";
+import type { Heatmap, HeatmapRange, Profile, SetupVersion } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { AgentInstructions } from "../../../components/AgentInstructions";
 import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
 import { ProfileReferralCard } from "../../../components/ProfileReferralCard";
 import { SourceTiles } from "../../../components/SourcePill";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
+import { ProfileSetups } from "../../../components/setups/ProfileSetups";
 import { Avatar } from "../../../components/ui/Avatar";
 import { Card } from "../../../components/ui/Card";
 import { Wordmark } from "../../../components/ui/Wordmark.js";
 import { ApiError, api } from "../../../lib/api";
 import { getCookieHeader, getSession } from "../../../lib/auth";
+import { socialRequest } from "../../../lib/social";
 
 export const runtime = "edge";
 
@@ -29,7 +30,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const cardUrl = `/cards/u/${handle}`;
   return {
     title: `@${handle}`,
-    description: `@${handle}'s Token Rats profile — token burn stats.`,
+    description: `@${handle}'s Token Rats profile — agent setups, favorites, and usage.`,
     openGraph: {
       images: [{ url: cardUrl, width: 1200, height: 630, alt: `Token Rats — @${handle}` }],
     },
@@ -141,6 +142,11 @@ export default async function ProfilePage({ params, searchParams }: Props) {
   }
 
   if (!profile) return null;
+  const shared = await socialRequest<{
+    versions: SetupVersion[];
+    following: boolean;
+    isOwner: boolean;
+  }>(`setups/profile/${handle}`, { cookieHeader });
 
   // Origin for the share link — read from request headers so SSR and CSR
   // render identically (no client-only window reads).
@@ -184,52 +190,13 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         </div>
 
         {/* Social profile details */}
-        {profile.agentInstructionsPreview && (
-          <AgentInstructions
-            handle={profile.handle}
-            preview={profile.agentInstructionsPreview}
-            published={profile.agentInstructions ?? null}
-          />
-        )}
-        {profile.agentWorkflow && (
-          <Card className="p-5 sm:p-6">
-            <h2 className="font-semibold text-zinc-100">My agent workflow</h2>
-            <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">
-              {profile.agentWorkflow}
-            </p>
-          </Card>
-        )}
-
-        {profile.githubProjects && profile.githubProjects.length > 0 && (
-          <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
-              Featured projects
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {profile.githubProjects.map((project) => (
-                <a
-                  key={project.fullName}
-                  href={project.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="group rounded-xl border border-zinc-800 bg-zinc-900 p-4 transition-colors hover:border-zinc-700 hover:bg-zinc-800/80"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="min-w-0 truncate font-mono text-sm font-bold text-zinc-100 group-hover:text-orange-400">
-                      {project.name}
-                    </p>
-                    <span aria-hidden="true" className="text-zinc-600 group-hover:text-zinc-400">
-                      ↗
-                    </span>
-                  </div>
-                  <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-zinc-400">
-                    {project.description || "No description on GitHub."}
-                  </p>
-                </a>
-              ))}
-            </div>
-          </section>
-        )}
+        <ProfileSetups
+          handle={handle}
+          versions={shared.versions}
+          following={shared.following}
+          isOwner={shared.isOwner}
+          signedIn={!!currentUser}
+        />
 
         {/* Stats grid */}
         <div className="grid gap-4 sm:grid-cols-3">
