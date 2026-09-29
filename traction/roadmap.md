@@ -1,5 +1,9 @@
 # Open source relaunch plan — 2026-09-28
 
+## Current release
+
+The friends-only automatic history release uses CLI 0.5.0 and adds inline diffs and kudos. See [friends-changes-release.md](friends-changes-release.md) for scope, verification, and announcement drafts. The original open source launch schedule below remains a manual posting plan for Alberti.
+
 ## Positioning
 
 Token Rats is already [public on GitHub](https://github.com/hsalberti/token-rats)

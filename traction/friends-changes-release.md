@@ -51,3 +51,12 @@ Use this as a reply in an existing relevant conversation or the next permitted s
 - Six browser scenarios passed in desktop Chromium and mobile Chromium: histories/restoration/reviews, profile instructions/share cards, and inline diffs/kudos/friends/capture controls. WebKit could not start because this host lacks its image libraries; no Safari result is claimed.
 - A clean installation of the inspected 0.5.0 archive previewed and registered a synthetic file against an isolated local API, captured an actual edit exactly once as friends-only, and paused from the CLI. No real instruction files were enabled.
 - Public repository verified at https://github.com/hsalberti/token-rats. Production rollout is in progress; final commit, deployment, and registry evidence follow here.
+
+### Published artifacts
+
+- Public feature commit: [`269e76729c09bfe163bae7e77a3fbd9b477985e5`](https://github.com/hsalberti/token-rats/commit/269e76729c09bfe163bae7e77a3fbd9b477985e5).
+- npm accepted `token-rats@0.5.0` and the registry now serves it as `latest`. Publishing used the token stored in BWS; no account approval was needed.
+- D1 was exported to a private SQL backup outside the repository (19,784,739 bytes) before migration 0028. Cloudflare OAuth export failed; the BWS deployment token and continuous polling completed the backup.
+- Migration 0028 applied successfully. Initial production Worker version: `6cc27adf-7d83-4fcb-be9f-c2fce65ac113`.
+- Live API: health passed; the authenticated feed returns diff previews, the Friends directory reflects the current connections, and capture status works. Email configuration remains disabled. No real instruction files were enabled on Alberti’s machine.
+- Web deployment and final registry install verification are being checked during rollout.

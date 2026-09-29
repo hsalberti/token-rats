@@ -1,5 +1,9 @@
 # Release record
 
+## Friends’ changes and automatic history — 2026-09-29
+
+CLI 0.5.0 adds optional friends-only global AGENTS.md capture. Feed changes, kudos, audience controls, and the Friends directory are in the [release record](friends-changes-release.md), alongside deployment and verification evidence. Email remains postponed.
+
 ## Setup histories and agent capture — shipped 2026-09-29
 
 The social release is live: versioned setups, diffs/restoration, following feed, shelves/ratings, profile favorites, in-app notifications, and a copyable agent skill. See [setup-history-release.md](setup-history-release.md) for the deployed public commit, deployment IDs, and browser verification.
