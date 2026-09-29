@@ -9,7 +9,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Env } from "../env.js";
 import { notFound, validationError } from "../lib/errors.js";
-import { parseGithubProjects } from "../lib/profile-social.js";
+import { parseAgentSoftware, parseGithubProjects } from "../lib/profile-social.js";
 import { ensureReferralCode } from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
@@ -22,7 +22,7 @@ me.get("/", requireAuth, async (c) => {
   const userId = c.var.userId;
 
   const row = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects, agent_software FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -38,6 +38,7 @@ me.get("/", requireAuth, async (c) => {
       publish_agent_instructions: number;
       agent_workflow: string | null;
       github_projects: string | null;
+      agent_software: string | null;
     }>();
 
   if (!row) {
@@ -58,6 +59,7 @@ me.get("/", requireAuth, async (c) => {
       publishAgentInstructions: row.publish_agent_instructions === 1,
       agentWorkflow: row.agent_workflow,
       githubProjects: parseGithubProjects(row.github_projects),
+      agentSoftware: parseAgentSoftware(row.agent_software),
     },
   });
 });
@@ -86,10 +88,11 @@ me.patch("/", requireAuth, async (c) => {
     body.agentInstructions === undefined &&
     body.publishAgentInstructions === undefined &&
     body.agentWorkflow === undefined &&
-    body.githubProjects === undefined
+    body.githubProjects === undefined &&
+    body.agentSoftware === undefined
   ) {
     const row = await c.env.DB.prepare(
-      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects FROM users WHERE id = ?",
+      "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects, agent_software FROM users WHERE id = ?",
     )
       .bind(userId)
       .first<{
@@ -105,6 +108,7 @@ me.patch("/", requireAuth, async (c) => {
         publish_agent_instructions: number;
         agent_workflow: string | null;
         github_projects: string | null;
+        agent_software: string | null;
       }>();
     if (!row) return notFound(c, "User not found");
     return c.json({
@@ -121,6 +125,7 @@ me.patch("/", requireAuth, async (c) => {
         publishAgentInstructions: row.publish_agent_instructions === 1,
         agentWorkflow: row.agent_workflow,
         githubProjects: parseGithubProjects(row.github_projects),
+        agentSoftware: parseAgentSoftware(row.agent_software),
       },
     });
   }
@@ -154,6 +159,11 @@ me.patch("/", requireAuth, async (c) => {
     binds.push(JSON.stringify(body.githubProjects));
   }
 
+  if (body.agentSoftware !== undefined) {
+    setClauses.push("agent_software = ?");
+    binds.push(JSON.stringify(body.agentSoftware));
+  }
+
   binds.push(userId);
 
   await c.env.DB.prepare(`UPDATE users SET ${setClauses.join(", ")} WHERE id = ?`)
@@ -161,7 +171,7 @@ me.patch("/", requireAuth, async (c) => {
     .run();
 
   const updated = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects FROM users WHERE id = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, twitter_user_id, email, agent_instructions, publish_agent_instructions, agent_workflow, github_projects, agent_software FROM users WHERE id = ?",
   )
     .bind(userId)
     .first<{
@@ -177,6 +187,7 @@ me.patch("/", requireAuth, async (c) => {
       publish_agent_instructions: number;
       agent_workflow: string | null;
       github_projects: string | null;
+      agent_software: string | null;
     }>();
 
   if (!updated) return notFound(c, "User not found");
@@ -195,6 +206,7 @@ me.patch("/", requireAuth, async (c) => {
       publishAgentInstructions: updated.publish_agent_instructions === 1,
       agentWorkflow: updated.agent_workflow,
       githubProjects: parseGithubProjects(updated.github_projects),
+      agentSoftware: parseAgentSoftware(updated.agent_software),
     },
   });
 });

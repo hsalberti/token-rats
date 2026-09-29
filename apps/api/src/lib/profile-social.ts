@@ -1,5 +1,15 @@
-import type { GithubProject } from "@token-rats/contracts";
-import { GithubProject as GithubProjectSchema } from "@token-rats/contracts";
+import type { AgentSoftware, GithubProject } from "@token-rats/contracts";
+import { AgentSoftwareList, GithubProject as GithubProjectSchema } from "@token-rats/contracts";
+
+export function parseAgentSoftware(value: string | null): AgentSoftware[] {
+  if (!value) return [];
+  try {
+    const result = AgentSoftwareList.safeParse(JSON.parse(value));
+    return result.success ? result.data : [];
+  } catch {
+    return [];
+  }
+}
 
 export function parseGithubProjects(value: string | null): GithubProject[] {
   if (!value) return [];

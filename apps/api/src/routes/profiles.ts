@@ -8,7 +8,7 @@
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { notFound } from "../lib/errors.js";
-import { parseGithubProjects } from "../lib/profile-social.js";
+import { parseAgentSoftware, parseGithubProjects } from "../lib/profile-social.js";
 import { ensureReferralCode } from "../lib/referral.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
@@ -21,7 +21,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
   const handle = c.req.param("handle");
 
   const user = await c.env.DB.prepare(
-    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, agent_instructions, publish_agent_instructions, agent_workflow, github_projects FROM users WHERE handle = ?",
+    "SELECT id, handle, avatar_url, public_profile, bio, twitter_handle, agent_instructions, publish_agent_instructions, agent_workflow, github_projects, agent_software FROM users WHERE handle = ?",
   )
     .bind(handle)
     .first<{
@@ -35,6 +35,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
       publish_agent_instructions: number;
       agent_workflow: string | null;
       github_projects: string | null;
+      agent_software: string | null;
     }>();
 
   if (!user) {
@@ -164,6 +165,7 @@ profiles.get("/:handle", optionalAuth, async (c) => {
             agentInstructions: null,
             agentWorkflow: null,
             githubProjects: parseGithubProjects(user.github_projects),
+            agentSoftware: parseAgentSoftware(user.agent_software),
           }
         : {}),
       ...(isOwner ? { publicProfile: user.public_profile === 1 } : {}),

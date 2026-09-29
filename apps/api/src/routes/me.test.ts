@@ -7,6 +7,30 @@ import { PatchMeRequest } from "@token-rats/contracts";
 import { describe, expect, it } from "vitest";
 
 describe("PatchMeRequest validation", () => {
+  it("accepts selected agent control centers and a custom logo", () => {
+    expect(
+      PatchMeRequest.safeParse({
+        agentSoftware: [
+          { id: "paseo" },
+          { id: "orca" },
+          { id: "proprietary", name: "My dashboard" },
+          { id: "other", name: "Another app", logoUrl: "https://example.com/logo.svg" },
+        ],
+      }).success,
+    ).toBe(true);
+  });
+
+  it("rejects duplicate badges and unnamed other software", () => {
+    expect(
+      PatchMeRequest.safeParse({ agentSoftware: [{ id: "paseo" }, { id: "paseo" }] }).success,
+    ).toBe(false);
+    expect(PatchMeRequest.safeParse({ agentSoftware: [{ id: "other" }] }).success).toBe(false);
+  });
+
+  it("accepts the proprietary badge without a custom name", () => {
+    expect(PatchMeRequest.safeParse({ agentSoftware: [{ id: "proprietary" }] }).success).toBe(true);
+  });
+
   it("accepts an empty object (no-op patch)", () => {
     const result = PatchMeRequest.safeParse({});
     expect(result.success).toBe(true);

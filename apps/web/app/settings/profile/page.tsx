@@ -30,6 +30,7 @@ export default async function ProfileSettingsPage() {
   const twitterVerified = data.user.twitterVerified ?? false;
   const email = data.user.email ?? null;
   const githubProjects = data.user.githubProjects ?? [];
+  const agentSoftware = data.user.agentSoftware ?? [];
 
   return (
     <main className="text-zinc-100 px-6 py-8">
@@ -74,6 +75,7 @@ export default async function ProfileSettingsPage() {
           initialPublicProfile={publicProfile}
           initialBio={bio}
           initialGithubProjects={githubProjects}
+          initialAgentSoftware={agentSoftware}
           initialTwitterHandle={twitterHandle}
           initialTwitterVerified={twitterVerified}
         />

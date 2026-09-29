@@ -41,6 +41,26 @@ const GithubProjects = z
     },
   );
 
+export const AgentSoftware = z
+  .object({
+    id: z.enum(["paseo", "orca", "proprietary", "other"]),
+    name: z.string().trim().min(1).max(40).optional(),
+    logoUrl: z.string().url().startsWith("https://").max(500).optional(),
+  })
+  .superRefine((software, context) => {
+    if (software.id === "other" && !software.name) {
+      context.addIssue({ code: z.ZodIssueCode.custom, message: "Software name is required" });
+    }
+  });
+export type AgentSoftware = z.infer<typeof AgentSoftware>;
+
+export const AgentSoftwareList = z
+  .array(AgentSoftware)
+  .max(5)
+  .refine((items) => new Set(items.map((item) => item.id)).size === items.length, {
+    message: "Software badges must be unique",
+  });
+
 export const User = z.object({
   id: z.string(),
   handle: z.string(),
@@ -66,6 +86,7 @@ export const User = z.object({
   publishAgentInstructions: z.boolean().optional(),
   agentWorkflow: z.string().max(5_000).nullable().optional(),
   githubProjects: GithubProjects.optional(),
+  agentSoftware: AgentSoftwareList.optional(),
 });
 export type User = z.infer<typeof User>;
 
@@ -83,6 +104,7 @@ export const PublicProfileSettings = z.object({
   publishAgentInstructions: z.boolean().optional(),
   agentWorkflow: z.string().max(5_000).nullable().optional(),
   githubProjects: GithubProjects.optional(),
+  agentSoftware: AgentSoftwareList.optional(),
 });
 export type PublicProfileSettings = z.infer<typeof PublicProfileSettings>;
 

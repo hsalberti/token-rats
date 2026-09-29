@@ -1,6 +1,7 @@
 import type { Heatmap, HeatmapRange, Profile, SetupVersion } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { AgentSoftwareBadges } from "../../../components/AgentSoftwareBadges";
 import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
 import { ProfileReferralCard } from "../../../components/ProfileReferralCard";
 import { SourceTiles } from "../../../components/SourcePill";
@@ -190,6 +191,14 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         </div>
 
         {/* Social profile details */}
+        {profile.agentSoftware && profile.agentSoftware.length > 0 && (
+          <section className="space-y-3">
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
+              Agent control centers
+            </h2>
+            <AgentSoftwareBadges software={profile.agentSoftware} />
+          </section>
+        )}
         <ProfileSetups
           handle={handle}
           versions={shared.versions}
