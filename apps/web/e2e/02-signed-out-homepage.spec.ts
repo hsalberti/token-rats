@@ -3,17 +3,19 @@ import { expect, test } from "@playwright/test";
 /**
  * Spec 2: Signed-out homepage.
  *
- * `/` SSRs the live trending board at 7d, hero strip above, How-it-works +
+ * `/` SSRs setup sharing and the live trending board at 7d, How-it-works +
  * privacy strip below. `/trending` 301s (308 by Next 15's permanentRedirect)
  * to `/`. `?ref=<code>` survives the GitHub sign-in CTA.
  */
 
-test("/ as signed-out renders the trending board with the hero strip", async ({ page }) => {
+test("/ as signed-out introduces setup history and retains the trending board", async ({
+  page,
+}) => {
   await page.goto("/");
 
   // Hero: wordmark + tagline + install snippet + sign-in CTA.
   await expect(page.getByText(/Token\s+Rats/i).first()).toBeVisible();
-  await expect(page.getByText(/Track your AI usage\. Compare subscriptions\./i)).toBeVisible();
+  await expect(page.getByText(/Your agent setup, with a history\./i).first()).toBeVisible();
   await expect(page.getByText(/token-rats login/i).first()).toBeVisible();
   await expect(page.getByRole("link", { name: /Sign in with GitHub/i }).first()).toBeVisible();
 

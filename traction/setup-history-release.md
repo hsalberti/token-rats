@@ -1,6 +1,6 @@
 # Setup history release
 
-Status: implementation and local verification complete; production rollout in progress.
+Status: shipped to production on 2026-09-29 UTC. Email activation remains postponed.
 
 ## Scope
 
@@ -22,7 +22,7 @@ Status: implementation and local verification complete; production rollout in pr
 - Chromium and mobile WebKit passed the complete save → publish → compare → follow → rate → copy → restore → inbox flow against the production build and an isolated local database. Logged-out visitors could download the published file without accessing private history.
 - The skill passed the skill-creator validator and its six helper tests.
 - Browser checks also verified both skill copy modes, importing a bundle containing reproduction instructions, and downloading the rendered PNG setup card.
-- Production deployment evidence will be recorded below after rollout.
+- The updated homepage smoke checks passed all 12 cases across Chromium, Firefox, desktop WebKit, and mobile WebKit against production.
 
 ## Release operations
 
@@ -30,3 +30,22 @@ Back up D1, apply migration 0026, deploy the Worker before web pages that call t
 
 - D1 backup saved outside the repository with owner-only permissions on 2026-09-29 UTC.
 - Remote migration `0026_setup_history.sql` applied successfully (19 statements).
+
+## Production verification — 2026-09-29
+
+- Feature source: public commit [`48f1889209942e6e0e137c5443dddf0a422f2e42`](https://github.com/hsalberti/token-rats/commit/48f1889209942e6e0e137c5443dddf0a422f2e42). Subsequent release-record and smoke-test changes do not change application behavior.
+- Cloudflare Pages deployment `584eab38-a42a-49e1-9ecb-18a990b212f1` succeeded for that commit at https://tokenrats.com.
+- [CI run 36557993489](https://github.com/hsalberti/token-rats/actions/runs/36557993489) passed lint, type checks, tests, and builds. [API deploy run 36558135874](https://github.com/hsalberti/token-rats/actions/runs/36558135874) passed migrations, deployment, and the deep health probe.
+- `/healthz` reports healthy database and KV. Public setup discovery, the founder setup, and its public history return 200; the founder's private checkpoint returns 404 without authentication.
+- Live Chromium and mobile WebKit checks passed the public profile, timeline, and skill page, plus authenticated Feed, My setups, Inbox, Stats, and Boards. Neither browser reported page errors.
+- The public setup card returns a PNG. The live SKILL.md and Node helper match the public repository files byte for byte.
+- The authenticated preferences API reports `emailConfigured: false`. In-app notifications work; email activation and campaigns remain deferred. No external social posts or customer emails were sent.
+
+## Open the release
+
+- [Agent skill](https://tokenrats.com/skill): copy the instructions or download SKILL.md, then paste into a coding agent.
+- [My setups](https://tokenrats.com/app/setups): version history, import, and capture entry point.
+- [Founder profile](https://tokenrats.com/u/hsalberti): the approved global-instruction excerpt is featured.
+- [Following feed](https://tokenrats.com/app) and [notification inbox](https://tokenrats.com/app/notifications).
+
+Automatic watching/publication of selected global AGENTS.md files and the annual setup rewind remain future work in [later.md](later.md). Sender verification and email activation resume from [email-continuation.md](email-continuation.md).

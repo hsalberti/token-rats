@@ -1,5 +1,11 @@
 # Release record
 
+## Setup histories and agent capture — shipped 2026-09-29
+
+The social release is live: versioned setups, diffs/restoration, following feed, shelves/ratings, profile favorites, in-app notifications, and a copyable agent skill. See [setup-history-release.md](setup-history-release.md) for the deployed public commit, deployment IDs, and browser verification.
+
+Open [the agent skill](https://tokenrats.com/skill) or [Alberti's profile](https://tokenrats.com/u/hsalberti). Email activation is postponed; [email-continuation.md](email-continuation.md) records the remaining domain/DNS setup. Outreach and release emails are drafts for Alberti to edit and send.
+
 ## 0.4.0 — published and deployed
 
 - Repository: https://github.com/hsalberti/token-rats (public, MIT).
