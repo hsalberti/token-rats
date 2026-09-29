@@ -28,7 +28,7 @@ const WINDOWS_TASK = "TokenRatsWatch";
 
 /** Best-effort lookup of the on-disk `token-rats` executable. */
 function resolveCliPath(): { node: string; script: string } {
-  const entry = path.resolve(process.argv[1] ?? "");
+  const entry = fs.realpathSync(path.resolve(process.argv[1] ?? ""));
   if (!entry.endsWith(".js")) throw new Error("Build the CLI before installing the daemon.");
   const config = process.env.XDG_CONFIG_HOME ?? path.join(os.homedir(), ".config");
   const runtime = path.join(config, "token-rats", "runtime");
@@ -37,7 +37,8 @@ function resolveCliPath(): { node: string; script: string } {
   if (entry !== script) fs.copyFileSync(entry, script);
   fs.writeFileSync(path.join(runtime, "package.json"), '{"type":"module"}\n');
   const require = createRequire(import.meta.url);
-  const sqlPackage = path.dirname(require.resolve("sql.js/package.json"));
+  // sql.js exports its entry point, but does not export package.json.
+  const sqlPackage = path.dirname(path.dirname(require.resolve("sql.js")));
   const destination = path.join(runtime, "node_modules", "sql.js");
   if (sqlPackage !== destination) fs.cpSync(sqlPackage, destination, { recursive: true });
   const runner = path.join(runtime, "runner.mjs");
@@ -309,6 +310,7 @@ export async function installDaemonCommand(apiUrl?: string): Promise<void> {
   } catch (err) {
     error(`Failed to install daemon: ${err instanceof Error ? err.message : String(err)}`);
     warn("You can still run `token-rats sync` manually.");
+    process.exitCode = 1;
   }
 }
 
