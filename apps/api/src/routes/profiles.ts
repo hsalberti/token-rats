@@ -1,21 +1,115 @@
 /**
  * GET /v1/u/:handle — public profile (auth optional).
  * GET /v1/u/:handle/autobiography — richer stats for the onboarding flow.
+ * GET /v1/u/:handle/share — public instructions and rolling 30-day share stats.
  *
  * Returns user info + today/week/allTime token + cost totals
  * aggregated from daily_rollup.
  */
+import { type ProfileShare, ProfileShareQuery } from "@token-rats/contracts";
 import { Hono } from "hono";
 import type { Env } from "../env.js";
-import { notFound } from "../lib/errors.js";
+import { notFound, validationError } from "../lib/errors.js";
+import { modelProvider } from "../lib/profile-share.js";
 import { parseAgentSoftware, parseGithubProjects } from "../lib/profile-social.js";
 import { ensureReferralCode } from "../lib/referral.js";
+import { VERSION_SELECT, type VersionRow, serializeVersion } from "../lib/setups.js";
+import { MONTH_MS } from "../lib/time.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
 
 type HonoEnv = { Bindings: Env; Variables: AuthVariables };
 
 const profiles = new Hono<HonoEnv>();
+
+// Deliberately public-only, even for the owner: image URLs can be fetched by anyone.
+profiles.get("/:handle/share", async (c) => {
+  c.header("Cache-Control", "no-store");
+  const parsed = ProfileShareQuery.safeParse(c.req.query());
+  if (!parsed.success) return validationError(c, parsed.error.issues);
+  const query = parsed.data;
+  const user = await c.env.DB.prepare(
+    "SELECT id,handle,avatar_url,bio FROM users WHERE handle=? AND public_profile=1",
+  )
+    .bind(c.req.param("handle"))
+    .first<{
+      id: string;
+      handle: string;
+      avatar_url: string | null;
+      bio: string | null;
+    }>();
+  if (!user || (await c.env.CACHE.get(`banned:handle:${user.handle.toLowerCase()}`)) !== null)
+    return notFound(c, "Profile not found");
+
+  const version = await c.env.DB.prepare(
+    `${VERSION_SELECT} WHERE s.user_id=? AND v.published_at IS NOT NULL
+     ${query.version ? "AND v.id=?" : "AND v.number=(SELECT MAX(number) FROM setup_versions WHERE setup_id=s.id AND published_at IS NOT NULL)"}
+     ORDER BY s.featured DESC,v.published_at DESC LIMIT 1`,
+  )
+    .bind(user.id, ...(query.version ? [query.version] : []))
+    .first<VersionRow>();
+  if (!version && (query.version || query.file !== undefined || query.start || query.end))
+    return notFound(c, "Published instructions not found");
+
+  let instructions: ProfileShare["instructions"] = null;
+  if (version) {
+    const { files } = serializeVersion(version).bundle;
+    const fileIndex =
+      query.file ??
+      Math.max(
+        0,
+        files.findIndex((f) => f.name.toLowerCase() === "agents.md"),
+      );
+    const file = files[fileIndex];
+    if (!file) return validationError(c, "Instruction file not found");
+    const lines = file.content.replace(/\r\n?/g, "\n").split("\n");
+    const start = query.start ?? 1;
+    const end = query.end ?? Math.min(start + 7, lines.length);
+    if (start > lines.length || end > lines.length)
+      return validationError(c, "Choose lines within the instruction file");
+    instructions = {
+      setupId: version.setup_id,
+      versionId: version.id,
+      file: fileIndex,
+      fileName: file.name,
+      start,
+      end,
+      text: lines.slice(start - 1, end).join("\n"),
+    };
+  }
+
+  const end = Date.now();
+  const start = end - MONTH_MS;
+  const rows = await c.env.DB.prepare(
+    `SELECT model,provider,SUM(in_tokens + out_tokens) AS tokens FROM sessions
+     WHERE user_id=? AND started_at>=? AND started_at<=?
+     GROUP BY model,provider HAVING SUM(in_tokens + out_tokens)>0`,
+  )
+    .bind(user.id, start, end)
+    .all<{ model: string; provider: string; tokens: number }>();
+  const models = new Map<string, number>();
+  const providers = new Map<string, number>();
+  let tokens = 0;
+  for (const row of rows.results) {
+    tokens += row.tokens;
+    models.set(row.model, (models.get(row.model) ?? 0) + row.tokens);
+    const provider = modelProvider(row.model, row.provider);
+    providers.set(provider, (providers.get(provider) ?? 0) + row.tokens);
+  }
+  const top = (values: Map<string, number>) =>
+    [...values].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] ?? null;
+  const share: ProfileShare = {
+    handle: user.handle,
+    avatarUrl: user.avatar_url,
+    bio: user.bio,
+    period: { start, end },
+    tokens,
+    topModel: top(models),
+    topProvider: top(providers),
+    instructions,
+  };
+  return c.json({ share });
+});
 
 profiles.get("/:handle", optionalAuth, async (c) => {
   const handle = c.req.param("handle");

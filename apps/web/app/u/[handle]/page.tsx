@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import { AgentSoftwareBadges } from "../../../components/AgentSoftwareBadges";
 import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
 import { ProfileReferralCard } from "../../../components/ProfileReferralCard";
+import { ProfileShareButton } from "../../../components/ProfileShareButton";
 import { SourceTiles } from "../../../components/SourcePill";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 import { ProfileSetups } from "../../../components/setups/ProfileSetups";
@@ -191,6 +192,11 @@ export default async function ProfilePage({ params, searchParams }: Props) {
         </div>
 
         {/* Social profile details */}
+        <ProfileShareButton
+          handle={profile.handle}
+          selection={shared.versions[0] ? { version: shared.versions[0].id } : {}}
+          publicProfile={profile.publicProfile !== false}
+        />
         {profile.agentSoftware && profile.agentSoftware.length > 0 && (
           <section className="space-y-3">
             <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
@@ -205,6 +211,7 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           following={shared.following}
           isOwner={shared.isOwner}
           signedIn={!!currentUser}
+          publicProfile={profile.publicProfile !== false}
         />
 
         {/* Stats grid */}
