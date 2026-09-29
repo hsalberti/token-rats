@@ -51,10 +51,31 @@ device service or a Mac/iOS automation host.
 | 8 | `08-twitter-connect-disconnect.spec.ts` | scaffolded; needs wrangler harness + X OAuth network mock |
 | 9 | `09-country-locked-groups.spec.ts` | partial — static `/groups` render check passes; seeded mismatch case scaffolded |
 | 10 | `10-test-push-toast.spec.ts` | scaffolded; needs wrangler harness + push-service mock |
+| 13 | `13-profile-share.spec.ts` | requires isolated social fixtures; edits profile instructions, copies selected lines, retries image generation, validates PNG download, native-share gesture/fallback, and anonymous share links |
 
 See `_setup/wrangler-harness.ts` for the planned shape of the per-spec
 D1 reset + seeding harness. The "scaffolded" specs are well-commented
 stubs documenting the intended assertions.
+
+### Profile sharing
+
+`13-profile-share.spec.ts` uses the same isolated social fixtures as
+`12-setup-history.spec.ts`: public `social-alice` and `social-bob` users and
+the **local-only** signing key `social-local-test-only`. Apply all D1
+migrations before seeding those users. Never point this test at a live database.
+
+```sh
+TOKEN_RATS_SOCIAL_E2E=1 \
+PLAYWRIGHT_API_BASE_URL=http://127.0.0.1:8787 \
+PLAYWRIGHT_WEB_BASE_URL=http://127.0.0.1:3000 \
+pnpm --filter @token-rats/web exec playwright test 13-profile-share.spec.ts --project=chromium
+```
+
+The web server's `NEXT_PUBLIC_API_URL` must point at that same test API.
+The spec saves the generated 1200×630 PNG and share-dialog screenshot in
+Playwright's test output directory. The API regression suite in
+`apps/api/src/routes/profile-share.test.ts` independently verifies the rolling
+30-day totals, model/provider ranking, version selection, and visibility rules.
 
 ## CI
 

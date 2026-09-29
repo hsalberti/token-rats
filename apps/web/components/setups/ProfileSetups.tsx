@@ -2,6 +2,7 @@
 import type { SetupVersion } from "@token-rats/contracts";
 import { useState } from "react";
 import { socialRequest } from "../../lib/social";
+import { ProfileInstructions } from "./ProfileInstructions";
 import { SetupCard } from "./SetupCard";
 export function ProfileSetups({
   handle,
@@ -9,12 +10,14 @@ export function ProfileSetups({
   following: initial,
   isOwner,
   signedIn,
+  publicProfile = true,
 }: {
   handle: string;
   versions: SetupVersion[];
   following: boolean;
   isOwner: boolean;
   signedIn: boolean;
+  publicProfile?: boolean;
 }) {
   const [following, setFollowing] = useState(initial);
   const [error, setError] = useState("");
@@ -59,13 +62,13 @@ export function ProfileSetups({
         </p>
       )}
       {versions[0] && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
-          <h3 className="mb-3 text-xs uppercase tracking-widest text-zinc-500">
-            Favorite instructions
-          </h3>
-          <pre className="whitespace-pre-wrap break-words text-sm leading-6 text-zinc-300">
-            {versions[0].bundle.files[0]?.content.split("\n").slice(0, 8).join("\n")}
-          </pre>
+        <div>
+          <ProfileInstructions
+            key={versions[0].id}
+            version={versions[0]}
+            isOwner={isOwner}
+            publicProfile={publicProfile}
+          />
           <div className="mt-5 grid gap-5 sm:grid-cols-3">
             {(
               [
