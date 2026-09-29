@@ -3,7 +3,7 @@
 ## Positioning
 
 Token Rats is already [public on GitHub](https://github.com/hsalberti/token-rats)
-under MIT, and CLI 0.3.1 is already on npm. This is a new open source release,
+under MIT, and CLI 0.4.0 is published on npm as `latest`. This is a new open source release,
 not a first source-code reveal. The relaunch story is: **track local agent
 usage, then share the instructions and coordination patterns behind the work**.
 Token counts describe usage, not output quality or a provider bill.
@@ -22,6 +22,8 @@ file without context is hard for other people to adapt.
 4. **Seed the founder profile.** Publish the reviewed [global-instruction excerpt](examples/alberti-agents.md) on Alberti's Token Rats profile. Link the profile from launch drafts after verifying the production URL.
 5. **Alberti creates r/TokenRats.** Use the description, rules, flairs, welcome, and weekly thread copy in [posts.md](posts.md). The website community links already target that URL. Confirm the name is available; update the links if a different name is chosen.
 6. **Alberti edits and posts.** Fill in any marked founder examples, recheck live rules and thread URLs, and publish the drafts himself. Agents support research, drafts, and follow-up context.
+
+Release gates 1–4 are complete; see [release.md](release.md) for deployment and clean-install evidence. The remaining launch work is subreddit creation and Alberti’s manual posts.
 
 ## Posting schedule
 

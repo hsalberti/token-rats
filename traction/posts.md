@@ -140,5 +140,6 @@ launch messages across communities or ask for coordinated votes.
 
 ## Published links
 
-- Founder profile: https://tokenrats.com/u/hsalberti (verify after release).
+- Founder profile: https://tokenrats.com/u/hsalberti (verified in production).
+- Release: https://github.com/hsalberti/token-rats/releases/tag/v0.4.0.
 - Subreddit and external post URLs: add after Alberti creates/posts them.
