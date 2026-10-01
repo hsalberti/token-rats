@@ -1,7 +1,7 @@
 import type { Heatmap, HeatmapRange, Profile, SetupVersion } from "@token-rats/contracts";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
-import { AgentSoftwareBadges } from "../../../components/AgentSoftwareBadges";
+import { ProfileFavoriteBadges } from "../../../components/ProfileFavoriteBadges";
 import { ProfileHeatmapClient } from "../../../components/ProfileHeatmapClient";
 import { ProfileReferralCard } from "../../../components/ProfileReferralCard";
 import { ProfileShareButton } from "../../../components/ProfileShareButton";
@@ -229,26 +229,27 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           selection={publicVersion ? { version: publicVersion.id } : {}}
           publicProfile={profile.publicProfile !== false}
         />
-        {(profile.agentSoftware?.length || currentUser?.handle === profile.handle) && (
+        {(profile.profileFavorites?.length || currentUser?.handle === profile.handle) && (
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
-                Agent software
+                Favorites
               </h2>
               {currentUser?.handle === profile.handle && (
                 <a
-                  href="/settings/profile#agent-control-centers"
+                  href="/settings/profile#profile-favorites"
                   className="text-sm text-rat-400 hover:underline"
                 >
-                  {profile.agentSoftware?.length ? "Edit badges" : "Add badges"}
+                  {profile.profileFavorites?.length ? "Edit badges" : "Add badges"}
                 </a>
               )}
             </div>
-            {profile.agentSoftware?.length ? (
-              <AgentSoftwareBadges software={profile.agentSoftware} />
+            {profile.profileFavorites?.length ? (
+              <ProfileFavoriteBadges favorites={profile.profileFavorites} />
             ) : (
               <p className="text-sm text-zinc-400">
-                Choose your agent software badges to show them here.
+                Choose your favorite models, providers, software, and subscriptions to show them
+                here.
               </p>
             )}
           </section>

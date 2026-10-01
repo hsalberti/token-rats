@@ -7,29 +7,39 @@ import { PatchMeRequest } from "@token-rats/contracts";
 import { describe, expect, it } from "vitest";
 
 describe("PatchMeRequest validation", () => {
-  it("accepts selected agent control centers and a custom logo", () => {
+  it("accepts favorites in all four categories", () => {
+    const profileFavorites = [
+      { id: "model:claude", category: "model" },
+      { id: "provider:anthropic", category: "provider" },
+      { id: "software:codex-cli", category: "software" },
+      { id: "subscription:claude-max", category: "subscription" },
+      {
+        id: "custom:model",
+        category: "model",
+        name: "My model",
+        logoUrl: "https://example.com/logo.svg",
+      },
+    ];
+    expect(PatchMeRequest.parse({ profileFavorites }).profileFavorites).toEqual(profileFavorites);
+  });
+  it("rejects unknown favorites, wrong categories, duplicates, and unnamed custom entries", () => {
+    for (const profileFavorites of [
+      [{ id: "model:unknown", category: "model" }],
+      [{ id: "model:claude", category: "provider" }],
+      [
+        { id: "model:claude", category: "model" },
+        { id: "model:claude", category: "model" },
+      ],
+      [{ id: "custom:software", category: "software" }],
+    ])
+      expect(PatchMeRequest.safeParse({ profileFavorites }).success).toBe(false);
+  });
+  it("accepts the proprietary badge without a custom name", () => {
     expect(
       PatchMeRequest.safeParse({
-        agentSoftware: [
-          { id: "paseo" },
-          { id: "codex" },
-          { id: "orca" },
-          { id: "proprietary", name: "My dashboard" },
-          { id: "other", name: "Another app", logoUrl: "https://example.com/logo.svg" },
-        ],
+        profileFavorites: [{ id: "software:proprietary", category: "software" }],
       }).success,
     ).toBe(true);
-  });
-
-  it("rejects duplicate badges and unnamed other software", () => {
-    expect(
-      PatchMeRequest.safeParse({ agentSoftware: [{ id: "paseo" }, { id: "paseo" }] }).success,
-    ).toBe(false);
-    expect(PatchMeRequest.safeParse({ agentSoftware: [{ id: "other" }] }).success).toBe(false);
-  });
-
-  it("accepts the proprietary badge without a custom name", () => {
-    expect(PatchMeRequest.safeParse({ agentSoftware: [{ id: "proprietary" }] }).success).toBe(true);
   });
 
   it("accepts an empty object (no-op patch)", () => {

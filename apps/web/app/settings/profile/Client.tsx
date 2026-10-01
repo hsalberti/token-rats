@@ -16,9 +16,9 @@
 
 import { TWITTER_CONNECT_URL, disconnectTwitter, patchMe } from "@/lib/api";
 import { TWITTER_ENABLED } from "@/lib/flags";
-import type { AgentSoftware, GithubProject } from "@token-rats/contracts";
+import type { GithubProject, ProfileFavorite } from "@token-rats/contracts";
 import { useEffect, useRef, useState } from "react";
-import { AgentSoftwareBadges } from "../../../components/AgentSoftwareBadges";
+import { ProfileFavoritesPicker } from "../../../components/ProfileFavoritesPicker";
 import { TwitterHandlePill } from "../../../components/TwitterHandlePill";
 
 interface Props {
@@ -26,7 +26,7 @@ interface Props {
   initialPublicProfile: boolean;
   initialBio: string | null;
   initialGithubProjects: GithubProject[];
-  initialAgentSoftware: AgentSoftware[];
+  initialProfileFavorites: ProfileFavorite[];
   initialTwitterHandle: string | null;
   initialTwitterVerified: boolean;
 }
@@ -74,14 +74,14 @@ export function ProfileSettingsClient({
   initialPublicProfile,
   initialBio,
   initialGithubProjects,
-  initialAgentSoftware,
+  initialProfileFavorites,
   initialTwitterHandle,
   initialTwitterVerified,
 }: Props) {
   const [publicProfile, setPublicProfile] = useState(initialPublicProfile);
   const [bio, setBio] = useState(initialBio ?? "");
   const [githubProjects, setGithubProjects] = useState(initialGithubProjects);
-  const [agentSoftware, setAgentSoftware] = useState(initialAgentSoftware);
+  const [profileFavorites, setProfileFavorites] = useState(initialProfileFavorites);
   const [availableProjects, setAvailableProjects] =
     useState<GithubProject[]>(initialGithubProjects);
   const initialGithubProjectsRef = useRef(initialGithubProjects);
@@ -157,7 +157,7 @@ export function ProfileSettingsClient({
         publicProfile,
         bio: bio.trim() || null,
         githubProjects,
-        agentSoftware,
+        profileFavorites,
       });
       setSaveStatus("saved");
     } catch {
@@ -264,114 +264,11 @@ export function ProfileSettingsClient({
         </a>
       </section>
 
-      {/* Agent control center badges */}
-      <section
-        id="agent-control-centers"
-        className="scroll-mt-8 space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5"
-      >
-        <div>
-          <p className="font-semibold text-zinc-100">Agent software</p>
-          <p className="mt-1 text-sm text-zinc-400">
-            Choose the software you use with agents. These profile badges are self selected.
-          </p>
-        </div>
-        <div className="space-y-2">
-          {(["paseo", "codex", "orca", "proprietary", "other"] as const).map((id) => {
-            const selected = agentSoftware.find((item) => item.id === id);
-            const label = {
-              paseo: "Paseo",
-              codex: "Codex",
-              orca: "Orca",
-              proprietary: "My own control center",
-              other: "Other software",
-            }[id];
-            return (
-              <div key={id} className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-                <label className="flex cursor-pointer items-center gap-3 text-sm text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={!!selected}
-                    disabled={saving}
-                    className="h-4 w-4 accent-orange-500"
-                    onChange={() =>
-                      setAgentSoftware((current) =>
-                        selected
-                          ? current.filter((item) => item.id !== id)
-                          : [
-                              ...current,
-                              {
-                                id,
-                                ...(id === "other" ? { name: "" } : {}),
-                              },
-                            ],
-                      )
-                    }
-                  />
-                  {id !== "other" && (
-                    <img
-                      src={
-                        id === "codex"
-                          ? "/providers/codex.svg"
-                          : `/agent-software/${id === "orca" ? "orca.png" : `${id}.svg`}`
-                      }
-                      alt=""
-                      width={24}
-                      height={24}
-                      className="h-6 w-6 rounded object-contain"
-                    />
-                  )}
-                  {label}
-                </label>
-                {selected && (id === "other" || id === "proprietary") && (
-                  <div className="space-y-2">
-                    <input
-                      aria-label={`${label} name`}
-                      value={selected.name ?? ""}
-                      maxLength={40}
-                      required={id === "other"}
-                      placeholder={
-                        id === "proprietary"
-                          ? "Name of your control center (optional)"
-                          : "Name of your software"
-                      }
-                      disabled={saving}
-                      onChange={(event) =>
-                        setAgentSoftware((current) =>
-                          current.map((item) =>
-                            item.id === id
-                              ? { ...item, name: event.target.value || undefined }
-                              : item,
-                          ),
-                        )
-                      }
-                      className="mt-2 w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
-                    />
-                    <input
-                      aria-label={`${label} logo URL`}
-                      type="url"
-                      value={selected.logoUrl ?? ""}
-                      maxLength={500}
-                      placeholder="Logo image URL (optional, https://…)"
-                      disabled={saving}
-                      onChange={(event) =>
-                        setAgentSoftware((current) =>
-                          current.map((item) =>
-                            item.id === id
-                              ? { ...item, logoUrl: event.target.value || undefined }
-                              : item,
-                          ),
-                        )
-                      }
-                      className="w-full rounded-md border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100"
-                    />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-        {agentSoftware.length > 0 && <AgentSoftwareBadges software={agentSoftware} />}
-      </section>
+      <ProfileFavoritesPicker
+        favorites={profileFavorites}
+        onChange={setProfileFavorites}
+        disabled={saving}
+      />
 
       {/* Featured GitHub projects */}
       <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">

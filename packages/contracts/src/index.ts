@@ -18,3 +18,5 @@ export * from "./comparison.js";
 export * from "./setups.js";
 export * from "./setup-diff.js";
 export * from "./releases.js";
+
+export * from "./favorites.js";

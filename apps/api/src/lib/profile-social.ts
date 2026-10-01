@@ -1,10 +1,10 @@
-import type { AgentSoftware, GithubProject } from "@token-rats/contracts";
-import { AgentSoftwareList, GithubProject as GithubProjectSchema } from "@token-rats/contracts";
+import type { GithubProject, ProfileFavorite } from "@token-rats/contracts";
+import { GithubProject as GithubProjectSchema, ProfileFavorites } from "@token-rats/contracts";
 
-export function parseAgentSoftware(value: string | null): AgentSoftware[] {
+export function parseProfileFavorites(value: string | null): ProfileFavorite[] {
   if (!value) return [];
   try {
-    const result = AgentSoftwareList.safeParse(JSON.parse(value));
+    const result = ProfileFavorites.safeParse(JSON.parse(value));
     return result.success ? result.data : [];
   } catch {
     return [];
