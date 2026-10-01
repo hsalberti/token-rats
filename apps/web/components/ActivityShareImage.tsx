@@ -132,21 +132,20 @@ export function ActivityShareImage({ handle, heatmap }: { handle: string; heatma
               height={280}
               viewBox={`0 0 ${columns * step} 280`}
             >
-              {cells
-                .filter((c) => c.visible)
-                .map((c) => (
-                  <rect
-                    key={c.day}
-                    x={c.col * step + 2}
-                    y={8 + c.row * (cell + gap)}
-                    width={cell}
-                    height={cell}
-                    rx={5}
-                    fill={activityColor(c.tokens, heatmap.scaleMax)}
-                    stroke={c.day === heatmap.to ? "#fafafa" : "none"}
-                    strokeWidth={2}
-                  />
-                ))}
+              {cells.map((c) => (
+                <rect
+                  key={c.day}
+                  x={c.col * step + 2}
+                  y={8 + c.row * (cell + gap)}
+                  width={cell}
+                  height={cell}
+                  rx={5}
+                  fill={c.visible ? activityColor(c.tokens, heatmap.scaleMax) : "#18181b"}
+                  stroke={c.day === heatmap.to ? "#fafafa" : c.visible ? "none" : "#27272a"}
+                  strokeDasharray={c.visible ? undefined : "2 3"}
+                  strokeWidth={c.visible ? 2 : 1}
+                />
+              ))}
             </svg>
           </div>
           <div
@@ -167,7 +166,7 @@ export function ActivityShareImage({ handle, heatmap }: { handle: string; heatma
               />
             ))}
             <span>More</span>
-            <span style={{ marginLeft: 22 }}>Today outlined</span>
+            <span style={{ marginLeft: 22 }}>Today outlined · Faint squares outside window</span>
           </div>
         </div>
       </div>

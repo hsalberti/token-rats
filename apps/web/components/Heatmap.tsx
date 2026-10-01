@@ -108,22 +108,26 @@ export function Heatmap({ heatmap }: { heatmap: HeatmapData }) {
               {label}
             </text>
           ))}
-          {cells
-            .filter((c) => c.visible)
-            .map((c) => (
-              <rect
-                key={c.day}
-                x={labelWidth + c.col * (cell + gap)}
-                y={22 + c.row * (cell + gap)}
-                width={cell}
-                height={cell}
-                rx={4}
-                fill={activityColor(c.tokens, heatmap.scaleMax)}
-                stroke={c.day === heatmap.to ? "#fafafa" : "none"}
-                strokeWidth={1.5}
-                aria-label={`${c.day === heatmap.to ? "Today, " : ""}${c.day}: ${formatActivityTokens(c.tokens)} tokens`}
-              />
-            ))}
+          {cells.map((c) => (
+            <rect
+              key={c.day}
+              x={labelWidth + c.col * (cell + gap)}
+              y={22 + c.row * (cell + gap)}
+              width={cell}
+              height={cell}
+              rx={4}
+              fill={c.visible ? activityColor(c.tokens, heatmap.scaleMax) : "#18181b"}
+              stroke={c.day === heatmap.to ? "#fafafa" : c.visible ? "none" : "#27272a"}
+              strokeDasharray={c.visible ? undefined : "2 3"}
+              strokeWidth={c.visible ? 1.5 : 1}
+              data-in-window={c.visible}
+              aria-label={
+                c.visible
+                  ? `${c.day === heatmap.to ? "Today, " : ""}${c.day}: ${formatActivityTokens(c.tokens)} tokens`
+                  : `${c.day}: outside selected window${c.day > heatmap.to ? " (future date)" : ""}`
+              }
+            />
+          ))}
         </svg>
         <div className="mt-3 flex items-center justify-between gap-2 text-[10px] text-zinc-500">
           <span>

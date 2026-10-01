@@ -25,8 +25,22 @@ test("activity windows show every day including today without scrolling", async 
     "aria-pressed",
     "true",
   );
-  await expect(activity.locator("rect")).toHaveCount(28);
+  await expect(activity.locator('rect[data-in-window="true"]')).toHaveCount(28);
   await expect(activity.locator('rect[aria-label^="Today,"]')).toHaveCount(1);
+  const grid = await activity.locator("rect").evaluateAll((rects) => {
+    const columns = new Map<string, number>();
+    for (const rect of rects) {
+      const x = rect.getAttribute("x")!;
+      columns.set(x, (columns.get(x) ?? 0) + 1);
+    }
+    return Array.from(columns.values());
+  });
+  expect(grid.every((count) => count === 7)).toBe(true);
+  const outside = activity.locator('rect[data-in-window="false"]');
+  if (await outside.count()) {
+    await expect(outside.first()).toHaveAttribute("fill", "#18181b");
+    await expect(outside.first()).toHaveAttribute("aria-label", /outside selected window/);
+  }
   const last = activity.locator('rect[aria-label^="Today,"]');
   expect(
     await last.evaluate((el) => {
@@ -42,7 +56,7 @@ test("activity windows show every day including today without scrolling", async 
   ).toBe(true);
   await activity.getByRole("button", { name: "12 weeks", exact: true }).click();
   await expect.poll(() => new URL(page.url()).searchParams.get("range")).toBe("12w");
-  await expect(activity.locator("rect")).toHaveCount(84);
+  await expect(activity.locator('rect[data-in-window="true"]')).toHaveCount(84);
   expect(
     await last.evaluate((el) => {
       const cell = el.getBoundingClientRect();

@@ -103,7 +103,7 @@ export function HeatmapWithToggle({
         </p>
       )}
       <p className="mt-5 border-t border-zinc-800 pt-3 text-[11px] text-zinc-500">
-        Today outlined · UTC · 12-week color scale
+        Today outlined · Faint squares outside window · UTC · 12-week color scale
       </p>
     </section>
   );
