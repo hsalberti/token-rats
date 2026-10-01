@@ -19,20 +19,28 @@ export const runtime = "edge";
 
 interface Props {
   params: Promise<{ handle: string }>;
-  searchParams: Promise<{ range?: string | string[] }>;
+  searchParams: Promise<{ range?: string | string[]; share?: string }>;
 }
 
 function pickRange(raw: string | string[] | undefined): HeatmapRange {
   const v = Array.isArray(raw) ? raw[0] : raw;
-  return v === "52w" ? "52w" : "30d";
+  return v === "12w" ? "12w" : "4w";
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export async function generateMetadata({ params, searchParams }: Props): Promise<Metadata> {
   const { handle } = await params;
-  const cardUrl = `/cards/u/${handle}`;
+  const query = await searchParams;
+  const activityShare = query.share === "activity";
+  const range = pickRange(query.range);
+  const cardUrl = activityShare
+    ? `/cards/u/${encodeURIComponent(handle)}/activity?range=${range}`
+    : `/cards/u/${encodeURIComponent(handle)}`;
+  const description = activityShare
+    ? `@${handle}'s AI activity over the last ${range === "12w" ? 12 : 4} weeks — usage, momentum, and consistency.`
+    : `@${handle}'s Token Rats profile — agent setups, favorites, and usage.`;
   return {
     title: `@${handle}`,
-    description: `@${handle}'s Token Rats profile — agent setups, favorites, and usage.`,
+    description,
     openGraph: {
       images: [{ url: cardUrl, width: 1200, height: 630, alt: `Token Rats — @${handle}` }],
     },
@@ -314,10 +322,14 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           </Card>
         )}
 
-        {/* Activity heatmap with a 30d/52w toggle. Default is 30d. Best-effort;
+        {/* Activity heatmap with a 4w/12w toggle. Default is 4w. Best-effort;
             if the API call errored, `heatmap` is null and we skip the block. */}
-        {heatmap && heatmap.days.length > 0 && (
-          <ProfileHeatmapClient handle={handle} initial={heatmap} />
+        {heatmap && (
+          <ProfileHeatmapClient
+            handle={handle}
+            initial={heatmap}
+            publicProfile={profile.publicProfile !== false}
+          />
         )}
 
         {/* Referrals — count is public on any visible profile; the

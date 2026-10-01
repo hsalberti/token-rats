@@ -43,7 +43,7 @@ device service or a Mac/iOS automation host.
 |---|---|---|
 | 1 | `01-install-first-card.spec.ts` | partial — covers install snippet + share-card route; full CLI sync requires the wrangler harness |
 | 2 | `02-signed-out-homepage.spec.ts` | **fully implemented** |
-| 3 | `03-heatmap-range-toggle.spec.ts` | runs opportunistically against a public profile; skips when none seeded |
+| 3 | `03-heatmap-range-toggle.spec.ts` | checks 4/12-week windows, responsive grids, PNG sharing, and activity links; uses a public profile or TOKEN_RATS_ACTIVITY_E2E_HANDLE |
 | 4 | `04-room-stat-strip-streak.spec.ts` | scaffolded; needs wrangler harness |
 | 5 | `05-org-soft-create.spec.ts` | scaffolded; needs wrangler harness |
 | 6 | `06-admin-approval.spec.ts` | scaffolded; needs wrangler harness |

@@ -17,7 +17,7 @@ interface Props {
 
 function pickRange(raw: string | string[] | undefined): HeatmapRange {
   const v = Array.isArray(raw) ? raw[0] : raw;
-  return v === "52w" ? "52w" : "30d";
+  return v === "12w" ? "12w" : "4w";
 }
 
 /** Same normalization as the Worker — XX / T1 / missing all → null. */

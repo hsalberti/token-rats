@@ -1,93 +1,110 @@
 "use client";
 
-/**
- * HeatmapWithToggle — wraps <Heatmap> with a 30d/52w button group that swaps
- * the data live and keeps `?range=` in sync via shallow nav. Default range
- * is 30d everywhere; the bare URL (no `?range=`) renders as 30d.
- *
- * The `fetcher` is passed in so the same wrapper handles user and room
- * heatmaps without duplicating contract knowledge here.
- */
-
-import type { Heatmap as HeatmapData, HeatmapRange } from "@token-rats/contracts";
-import { useEffect, useState } from "react";
+import {
+  type Heatmap as HeatmapData,
+  type HeatmapRange,
+  activityGrowthLabel,
+} from "@token-rats/contracts";
+import { useRef, useState } from "react";
 import { Heatmap } from "./Heatmap";
+import { ProfileShareButton } from "./ProfileShareButton";
 
 interface Props {
   initial: HeatmapData;
   fetcher: (range: HeatmapRange) => Promise<HeatmapData>;
   title?: string;
+  handle?: string;
+  publicProfile?: boolean;
 }
 
-const RANGES: HeatmapRange[] = ["30d", "52w"];
-const RANGE_LABELS: Record<HeatmapRange, string> = {
-  "30d": "30 days",
-  "52w": "52 weeks",
-};
+export function HeatmapWithToggle({
+  initial,
+  fetcher,
+  title = "AI activity",
+  handle,
+  publicProfile,
+}: Props) {
+  const [heatmap, setHeatmap] = useState(initial);
+  const [pending, setPending] = useState<HeatmapRange | null>(null);
+  const [error, setError] = useState("");
+  const requestId = useRef(0);
+  const range = heatmap.range;
 
-export function HeatmapWithToggle({ initial, fetcher, title }: Props) {
-  const [range, setRange] = useState<HeatmapRange>(initial.range);
-  const [heatmap, setHeatmap] = useState<HeatmapData>(initial);
-  const [loading, setLoading] = useState(false);
-
-  // Hydrate from `?range=` on mount so a deep-link to ?range=52w renders
-  // correctly even though SSR rendered the default 30d. Mount-only by
-  // design — `range` itself is owned by this component so closing over its
-  // initial value here is correct.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: mount-only hydration.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const fromUrl = params.get("range");
-    if (fromUrl === "52w" && range !== "52w") {
-      void swap("52w", { pushUrl: false });
-    }
-  }, []);
-
-  async function swap(next: HeatmapRange, opts: { pushUrl?: boolean } = { pushUrl: true }) {
-    if (next === range) return;
-    setRange(next);
-    setLoading(true);
-
-    if (opts.pushUrl !== false && typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      if (next === "30d") {
-        url.searchParams.delete("range");
-      } else {
-        url.searchParams.set("range", next);
-      }
-      window.history.replaceState(null, "", url.toString());
-    }
-
+  async function swap(next: HeatmapRange) {
+    if (next === range && !pending) return;
+    const id = ++requestId.current;
+    setPending(next);
+    setError("");
     try {
-      const next$ = await fetcher(next);
-      setHeatmap(next$);
+      const data = await fetcher(next);
+      if (id !== requestId.current) return;
+      setHeatmap(data);
+      const url = new URL(window.location.href);
+      url.searchParams.set("range", next);
+      window.history.replaceState(null, "", url.toString());
     } catch {
-      // keep existing data on error — re-flipping the toggle retries.
+      if (id === requestId.current) setError("Could not load this window. Please try again.");
     } finally {
-      setLoading(false);
+      if (id === requestId.current) setPending(null);
     }
   }
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-1 rounded-xl border border-zinc-800 bg-zinc-900 p-1 w-fit">
-        {RANGES.map((r) => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => void swap(r)}
-            className={[
-              "rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
-              r === range ? "bg-zinc-700 text-white shadow" : "text-zinc-400 hover:text-zinc-200",
-            ].join(" ")}
+    <section
+      id="activity"
+      aria-label={title}
+      className="scroll-mt-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-4 sm:p-6"
+    >
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-base font-semibold">{title}</h2>
+          <p className="mt-1 text-xs text-zinc-500">
+            {range === "4w" ? "Your recent momentum" : "A quarter of building with AI"}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div
+            className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900 p-1"
+            aria-label="Activity window"
           >
-            {RANGE_LABELS[r]}
-          </button>
-        ))}
+            {(["4w", "12w"] as const).map((r) => (
+              <button
+                key={r}
+                type="button"
+                aria-pressed={(pending ?? range) === r}
+                onClick={() => void swap(r)}
+                className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${r === (pending ?? range) ? "bg-zinc-700 text-white shadow" : "text-zinc-400 hover:text-zinc-200"}`}
+              >
+                {r === "4w" ? "4 weeks" : "12 weeks"}
+              </button>
+            ))}
+          </div>
+          {handle && (
+            <ProfileShareButton
+              handle={handle}
+              activityRange={range}
+              label="Share progress"
+              publicProfile={publicProfile}
+              compact
+              shareText={`${heatmap.summary.activeDays} active days in the last ${range === "12w" ? 12 : 4} weeks. ${heatmap.summary.changePercent === null ? activityGrowthLabel(heatmap) : `AI usage ${activityGrowthLabel(heatmap)} versus the previous ${range === "12w" ? 12 : 4} weeks.`}`}
+            />
+          )}
+        </div>
       </div>
-      <div className={`transition-opacity duration-150 ${loading ? "opacity-40" : "opacity-100"}`}>
-        <Heatmap heatmap={heatmap} range={range} title={title} />
+      <div
+        aria-busy={pending !== null}
+        className={`transition-opacity ${pending ? "opacity-40" : "opacity-100"}`}
+      >
+        <Heatmap heatmap={heatmap} />
       </div>
-    </div>
+      {error && (
+        <p role="alert" className="mt-3 text-sm text-orange-300">
+          {error}
+        </p>
+      )}
+      <p className="mt-5 border-t border-zinc-800 pt-3 text-[11px] text-zinc-500">
+        Today outlined · UTC · 12-week color scale
+      </p>
+    </section>
   );
 }

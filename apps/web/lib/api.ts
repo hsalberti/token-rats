@@ -190,10 +190,10 @@ export async function getAutobiography(
   });
 }
 
-/** Get the calendar heatmap for a user's public profile. Default range is 30d. */
+/** Get the calendar heatmap for a user's public profile. Default range is 4w. */
 export async function getHeatmap(
   handle: string,
-  range: HeatmapRange = "30d",
+  range: HeatmapRange = "4w",
   cookieHeader?: string,
 ): Promise<GetHeatmapResponse> {
   const url = `${ENDPOINTS.profileHeatmap(handle)}?range=${range}`;
@@ -211,7 +211,7 @@ export async function getRoomSummary(
 /** Group activity heatmap for a room. */
 export async function getRoomHeatmap(
   code: RoomCode,
-  range: HeatmapRange = "30d",
+  range: HeatmapRange = "4w",
   cookieHeader?: string,
 ): Promise<GetHeatmapResponse> {
   const url = `${ENDPOINTS.roomHeatmap(code)}?range=${range}`;

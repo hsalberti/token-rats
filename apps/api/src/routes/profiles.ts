@@ -6,7 +6,13 @@
  * Returns user info + today/week/allTime token + cost totals
  * aggregated from daily_rollup.
  */
-import { type ProfileShare, ProfileShareQuery } from "@token-rats/contracts";
+import {
+  GetHeatmapQuery,
+  type ProfileShare,
+  ProfileShareQuery,
+  activityBounds,
+  buildActivityHeatmap,
+} from "@token-rats/contracts";
 import { Hono } from "hono";
 import type { Env } from "../env.js";
 import { notFound, validationError } from "../lib/errors.js";
@@ -420,10 +426,10 @@ function weekStart(yyyy_mm_dd: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
-/* GET /v1/u/:handle/heatmap?range=30d|52w                                    */
+/* GET /v1/u/:handle/heatmap?range=4w|12w                                    */
 /* -------------------------------------------------------------------------- */
 /* Returns the requested range of `(day, tokens, sessions)` for the calendar  */
-/* heatmap. 30d (default) = trailing 30 days; 52w = trailing 364 days. Same   */
+/* heatmap. 4w (default) = trailing 28 days; 12w = trailing 84 days. Same   */
 /* visibility gates as the main profile. Missing days are omitted; the client */
 /* fills zeros.                                                               */
 /* -------------------------------------------------------------------------- */
@@ -445,26 +451,27 @@ profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
     return notFound(c, "This profile is private");
   }
 
-  const rangeParam = new URL(c.req.url).searchParams.get("range") ?? "30d";
-  const range: "30d" | "52w" = rangeParam === "52w" ? "52w" : "30d";
-  // 30d → 29 days back so today + 29 = 30 cells; 52w → 363 days back so 52×7.
-  const daysBack = range === "52w" ? 363 : 29;
-
-  const today = new Date();
-  const from = new Date(today);
-  from.setUTCDate(from.getUTCDate() - daysBack);
-  const fromDay = from.toISOString().slice(0, 10);
+  const parsed = GetHeatmapQuery.safeParse(c.req.query());
+  if (!parsed.success) return validationError(c, parsed.error.issues);
+  const { range } = parsed.data;
+  const to = new Date(Date.now()).toISOString().slice(0, 10);
+  const { queryFrom } = activityBounds(range, to);
+  const first = await c.env.DB.prepare(
+    "SELECT MIN(day) AS day FROM daily_rollup WHERE user_id = ? AND day <= ?",
+  )
+    .bind(user.id, to)
+    .first<{ day: string | null }>();
 
   const result = await c.env.DB.prepare(
     `SELECT day,
             SUM(tokens)   AS tokens,
             SUM(sessions) AS sessions
        FROM daily_rollup
-      WHERE user_id = ? AND day >= ?
+      WHERE user_id = ? AND day >= ? AND day <= ?
       GROUP BY day
       ORDER BY day`,
   )
-    .bind(user.id, fromDay)
+    .bind(user.id, queryFrom, to)
     .all<{ day: string; tokens: number; sessions: number }>();
 
   const days = (result.results ?? []).map((r) => ({
@@ -473,14 +480,7 @@ profiles.get("/:handle/heatmap", optionalAuth, async (c) => {
     sessions: r.sessions,
   }));
 
-  return c.json({
-    heatmap: {
-      range,
-      from: fromDay,
-      to: today.toISOString().slice(0, 10),
-      days,
-    },
-  });
+  return c.json({ heatmap: buildActivityHeatmap(range, days, first?.day ?? null, to) });
 });
 
 export default profiles;

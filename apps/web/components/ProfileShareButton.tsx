@@ -1,6 +1,10 @@
 "use client";
 
-import { type ProfileShareQuery, profileShareSearch } from "@token-rats/contracts";
+import {
+  type HeatmapRange,
+  type ProfileShareQuery,
+  profileShareSearch,
+} from "@token-rats/contracts";
 import { useEffect, useRef, useState } from "react";
 
 export function ProfileShareButton({
@@ -8,11 +12,17 @@ export function ProfileShareButton({
   selection = {},
   label = "Share profile",
   publicProfile = true,
+  activityRange,
+  shareText,
+  compact = false,
 }: {
   handle: string;
   selection?: ProfileShareQuery;
   label?: string;
   publicProfile?: boolean;
+  activityRange?: HeatmapRange;
+  shareText?: string;
+  compact?: boolean;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const [open, setOpen] = useState(false);
@@ -22,8 +32,13 @@ export function ProfileShareButton({
   const [message, setMessage] = useState("");
   const [attempt, setAttempt] = useState(0);
   const query = profileShareSearch(selection);
-  const imagePath = `/cards/u/${encodeURIComponent(handle)}${query}`;
-  const sharePath = `/u/${encodeURIComponent(handle)}/share${query}`;
+  const imagePath = activityRange
+    ? `/cards/u/${encodeURIComponent(handle)}/activity?range=${activityRange}`
+    : `/cards/u/${encodeURIComponent(handle)}${query}`;
+  const sharePath = activityRange
+    ? `/u/${encodeURIComponent(handle)}?range=${activityRange}&share=activity#activity`
+    : `/u/${encodeURIComponent(handle)}/share${query}`;
+  const weeks = activityRange === "12w" ? 12 : 4;
 
   useEffect(() => {
     if (!open || !publicProfile) return;
@@ -69,7 +84,7 @@ export function ProfileShareButton({
     try {
       // Prepare the file ahead of time so the share call retains the click gesture.
       if (navigator.canShare?.({ files: [file] }) && navigator.share) {
-        await navigator.share({ files: [file], title: `@${handle} · Token Rats` });
+        await navigator.share({ files: [file], title: `@${handle} · Token Rats`, text: shareText });
       } else {
         download();
         setMessage("Image downloaded. Attach it to your post.");
@@ -83,7 +98,11 @@ export function ProfileShareButton({
   async function copyLink() {
     try {
       await navigator.clipboard.writeText(new URL(sharePath, window.location.origin).href);
-      setMessage("Link copied — it includes the lines you selected.");
+      setMessage(
+        activityRange
+          ? "Link copied — it opens this activity window."
+          : "Link copied — it includes the lines you selected.",
+      );
     } catch {
       setMessage("Open the share page below and copy its address.");
     }
@@ -98,7 +117,7 @@ export function ProfileShareButton({
           setMessage("");
           dialog.current?.showModal();
         }}
-        className="inline-flex items-center justify-center gap-2 rounded-lg bg-rat-500 px-4 py-2 text-sm font-semibold text-black transition-colors hover:bg-rat-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rat-500"
+        className={`inline-flex items-center justify-center gap-1.5 rounded-lg font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-rat-500 ${compact ? "border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-300 hover:bg-zinc-800" : "bg-rat-500 px-4 py-2 text-sm text-black hover:bg-rat-400"}`}
       >
         <svg
           width="16"
@@ -115,15 +134,21 @@ export function ProfileShareButton({
       </button>
       <dialog
         ref={dialog}
-        aria-label="Share your Token Rats profile"
+        aria-label={activityRange ? "Share your AI progress" : "Share your Token Rats profile"}
         onClose={() => setOpen(false)}
         className="m-auto max-h-[90dvh] w-[min(920px,calc(100%-2rem))] overflow-y-auto rounded-2xl border border-zinc-700 bg-zinc-950 p-5 text-zinc-100 shadow-2xl backdrop:bg-black/80 sm:p-7"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold">Your agent brief, ready to share.</h2>
+            <h2 className="text-xl font-bold">
+              {activityRange
+                ? "Your AI progress, ready to share."
+                : "Your agent brief, ready to share."}
+            </h2>
             <p className="mt-1 text-sm text-zinc-400">
-              30 days of tokens. Your favorite instructions.
+              {activityRange
+                ? `${weeks} weeks of activity, momentum, and consistency.`
+                : "30 days of tokens. Your favorite instructions."}
             </p>
           </div>
           <button
@@ -149,7 +174,11 @@ export function ProfileShareButton({
                 src={preview}
                 width={1200}
                 height={630}
-                alt={`@${handle}'s last 30 days and favorite agent instructions`}
+                alt={
+                  activityRange
+                    ? `@${handle}'s AI activity over the last ${weeks} weeks`
+                    : `@${handle}'s last 30 days and favorite agent instructions`
+                }
                 className="h-auto w-full rounded-xl border border-zinc-800"
               />
             ) : (
@@ -185,7 +214,6 @@ export function ProfileShareButton({
               </button>
               <button
                 type="button"
-                disabled={!file}
                 onClick={copyLink}
                 className="rounded-lg border border-zinc-700 px-4 py-2.5 text-sm disabled:opacity-40"
               >
@@ -193,7 +221,9 @@ export function ProfileShareButton({
               </button>
             </div>
             <p className="mt-3 text-xs text-zinc-500">
-              Top model and provider are ranked by tokens used in the last 30 days.
+              {activityRange
+                ? "Progress compares equal periods. Today is included; dates use UTC."
+                : "Top model and provider are ranked by tokens used in the last 30 days."}
             </p>
             <a
               href={sharePath}

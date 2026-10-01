@@ -1,10 +1,11 @@
+import { GetHeatmapQuery, activityBounds, buildActivityHeatmap } from "@token-rats/contracts";
 /**
  * Public room aggregate endpoints — mounted at /v1/r.
  *
  *   GET /v1/r/:code/summary       — Members · 30d tokens · 30d cost.
  *                                   Auth optional; aggregates are intentionally
  *                                   public to anyone with the room URL.
- *   GET /v1/r/:code/heatmap       — 30d|52w bucket data for the group heatmap.
+ *   GET /v1/r/:code/heatmap       — 4w|12w bucket data for the group heatmap.
  *                                   Auth required for private rooms; open for
  *                                   public rooms (feature #6).
  *   GET /v1/r/:code/group-streak  — current consecutive-day count where ≥1
@@ -26,7 +27,7 @@
  */
 import { Hono } from "hono";
 import type { Env } from "../env.js";
-import { notFound } from "../lib/errors.js";
+import { notFound, validationError } from "../lib/errors.js";
 import type { AuthVariables } from "../middleware/auth.js";
 import { optionalAuth } from "../middleware/auth.js";
 
@@ -138,7 +139,7 @@ roomAggregates.get("/:code/summary", optionalAuth, async (c) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* GET /v1/r/:code/heatmap?range=30d|52w                                      */
+/* GET /v1/r/:code/heatmap?range=4w|12w                                      */
 /* -------------------------------------------------------------------------- */
 
 roomAggregates.get("/:code/heatmap", optionalAuth, async (c) => {
@@ -156,14 +157,15 @@ roomAggregates.get("/:code/heatmap", optionalAuth, async (c) => {
     }
   }
 
-  const rangeParam = new URL(c.req.url).searchParams.get("range") ?? "30d";
-  const range: "30d" | "52w" = rangeParam === "52w" ? "52w" : "30d";
-  const daysBack = range === "52w" ? 363 : 29;
-
-  const today = new Date();
-  const from = new Date(today);
-  from.setUTCDate(from.getUTCDate() - daysBack);
-  const fromDay = from.toISOString().slice(0, 10);
+  const parsed = GetHeatmapQuery.safeParse(c.req.query());
+  if (!parsed.success) return validationError(c, parsed.error.issues);
+  const { range } = parsed.data;
+  const to = new Date(Date.now()).toISOString().slice(0, 10);
+  const { queryFrom } = activityBounds(range, to);
+  const first = await c.env.DB.prepare(`SELECT MIN(dr.day) AS day FROM daily_rollup dr
+    JOIN room_members rm ON rm.user_id = dr.user_id AND rm.room_id = ? WHERE dr.day <= ?`)
+    .bind(room.id, to)
+    .first<{ day: string | null }>();
 
   const result = await c.env.DB.prepare(
     `SELECT dr.day,
@@ -172,11 +174,11 @@ roomAggregates.get("/:code/heatmap", optionalAuth, async (c) => {
        FROM daily_rollup dr
        JOIN room_members rm
          ON rm.user_id = dr.user_id AND rm.room_id = ?
-      WHERE dr.day >= ?
+      WHERE dr.day >= ? AND dr.day <= ?
       GROUP BY dr.day
       ORDER BY dr.day`,
   )
-    .bind(room.id, fromDay)
+    .bind(room.id, queryFrom, to)
     .all<{ day: string; tokens: number; sessions: number }>();
 
   const days = (result.results ?? []).map((r) => ({
@@ -185,14 +187,7 @@ roomAggregates.get("/:code/heatmap", optionalAuth, async (c) => {
     sessions: r.sessions,
   }));
 
-  return c.json({
-    heatmap: {
-      range,
-      from: fromDay,
-      to: today.toISOString().slice(0, 10),
-      days,
-    },
-  });
+  return c.json({ heatmap: buildActivityHeatmap(range, days, first?.day ?? null, to) });
 });
 
 /* -------------------------------------------------------------------------- */

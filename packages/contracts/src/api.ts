@@ -112,8 +112,8 @@ export const HeatmapDay = z.object({
 });
 export type HeatmapDay = z.infer<typeof HeatmapDay>;
 
-/** Range for heatmap queries — 30d is the default everywhere. */
-export const HeatmapRange = z.enum(["30d", "52w"]);
+/** Recent momentum or a quarter of consistent activity. */
+export const HeatmapRange = z.enum(["4w", "12w"]);
 export type HeatmapRange = z.infer<typeof HeatmapRange>;
 
 export const Heatmap = z.object({
@@ -121,11 +121,21 @@ export const Heatmap = z.object({
   from: z.string(), // YYYY-MM-DD UTC, inclusive
   to: z.string(), // YYYY-MM-DD UTC, inclusive
   days: z.array(HeatmapDay),
+  scaleMax: z.number().nonnegative(),
+  summary: z.object({
+    tokens: z.number().nonnegative(),
+    activeDays: z.number().int().nonnegative(),
+    totalDays: z.number().int().positive(),
+    weeklyTokens: z.number().nonnegative(),
+    activeDaysPerWeek: z.number().nonnegative(),
+    changePercent: z.number().nullable(),
+    comparison: z.enum(["available", "new", "no-baseline"]),
+  }),
 });
 export type Heatmap = z.infer<typeof Heatmap>;
 
 export const GetHeatmapQuery = z.object({
-  range: HeatmapRange.default("30d"),
+  range: HeatmapRange.default("4w"),
 });
 export type GetHeatmapQuery = z.infer<typeof GetHeatmapQuery>;
 

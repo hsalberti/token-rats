@@ -5,6 +5,7 @@ export * from "./room.js";
 export * from "./leaderboard.js";
 export * from "./streaks.js";
 export * from "./api.js";
+export * from "./activity.js";
 export * from "./errors.js";
 export * from "./notifications.js";
 export * from "./live.js";

@@ -12,12 +12,20 @@ import { HeatmapWithToggle } from "./HeatmapWithToggle";
 interface Props {
   handle: string;
   initial: Heatmap;
+  publicProfile?: boolean;
 }
 
-export function ProfileHeatmapClient({ handle, initial }: Props) {
+export function ProfileHeatmapClient({ handle, initial, publicProfile }: Props) {
   async function fetcher(range: HeatmapRange) {
     const res = await api.getHeatmap(handle, range);
     return res.heatmap;
   }
-  return <HeatmapWithToggle initial={initial} fetcher={fetcher} />;
+  return (
+    <HeatmapWithToggle
+      initial={initial}
+      fetcher={fetcher}
+      handle={handle}
+      publicProfile={publicProfile}
+    />
+  );
 }

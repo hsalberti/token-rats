@@ -1,45 +1,134 @@
-import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
-/**
- * Spec 3: Heatmap range toggle.
- *
- * `/u/<handle>` and `/r/<code>` default to 30d; clicking the 52w toggle
- * swaps the data live and updates `?range=` in the URL.
- *
- * Real assertion requires a seeded user + room — see the wrangler harness
- * scaffold. Without it, we verify the URL-sync contract by hitting a
- * profile that we know responds (any public handle returned by /v1/trending
- * works; we read it from /v1/trending to avoid hard-coding).
- *
- * SKIP if no public profiles are available — the page would render the
- * "private" state and the toggle wouldn't appear.
- */
+const api = process.env.PLAYWRIGHT_API_BASE_URL ?? "http://127.0.0.1:8787";
 
-test("heatmap toggle swaps `?range=` on a public profile", async ({ page, request }) => {
-  const trendingRes = await request.get("/api/v1/trending?range=7d").catch(() => null);
-  if (!trendingRes || !trendingRes.ok()) {
-    test.skip(true, "No trending API on the web origin; harness work needed.");
-  }
-  const trending = (await trendingRes?.json()) as { rows?: Array<{ handle: string }> };
-  const firstHandle = trending.rows?.[0]?.handle;
-  if (!firstHandle) {
-    test.skip(true, "No public profiles available in this environment.");
-    return;
-  }
+async function publicHandle(request: APIRequestContext) {
+  if (process.env.TOKEN_RATS_ACTIVITY_E2E_HANDLE) return process.env.TOKEN_RATS_ACTIVITY_E2E_HANDLE;
+  const response = await request.get(`${api}/v1/trending?range=7d`).catch(() => null);
+  if (!response?.ok()) return null;
+  const data = (await response.json()) as { rows?: Array<{ handle: string }> };
+  return data.rows?.[0]?.handle ?? null;
+}
 
-  await page.goto(`/u/${firstHandle}`);
+test("activity windows show every day including today without scrolling", async ({
+  page,
+  request,
+}, info) => {
+  const handle = await publicHandle(request);
+  test.skip(!handle, "Requires a public profile or TOKEN_RATS_ACTIVITY_E2E_HANDLE.");
+  await page.goto(`/u/${handle}`);
+  const activity = page.locator("#activity");
+  await expect(activity).toBeVisible();
+  await activity.scrollIntoViewIfNeeded();
+  await expect(activity.getByRole("button", { name: "4 weeks", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await expect(activity.locator("rect")).toHaveCount(28);
+  await expect(activity.locator('rect[aria-label^="Today,"]')).toHaveCount(1);
+  const last = activity.locator('rect[aria-label^="Today,"]');
+  expect(
+    await last.evaluate((el) => {
+      const cell = el.getBoundingClientRect();
+      const card = el.closest("section")!.getBoundingClientRect();
+      return (
+        cell.width > 0 &&
+        cell.left >= card.left &&
+        cell.right <= card.right &&
+        cell.right <= window.innerWidth
+      );
+    }),
+  ).toBe(true);
+  await activity.getByRole("button", { name: "12 weeks", exact: true }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("range")).toBe("12w");
+  await expect(activity.locator("rect")).toHaveCount(84);
+  expect(
+    await last.evaluate((el) => {
+      const cell = el.getBoundingClientRect();
+      const card = el.closest("section")!.getBoundingClientRect();
+      return (
+        cell.width > 0 &&
+        cell.left >= card.left &&
+        cell.right <= card.right &&
+        cell.right <= window.innerWidth
+      );
+    }),
+  ).toBe(true);
+  expect(await activity.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(
+    true,
+  );
+  await activity.screenshot({
+    path: info.outputPath("activity-12-weeks.png"),
+    animations: "disabled",
+  });
+  await page.reload();
+  await expect(activity.getByRole("button", { name: "12 weeks", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await activity.getByRole("button", { name: "4 weeks", exact: true }).click();
+  await expect.poll(() => new URL(page.url()).searchParams.get("range")).toBe("4w");
+  await expect(activity.getByRole("button", { name: "4 weeks", exact: true })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await activity.screenshot({
+    path: info.outputPath("activity-4-weeks.png"),
+    animations: "disabled",
+  });
+});
 
-  // Default — 30d.
-  const toggle52 = page.getByRole("button", { name: /52 weeks/i });
-  if (!(await toggle52.isVisible().catch(() => false))) {
-    test.skip(true, "Heatmap not rendered for this profile (no synced data).");
-  }
-
-  await toggle52.click();
-  // Wait for URL update from history.replaceState.
-  await expect.poll(async () => new URL(page.url()).searchParams.get("range")).toBe("52w");
-
-  // Flip back to 30d — bare URL (no `?range=`).
-  await page.getByRole("button", { name: /30 days/i }).click();
-  await expect.poll(async () => new URL(page.url()).searchParams.get("range")).toBe(null);
+test("share progress previews a real PNG and links to the selected activity window", async ({
+  page,
+  request,
+}, info) => {
+  test.setTimeout(90000);
+  const handle = await publicHandle(request);
+  test.skip(!handle, "Requires a public profile or TOKEN_RATS_ACTIVITY_E2E_HANDLE.");
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: {
+        writeText: async (text: string) => {
+          document.documentElement.dataset.copied = text;
+        },
+      },
+    });
+    Object.defineProperty(navigator, "canShare", { configurable: true, value: () => true });
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data: ShareData) => {
+        document.documentElement.dataset.shared = data.files?.[0]?.name;
+        document.documentElement.dataset.gesture = String(navigator.userActivation.isActive);
+      },
+    });
+  });
+  await page.goto(`/u/${handle}?range=12w#activity`);
+  await page.locator("#activity").getByRole("button", { name: "Share progress" }).click();
+  const dialog = page.getByRole("dialog", { name: "Share your AI progress" });
+  await expect(dialog.getByRole("img")).toBeVisible({ timeout: 45000 });
+  await expect(dialog.getByText("12 weeks of activity, momentum, and consistency.")).toBeVisible();
+  await dialog.getByRole("button", { name: "Share image" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-shared", `token-rats-${handle}.png`);
+  await expect(page.locator("html")).toHaveAttribute("data-gesture", "true");
+  const download = page.waitForEvent("download");
+  await dialog.getByRole("button", { name: "Download PNG" }).click();
+  const path = info.outputPath("activity-share.png");
+  await (await download).saveAs(path);
+  const png = await readFile(path);
+  expect(png.subarray(0, 8).toString("hex")).toBe("89504e470d0a1a0a");
+  expect(png.readUInt32BE(16)).toBe(1200);
+  expect(png.readUInt32BE(20)).toBe(630);
+  await dialog.getByRole("button", { name: "Copy link" }).click();
+  const copied = await page.locator("html").getAttribute("data-copied");
+  expect(copied).toContain("range=12w&share=activity#activity");
+  await page.goto(copied!);
+  await expect(page.locator("#activity")).toBeInViewport();
+  await expect(page.locator('#activity button[aria-pressed="true"]')).toHaveText("12 weeks");
+  await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
+    "content",
+    /\/activity\?range=12w/,
+  );
 });
