@@ -43,7 +43,7 @@ const GithubProjects = z
 
 export const AgentSoftware = z
   .object({
-    id: z.enum(["paseo", "orca", "proprietary", "other"]),
+    id: z.enum(["paseo", "codex", "orca", "proprietary", "other"]),
     name: z.string().trim().min(1).max(40).optional(),
     logoUrl: z.string().url().startsWith("https://").max(500).optional(),
   })

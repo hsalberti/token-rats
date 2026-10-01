@@ -2,6 +2,7 @@ import type { AgentSoftware } from "@token-rats/contracts";
 
 const details = {
   paseo: { label: "Paseo", icon: "/agent-software/paseo.svg" },
+  codex: { label: "Codex", icon: "/providers/codex.svg" },
   orca: { label: "Orca", icon: "/agent-software/orca.png" },
   proprietary: { label: "Proprietary", icon: "/agent-software/proprietary.svg" },
   other: { label: "Other", icon: null },

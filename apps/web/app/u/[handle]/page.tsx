@@ -229,12 +229,28 @@ export default async function ProfilePage({ params, searchParams }: Props) {
           selection={publicVersion ? { version: publicVersion.id } : {}}
           publicProfile={profile.publicProfile !== false}
         />
-        {profile.agentSoftware && profile.agentSoftware.length > 0 && (
+        {(profile.agentSoftware?.length || currentUser?.handle === profile.handle) && (
           <section className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
-              Agent control centers
-            </h2>
-            <AgentSoftwareBadges software={profile.agentSoftware} />
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold uppercase tracking-widest text-zinc-500">
+                Agent software
+              </h2>
+              {currentUser?.handle === profile.handle && (
+                <a
+                  href="/settings/profile#agent-control-centers"
+                  className="text-sm text-rat-400 hover:underline"
+                >
+                  {profile.agentSoftware?.length ? "Edit badges" : "Add badges"}
+                </a>
+              )}
+            </div>
+            {profile.agentSoftware?.length ? (
+              <AgentSoftwareBadges software={profile.agentSoftware} />
+            ) : (
+              <p className="text-sm text-zinc-400">
+                Choose your agent software badges to show them here.
+              </p>
+            )}
           </section>
         )}
         <ProfileSetups

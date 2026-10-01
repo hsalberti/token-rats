@@ -12,6 +12,7 @@ describe("PatchMeRequest validation", () => {
       PatchMeRequest.safeParse({
         agentSoftware: [
           { id: "paseo" },
+          { id: "codex" },
           { id: "orca" },
           { id: "proprietary", name: "My dashboard" },
           { id: "other", name: "Another app", logoUrl: "https://example.com/logo.svg" },

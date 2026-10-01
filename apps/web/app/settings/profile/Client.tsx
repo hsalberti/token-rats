@@ -265,18 +265,22 @@ export function ProfileSettingsClient({
       </section>
 
       {/* Agent control center badges */}
-      <section className="space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+      <section
+        id="agent-control-centers"
+        className="scroll-mt-8 space-y-3 rounded-xl border border-zinc-800 bg-zinc-900 p-5"
+      >
         <div>
-          <p className="font-semibold text-zinc-100">Agent control centers</p>
+          <p className="font-semibold text-zinc-100">Agent software</p>
           <p className="mt-1 text-sm text-zinc-400">
-            Choose the software you use to run agents. These profile badges are self selected.
+            Choose the software you use with agents. These profile badges are self selected.
           </p>
         </div>
         <div className="space-y-2">
-          {(["paseo", "orca", "proprietary", "other"] as const).map((id) => {
+          {(["paseo", "codex", "orca", "proprietary", "other"] as const).map((id) => {
             const selected = agentSoftware.find((item) => item.id === id);
             const label = {
               paseo: "Paseo",
+              codex: "Codex",
               orca: "Orca",
               proprietary: "My own control center",
               other: "Other software",
@@ -303,6 +307,19 @@ export function ProfileSettingsClient({
                       )
                     }
                   />
+                  {id !== "other" && (
+                    <img
+                      src={
+                        id === "codex"
+                          ? "/providers/codex.svg"
+                          : `/agent-software/${id === "orca" ? "orca.png" : `${id}.svg`}`
+                      }
+                      alt=""
+                      width={24}
+                      height={24}
+                      className="h-6 w-6 rounded object-contain"
+                    />
+                  )}
                   {label}
                 </label>
                 {selected && (id === "other" || id === "proprietary") && (
